@@ -1,0 +1,373 @@
+/* ==========================================================================
+   FAROL RI SECTION - Premium Indicator Cards & Table
+   ========================================================================== */
+
+/* ==========================================================================
+   KPI CARDS - MacOS Glassmorphism Style
+   ========================================================================== */
+
+.farol-card-macos {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  border-radius: 16px;
+  padding: 20px;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.farol-card-macos:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+/* Subtle gradient overlay on hover */
+.farol-card-macos::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.farol-card-macos:hover::after {
+  opacity: 1;
+}
+
+.farol-card-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-family: "Inter", sans-serif;
+}
+
+.farol-card-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  font-family: "DIN", sans-serif;
+  color: #1e293b;
+  line-height: 1;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.macos-card-icon-container {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Background color will be set inline for dynamic colors */
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.macos-card-icon {
+  font-size: 1.5rem;
+  /* Color set inline */
+}
+
+/* Trend Indicator pill */
+.farol-trend-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: "DIN", sans-serif;
+  margin-top: 4px;
+}
+
+.farol-section {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.farol-summary-card {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+}
+
+.farol-summary-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12) !important;
+}
+
+.farol-card-number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  transition: transform 0.3s ease;
+}
+
+.farol-summary-card:hover .farol-card-number {
+  transform: scale(1.1);
+}
+
+/* ==========================================================================
+   FAROL TABLE - MacOS Minimalist Style
+   ========================================================================== */
+
+/* Main Container */
+.farol-table-macos {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.farol-table-macos:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+}
+
+/* Header */
+.farol-table-header-macos {
+  background-color: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.farol-table-header-macos th {
+  font-family: "Inter", "Ubuntu", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+  padding: 16px 12px;
+  border: none;
+  vertical-align: middle;
+}
+
+/* Header Icons */
+.farol-header-icon {
+  font-size: 1rem;
+  color: #94a3b8;
+  margin-right: 8px;
+  vertical-align: middle;
+  transition: color 0.2s;
+}
+
+.farol-table-header-macos th:hover .farol-header-icon {
+  color: var(--edenred-red);
+}
+
+/* Body Rows */
+.farol-table-row-macos {
+  transition: all 0.2s ease;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.farol-table-row-macos:last-child {
+  border-bottom: none;
+}
+
+.farol-table-row-macos:hover {
+  background-color: #f8fafc;
+  transform: scale(1.002);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+  z-index: 10;
+  position: relative;
+}
+
+.farol-table-row-macos td {
+  padding: 14px 12px;
+  color: #334155;
+  font-size: 0.875rem;
+  vertical-align: middle;
+  border: none;
+}
+
+/* Cells Specific Styling */
+.farol-cell-chave {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.farol-cell-value-success {
+  color: #10b981;
+  font-weight: 600;
+  font-family: "DIN", sans-serif;
+}
+
+.farol-cell-value-neutral {
+  color: #3b82f6;
+  font-weight: 600;
+  font-family: "DIN", sans-serif;
+}
+
+.farol-cell-money {
+  font-family: "DIN", sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* Status Badges - MacOS Style (Pill inside glass) */
+.farol-badge-score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: "DIN", sans-serif;
+  min-width: 32px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.farol-badge-score.high {
+  background: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+  border: 1px solid rgba(220, 53, 69, 0.2);
+}
+
+.farol-badge-score.medium {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.farol-badge-score.low {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+/* Status Dots */
+.farol-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+/* ==========================================================================
+   PREMIUM TOGGLE - Segmented Control (Moved from components.css)
+   ========================================================================== */
+
+.premium-toggle-container {
+  background-color: #f1f5f9;
+  border-radius: 12px;
+  padding: 4px;
+  display: inline-flex;
+  position: relative;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+}
+
+.premium-toggle-btn {
+  padding: 8px 24px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-weight: 600;
+  font-family: "DIN", sans-serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 2;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.premium-toggle-btn:hover {
+  color: #334155;
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+.premium-toggle-btn.active {
+  background-color: white !important;
+  color: var(--edenred-red) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.premium-toggle-btn.active-oportunidade {
+  color: #d97706 !important; /* Amber-600 */
+}
+
+/* ==========================================================================
+   CUSTOM SWITCH BRANDING
+   ========================================================================== */
+
+/* Container do switch */
+.custom-switch {
+  font-family: "DIN", sans-serif !important;
+  font-size: 0.9rem !important;
+  color: #64748b !important;
+  font-weight: 500 !important;
+  display: flex;
+  align-items: center;
+}
+
+/* O toggle (input) em si */
+.custom-switch .form-check-input {
+  background-color: #e2e8f0;
+  border-color: #cbd5e1;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e");
+  width: 2.5em !important;
+  height: 1.5em !important;
+  margin-right: 0.75em !important;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease-in-out,
+    border-color 0.2s ease-in-out;
+}
+
+/* Estado Focus - remover sombra azul padrão do Bootstrap */
+.custom-switch .form-check-input:focus {
+  border-color: #cbd5e1;
+  box-shadow: 0 0 0 0.25rem rgba(226, 6, 19, 0.1); /* Sombra vermelha bem suave */
+}
+
+/* Estado Checked (Ativo) - EDENRED RED */
+.custom-switch .form-check-input:checked {
+  background-color: #e20613 !important;
+  border-color: #e20613 !important;
+}
+
+/* Label do switch */
+.custom-switch .form-check-label {
+  cursor: pointer;
+  padding-top: 2px; /* Alinhamento visual fino */
+}
+
+/* Hover no switch */
+.custom-switch:hover .form-check-label {
+  color: #334155 !important;
+}

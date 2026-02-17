@@ -1,0 +1,52 @@
+/* ==========================================================================
+   MACOS MODAL STYLES - Glassmorphism & horizontal layout
+   ========================================================================== */
+
+.macos-modal-content {
+    border-radius: 16px !important;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    background: rgba(255, 255, 255, 0.85); /* fallback */
+}
+
+.macos-modal-header {
+    background: transparent !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+    padding: 16px 24px !important;
+}
+
+.macos-modal-body {
+    padding: 24px !important;
+}
+
+.macos-card {
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+
+.macos-card:hover {
+    background: rgba(255, 255, 255, 0.9);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.06);
+}
+
+.macos-section-title {
+    font-family: inherit; /* Use default system font or DIN if preferred */
+    font-weight: 600;
+    color: #334155;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
