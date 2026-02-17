@@ -1,0 +1,33 @@
+# Agent & System Metadata
+.agent/
+.vscode/
+.databricks/
+.pytest_cache/
+
+# Data files (parquet, DuckDB, exports)
+data/
+*.parquet
+*.duckdb
+
+# Data & Context Files
+Arquivos de contexto/
+*.csv
+*.xlsx
+*.pdf
+*.zip
+prod_logs.txt
+export_data.py
+
+# Debug files
+debug_*.py
+debug_*.txt
+
+# Python & Environment
+__pycache__/
+*.py[cod]
+.env
+venv/
+
+# Uploads
+uploads/
+

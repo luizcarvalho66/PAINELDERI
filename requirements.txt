@@ -1,0 +1,10 @@
+dash
+dash-bootstrap-components
+flask-caching
+duckdb
+pandas
+openpyxl
+databricks-sql-connector
+databricks-sdk
+requests
+gunicorn
