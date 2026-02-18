@@ -51,7 +51,7 @@ def get_ri_evolution_data(filters: dict = None):
     try:
         # Build dynamic WHERE clauses based on filters
         where_conditions_corr = ["c.data_transacao IS NOT NULL"]
-        where_conditions_prev = ["data_cadastro IS NOT NULL"]
+        where_conditions_prev = ["data_transacao IS NOT NULL"]
         
 
         if filters:

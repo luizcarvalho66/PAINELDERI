@@ -18,9 +18,13 @@ Arquivos de contexto/
 prod_logs.txt
 export_data.py
 
-# Debug files
+# Debug & diagnostic files
 debug_*.py
 debug_*.txt
+diag*.py
+diag*.txt
+check_*.py
+cleanup*.py
 
 # Python & Environment
 __pycache__/
