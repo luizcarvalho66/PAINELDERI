@@ -1,0 +1,78 @@
+/* ==========================================================================
+   CHART CARDS - Executive Dashboard Style
+   ========================================================================== */
+
+.chart-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    transition: all var(--transition-base);
+}
+
+.chart-card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    border-color: var(--border-medium);
+}
+
+.chart-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #F1F5F9;
+    background: linear-gradient(135deg, #FAFAFA 0%, #FFFFFF 100%);
+}
+
+.chart-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-main);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+.chart-card-body {
+    padding: 16px;
+}
+
+/* Metric Cards */
+.metric-card {
+    background-color: var(--bg-card) !important;
+    border: none !important;
+    border-radius: var(--radius-xl) !important;
+    box-shadow: var(--shadow-md) !important;
+    padding: var(--spacing-lg);
+    transition: transform var(--transition-base);
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+}
+
+/* Generic Card Styles */
+.card-professional {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-base);
+}
+
+.card-professional:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-medium);
+}
+
+/* PREMIUM KPI CARD - HOVER EFFECTS */
+.kpi-card-premium {
+    cursor: default;
+}
+
+.kpi-card-premium:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01) !important;
+    border-color: rgba(226, 6, 19, 0.3) !important; /* Subtle Edenred Glow */
+}

@@ -1,0 +1,104 @@
+/* ==========================================================================
+   COMPONENT STYLES - Reusable UI Components
+   Edenred Executive Branding
+   ========================================================================== */
+
+/* Navigation - General (excludes sidebar) */
+.nav-link:not(.sidebar-nav-link) {
+    color: var(--text-main) !important;
+    font-weight: 500;
+    border-radius: var(--radius-md) !important;
+    margin-bottom: var(--spacing-xs);
+    transition: all var(--transition-base);
+}
+
+.nav-link:not(.sidebar-nav-link):hover {
+    background-color: #F1F5F9 !important;
+}
+
+.nav-link:not(.sidebar-nav-link).active {
+    background-color: var(--edenred-red) !important;
+    color: white !important;
+}
+
+/* Section Title for Dashboard */
+.section-title-executive {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-main);
+    letter-spacing: -0.01em;
+    margin: 0;
+}
+
+/* ==========================================================================
+   DATA WARNING - Missing Data Alerts
+   ========================================================================== */
+
+.data-warning {
+    background: #FEF3C7;
+    border-left: 4px solid #F59E0B;
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.data-warning-icon {
+    color: #F59E0B;
+    font-size: 18px;
+}
+
+.data-warning-text {
+    font-size: 13px;
+    color: #92400E;
+    font-weight: 500;
+}
+
+/* Dashboard Header */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+}
+
+/* ==========================================================================
+   KPI CARD PREMIUM - Executive Style
+   ========================================================================== */
+
+.kpi-card-premium {
+    cursor: default;
+}
+
+.kpi-card-premium:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+    border-color: rgba(226, 232, 240, 1) !important;
+}
+
+/* Smooth entrance animation */
+@keyframes kpiSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.kpi-card-premium {
+    animation: kpiSlideUp 0.4s ease-out forwards;
+}
+
+/* Staggered animation for multiple cards */
+.kpi-card-premium:nth-child(1) { animation-delay: 0s; }
+.kpi-card-premium:nth-child(2) { animation-delay: 0.05s; }
+.kpi-card-premium:nth-child(3) { animation-delay: 0.1s; }
+.kpi-card-premium:nth-child(4) { animation-delay: 0.15s; }
+.kpi-card-premium:nth-child(5) { animation-delay: 0.2s; }
+.kpi-card-premium:nth-child(6) { animation-delay: 0.25s; }
+

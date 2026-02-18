@@ -1,0 +1,356 @@
+/* ==========================================================================
+   FILTER BAR STYLESHEET
+   Design Limpo e Executivo - Barra Horizontal Unificada
+   ========================================================================== */
+
+/* ==========================================================================
+   FILTER BAR CONTAINER
+   ========================================================================== */
+
+.filter-bar {
+    background: #ffffff;
+    border-radius: 24px; /* Premium Rounded */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); /* Smoother shadow */
+    border: 1px solid rgba(226, 6, 19, 0.05); /* Subtle red tint */
+    margin-bottom: 24px;
+    padding: 12px 24px;
+}
+
+.filter-bar-inner {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+/* Label da barra */
+.filter-bar-label {
+    display: flex;
+    align-items: center;
+    color: var(--edenred-red, #E20613);
+    font-weight: 700;
+    font-size: 14px;
+    white-space: nowrap;
+    padding-right: 16px;
+    border-right: 2px solid #f1f5f9;
+}
+
+/* ==========================================================================
+   FILTER FIELDS GRID
+   ========================================================================== */
+
+/* Force horizontal layout on desktop */
+.filter-bar-fields {
+    display: flex;
+    align-items: center;
+    gap: 32px; /* Espaço aumentado entre grupos */
+    flex: 1;
+    flex-wrap: nowrap; /* IMPEDIR QUEBRA DE LINHA */
+}
+
+/* Force horizontal group (Label + Input) */
+.filter-inline-group {
+    display: flex;
+    flex-direction: row !important; /* FORCAR LINHA */
+    align-items: center;
+    gap: 12px;
+    white-space: nowrap;
+}
+
+.filter-inline-group--toggle {
+    margin-left: 8px;
+}
+
+.filter-inline-label {
+    font-family: 'Ubuntu', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    margin-right: 4px; /* Garante espaço se gap falhar */
+}
+
+/* ==========================================================================
+   INLINE DROPDOWN STYLING
+   ========================================================================== */
+
+/* ==========================================================================
+   INLINE DROPDOWN STYLING
+   ========================================================================== */
+
+.filter-inline-dropdown {
+    width: 220px; /* Fixed robust width */
+    max-width: 300px;
+    flex-shrink: 0 !important; /* PREVENT SHRINKING */
+}
+
+.filter-inline-dropdown .Select-control {
+    border: 1px solid #f1f5f9 !important;
+    border-radius: 999px !important; /* Pill Shape */
+    min-height: 40px !important; /* Taller */
+    background: #f8fafc !important; /* Slight grey */
+    padding-left: 8px;
+    display: flex !important;
+    align-items: center;
+}
+
+/* Ensure placeholder and value are centered vertically */
+.filter-inline-dropdown .Select-placeholder, 
+.filter-inline-dropdown .Select-value {
+    line-height: 40px !important;
+    height: 40px !important;
+}
+
+.filter-inline-dropdown .Select-control:hover {
+    border-color: rgba(226, 6, 19, 0.3) !important;
+    background: white !important;
+}
+
+.filter-inline-dropdown .Select.is-focused .Select-control {
+    border-color: var(--edenred-red, #E20613) !important;
+    box-shadow: 0 0 0 4px rgba(226, 6, 19, 0.1) !important;
+    background: white !important;
+}
+
+.filter-inline-dropdown .Select-placeholder,
+.filter-inline-dropdown .Select-value-label {
+    font-size: 13px !important;
+    color: #475569 !important; /* Darker text */
+}
+
+.filter-inline-dropdown .Select-menu-outer {
+    border-radius: 12px !important;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15) !important;
+    border: 1px solid #e2e8f0 !important;
+    z-index: 1000 !important;
+    margin-top: 4px !important;
+}
+
+.filter-inline-dropdown .Select-option.is-focused {
+    background-color: rgba(226, 6, 19, 0.06) !important;
+}
+
+.filter-inline-dropdown .Select-option.is-selected {
+    background-color: var(--edenred-red, #E20613) !important;
+    color: white !important;
+}
+
+/* Multi-select tags */
+.filter-inline-dropdown .Select-value {
+    background-color: rgba(226, 6, 19, 0.08) !important;
+    border: 1px solid rgba(226, 6, 19, 0.15) !important;
+    border-radius: 4px !important;
+    font-size: 12px !important;
+}
+
+/* ==========================================================================
+   TOGGLE BUTTON GROUP
+   ========================================================================== */
+
+.filter-toggle-group {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.filter-toggle-group .btn {
+    font-size: 12px !important;
+    padding: 6px 12px !important;
+    font-weight: 500 !important;
+    border-radius: 0 !important;
+    transition: all 0.15s ease !important;
+}
+
+.filter-toggle-group .btn:first-child {
+    border-radius: 6px 0 0 6px !important;
+}
+
+.filter-toggle-group .btn:last-child {
+    border-radius: 0 6px 6px 0 !important;
+}
+
+.filter-toggle-group .btn-danger:not(.btn-outline-danger) {
+    background-color: var(--edenred-red, #E20613) !important;
+    border-color: var(--edenred-red, #E20613) !important;
+}
+
+.filter-toggle-group .btn-outline-secondary:hover {
+    background-color: #f1f5f9 !important;
+    color: #1e293b !important;
+}
+
+/* ==========================================================================
+   FILTER BAR ACTIONS
+   ========================================================================== */
+
+.filter-bar-actions {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+    padding-left: 16px;
+    border-left: 1px solid #e2e8f0;
+}
+
+.filter-bar-actions .btn {
+    font-size: 12px !important;
+    font-weight: 500 !important;
+}
+
+/* ==========================================================================
+   ACTIVE FILTERS INDICATOR
+   ========================================================================== */
+
+.active-filters-indicator {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
+    display: none; /* Hidden by default, shown when filters active */
+}
+
+.active-filters-indicator.has-filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.filter-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(226, 6, 19, 0.08);
+    border: 1px solid rgba(226, 6, 19, 0.12);
+    border-radius: 16px;
+    font-size: 11px;
+    color: #c00510;
+    font-weight: 500;
+}
+
+.filter-tag-label {
+    color: #64748b;
+    font-weight: 400;
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+/* Change breakpoint to only affect truly small screens (Mobile portrait) */
+@media (max-width: 576px) {
+    .filter-bar-inner {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filter-bar-label {
+        border-right: none;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 12px;
+        margin-bottom: 4px;
+    }
+    
+    .filter-bar-fields {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+    }
+    
+    .filter-inline-group {
+        flex-direction: column !important;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    
+    .filter-inline-dropdown {
+        width: 100%;
+        max-width: none;
+    }
+    
+    .filter-bar-actions {
+        margin-left: 0;
+        padding-left: 0;
+        border-left: none;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 12px;
+        justify-content: flex-end;
+    }
+}
+
+/* ==========================================================================
+   ANIMATIONS
+   ========================================================================== */
+
+.filter-bar {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==========================================================================
+   ADDITIONAL FILTER COMPONENTS (from components.css)
+   ========================================================================== */
+
+.filter-card {
+    background: linear-gradient(135deg, #FFFFFF 0%, #FAFAFA 100%);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 20px 24px;
+}
+
+.filter-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    display: block;
+}
+
+/* Dropdown Styling Override */
+.Select-control {
+    border-radius: 8px !important;
+    border-color: var(--border-light) !important;
+    transition: all var(--transition-base) !important;
+}
+
+.Select-control:hover {
+    border-color: var(--edenred-red) !important;
+}
+
+.Select.is-focused>.Select-control {
+    border-color: var(--edenred-red) !important;
+    box-shadow: 0 0 0 3px rgba(226, 6, 19, 0.1) !important;
+}
+
+/* Range Slider Edenred Colors */
+.rc-slider-track {
+    background-color: var(--edenred-red) !important;
+}
+
+.rc-slider-handle {
+    border-color: var(--edenred-red) !important;
+}
+
+.rc-slider-handle:hover,
+.rc-slider-handle:active {
+    border-color: var(--edenred-red-dark) !important;
+    box-shadow: 0 0 0 4px rgba(226, 6, 19, 0.15) !important;
+}
+
+/* Toggle Switch RI */
+.custom-switch-ri .form-check-input:checked {
+    background-color: var(--edenred-red) !important;
+    border-color: var(--edenred-red) !important;
+}

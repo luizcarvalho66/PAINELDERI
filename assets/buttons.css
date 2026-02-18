@@ -1,0 +1,38 @@
+/* ==========================================================================
+   BUTTONS - Edenred Theme
+   ========================================================================== */
+
+.btn-edenred {
+    background-color: var(--edenred-red);
+    border-color: var(--edenred-red);
+    color: white;
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    padding: 10px 20px;
+    transition: all var(--transition-base);
+}
+
+.btn-edenred:hover {
+    background-color: var(--edenred-red-dark);
+    border-color: var(--edenred-red-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(226, 6, 19, 0.25);
+}
+
+.btn-import-data {
+    background: var(--edenred-red);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-weight: 600;
+    font-size: 14px;
+    box-shadow: 0 4px 16px rgba(226, 6, 19, 0.2);
+    transition: all var(--transition-base);
+}
+
+.btn-import-data:hover {
+    background: var(--edenred-red-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(226, 6, 19, 0.3);
+}
