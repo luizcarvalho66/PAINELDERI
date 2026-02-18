@@ -53,9 +53,6 @@ def get_ri_evolution_data(filters: dict = None):
         where_conditions_corr = ["c.data_transacao IS NOT NULL"]
         where_conditions_prev = ["data_cadastro IS NOT NULL"]
         
-        
-        # DEBUG: Print Raw Filters
-        print(f"[REPOSITORY DEBUG] Filters received: {filters}")
 
         if filters:
             # Filter by period (month)
@@ -88,11 +85,8 @@ def get_ri_evolution_data(filters: dict = None):
                 valid_clients = [str(c) for c in raw_clients if c and str(c).strip() != ""]
                 
                 if valid_clients:
-                    print(f"[REPOSITORY DEBUG] Applying Client Filter ({len(valid_clients)} clients)")
                     clients_escaped = "', '".join([c.replace("'", "''") for c in valid_clients])
                     where_conditions_corr.append(f"c.nome_cliente IN ('{clients_escaped}')")
-                else:
-                    print("[REPOSITORY DEBUG] Client filter list was empty after sanitization. Ignoring.")
 
         
         where_corr = " AND ".join(where_conditions_corr)
@@ -101,7 +95,7 @@ def get_ri_evolution_data(filters: dict = None):
         # Check tipo_manutencao filter
         tipo = filters.get("tipo_manutencao", "TODAS") if filters else "TODAS"
         
-        print(f"[REPOSITORY] Fetching data with filters: {filters}")
+
 
 
         # SIMPLIFIED QUERY STRATEGY: Fetch grouped data and merge in Python
@@ -123,7 +117,7 @@ def get_ri_evolution_data(filters: dict = None):
         ORDER BY 1
         """
         
-        print(f"[REPOSITORY DEBUG] Query Corr Generated: \n{query_corr}")
+
 
         # 1.1 Fetch Pricing Data - CORRETIVA (Economia Real via Engine)
         query_pricing_corr = f"""
@@ -175,11 +169,10 @@ def get_ri_evolution_data(filters: dict = None):
         
         df_prev = conn.execute(query_prev).fetchdf()
         
-        print(f"[REPOSITORY DEBUG] Corr: {df_corr.shape}, Pricing Corr: {df_pricing_corr.shape}, Pricing Prev: {df_pricing_prev.shape}, Prev: {df_prev.shape}")
+
         
         # 3. Merge in Pandas (Outer Join on Month)
         if df_corr.empty and df_prev.empty:
-            print("[REPOSITORY] Ambos DataFrames vazios. Retornando DF vazio.")
             return pd.DataFrame()
             
         # Ensure datetime type for merge (normalize to naive to avoid timezone mismatch)
@@ -278,7 +271,6 @@ def get_ri_evolution_data(filters: dict = None):
         # Add labels for Multi-level Axis
         df['trimestre_label'] = df['trimestre'].apply(lambda x: f"Qtr {x}")
         
-        print(f"[REPOSITORY] Returned {len(df)} rows")
         return df
         
     except Exception as e:
@@ -311,7 +303,6 @@ def refresh_pricing_data():
     
     try:
         start_time = time.time()
-        print("[REPOSITORY] Atualizando tabelas de referência (Pricing Engine)...")
         
         conn.execute("CREATE INDEX IF NOT EXISTS idx_detalhamento_chave ON ri_corretiva_detalhamento (codigo_item)")
         
@@ -356,7 +347,6 @@ def check_database_status() -> bool:
             return False
             
         count = conn.execute("SELECT COUNT(*) FROM ri_corretiva_detalhamento").fetchone()[0]
-        print(f"[PERSISTENCE] Banco de dados verificado. Registros encontrados: {count}")
         return count > 0
     except Exception as e:
         print(f"[PERSISTENCE] Erro ao verificar status do banco: {e}")

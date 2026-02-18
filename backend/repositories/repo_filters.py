@@ -6,7 +6,6 @@ Author: Luiz Eduardo Carvalho
 """
 
 import pandas as pd
-import pandas as pd
 from backend.repositories.repo_base import (
     get_connection, get_readonly_connection, safe_memoize, MONTH_NAMES
 )
@@ -35,7 +34,6 @@ def get_distinct_clients_corretiva():
         df = cursor.execute(query).fetchdf()
         cursor.close()
         
-        print(f"[REPO_FILTERS] Clientes corretiva encontrados: {len(df)}")
         return [{"label": c, "value": c} for c in df['nome_cliente'].tolist()]
     except Exception as e:
         print(f"[REPO_FILTERS] Erro ao buscar clientes corretiva: {e}")
@@ -99,7 +97,7 @@ def get_distinct_months():
         df = cursor.execute(query).fetchdf()
         cursor.close()
         
-        print(f"[REPO_FILTERS] Meses encontrados: {len(df)}")
+
         
         options = []
         for _, row in df.iterrows():
