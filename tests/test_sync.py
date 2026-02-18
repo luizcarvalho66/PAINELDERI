@@ -37,7 +37,8 @@ def sample_df():
     return pd.DataFrame({
         'numero_os': ['OS001', 'OS001', 'OS002', 'OS003'],
         'codigo_item': ['ITEM1', 'ITEM2', 'ITEM1', 'ITEM1'],
-        'codigo_cliente': ['60905', '60905', '60905', '60905'],
+        'codigo_cliente': ['6240480', '6240480', '6240480', '6240480'],
+        'codigo_tgm': ['60905', '60905', '60905', '60905'],
         'codigo_estabelecimento': ['EST1', 'EST1', 'EST2', 'EST3'],
         'nome_cliente': ['JBS', 'JBS', 'JBS', 'JBS'],
         'nome_estabelecimento': ['Oficina A', 'Oficina A', 'Oficina B', 'Oficina C'],
@@ -78,7 +79,8 @@ def sample_df_incremental():
     return pd.DataFrame({
         'numero_os': ['OS004', 'OS002'],  # OS004 é novo, OS002 é update
         'codigo_item': ['ITEM1', 'ITEM1'],
-        'codigo_cliente': ['60905', '60905'],
+        'codigo_cliente': ['6240480', '6240480'],
+        'codigo_tgm': ['60905', '60905'],
         'codigo_estabelecimento': ['EST4', 'EST2'],
         'nome_cliente': ['JBS', 'JBS'],
         'nome_estabelecimento': ['Oficina D', 'Oficina B'],

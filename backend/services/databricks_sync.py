@@ -2,9 +2,18 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 import time
+import warnings
+import logging
 import pandas as pd
 from databricks import sql
 from database import get_connection
+
+# Suprimir warnings repetitivos que poluem o terminal
+warnings.filterwarnings("ignore", message=".*pandas only supports SQLAlchemy.*", category=UserWarning)
+warnings.filterwarnings("ignore", message=".*State not equal in request and response.*")
+warnings.filterwarnings("ignore", message=".*CloudFetch download slower.*")
+logging.getLogger("databricks.sql").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 # Apache Arrow para download 2-3x mais rápido
 try:
@@ -121,7 +130,7 @@ def check_new_data():
         conn_db = get_databricks_conn()
         cursor = conn_db.cursor()
         query = f"""
-        SELECT MAX(CAST(c.TransactionDate AS DATE)) as max_date
+        SELECT MAX(CAST(f.CreatedDate AS DATE)) as max_date
         FROM hive_metastore.gold.fact_maintenanceitems fi
         INNER JOIN hive_metastore.gold.fact_maintenanceitem f 
             ON cast(fi.MaintenanceItemSourceCode as long) = f.IdMaintenanceItem
@@ -331,7 +340,8 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
             f.FlPreventiveMaintenance,
             f.Mileage,
             f.ReasonCancellation,
-            COALESCE(cast(c.SourceNumber as string), cast(f.IdCustomer as string)) as codigo_cliente,
+            cast(f.IdCustomer as string) as codigo_cliente,
+            cast(c.SourceNumber as string) as codigo_tgm,
             COALESCE(c.NameCustomer, CONCAT('Cliente ', cast(c.SourceNumber as string)), CONCAT('ID ', cast(f.IdCustomer as string))) as nome_cliente
         FROM hive_metastore.gold.fact_maintenanceitems fi
         INNER JOIN hive_metastore.gold.fact_maintenanceitem f 
@@ -346,6 +356,7 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
         cast(b.MaintenanceItemSourceCode as string) as codigo_item,
         
         b.codigo_cliente,
+        b.codigo_tgm,
         cast(b.IdMerchant as string) as codigo_estabelecimento,
         b.nome_cliente,
         m.NameMerchant as nome_estabelecimento,
@@ -646,6 +657,12 @@ def sync_all_data(days=150):
             # MERGE: DELETE duplicatas + INSERT (dados existiam antes)
             print(f"🔄 [SYNC] Merge de {len(df):,} registros...", flush=True)
             
+            # Mapear colunas do staging para auto-migração
+            stg_map = {
+                'stg_corretiva': df_corretiva,
+                'stg_preventiva': df_preventiva,
+            }
+            
             for table, stg in [
                 ('ri_corretiva_detalhamento', 'stg_corretiva'),
                 ('ri_preventiva_detalhamento', 'stg_preventiva'),
@@ -653,6 +670,37 @@ def sync_all_data(days=150):
                 ('logs_regulacao_preventiva', 'stg_preventiva'),
             ]:
                 try:
+                    # Auto-migração: adicionar colunas faltantes na tabela existente
+                    try:
+                        stg_df = stg_map[stg]
+                        stg_cols = list(stg_df.columns)
+                        tbl_info = conn_local.execute(f"PRAGMA table_info('{table}')").fetchall()
+                        tbl_cols = [r[1] for r in tbl_info]
+                        missing = [c for c in stg_cols if c not in tbl_cols]
+                        if missing:
+                            # Inferir tipos via DESCRIBE do staging registrado
+                            stg_types = {}
+                            try:
+                                desc = conn_local.execute(f"DESCRIBE {stg}").fetchall()
+                                stg_types = {r[0]: r[1] for r in desc}
+                            except:
+                                # Fallback: inferir do pandas dtype
+                                for col in missing:
+                                    dtype = str(stg_df[col].dtype)
+                                    if 'int' in dtype:
+                                        stg_types[col] = 'BIGINT'
+                                    elif 'float' in dtype:
+                                        stg_types[col] = 'DOUBLE'
+                                    else:
+                                        stg_types[col] = 'VARCHAR'
+                            
+                            for col in missing:
+                                col_type = stg_types.get(col, 'VARCHAR')
+                                conn_local.execute(f"ALTER TABLE {table} ADD COLUMN \"{col}\" {col_type}")
+                                print(f"   📐 {table}: coluna '{col}' adicionada ({col_type})", flush=True)
+                    except Exception as schema_err:
+                        print(f"   ⚠️  Schema migration {table}: {schema_err}", flush=True)
+
                     # Deletar registros que serão atualizados (merge seguro)
                     conn_local.execute(f"""
                         DELETE FROM {table} 
@@ -663,9 +711,14 @@ def sync_all_data(days=150):
                     count = conn_local.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
                     print(f"   ✅ {table}: {count:,} registros", flush=True)
                 except Exception as e:
-                    # Tabela pode não existir — cria
-                    print(f"   🆕 {table} criada (não existia)", flush=True)
-                    conn_local.execute(f"CREATE TABLE {table} AS SELECT * FROM {stg}")
+                    # Tabela pode não existir — cria. Ou schema ainda incompatível — DROP+CREATE
+                    try:
+                        conn_local.execute(f"DROP TABLE IF EXISTS {table}")
+                        conn_local.execute(f"CREATE TABLE {table} AS SELECT * FROM {stg}")
+                        count = conn_local.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                        print(f"   🆕 {table}: recriada com {count:,} registros", flush=True)
+                    except Exception as e2:
+                        print(f"   ❌ {table}: ERRO FATAL - {e2}", flush=True)
             
             # Cleanup: remover dados fora da janela de {days} dias
             for table in ['ri_corretiva_detalhamento', 'ri_preventiva_detalhamento',
