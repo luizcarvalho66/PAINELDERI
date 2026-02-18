@@ -5,10 +5,8 @@ import pandas as pd
 from backend.repositories import get_ri_evolution_data
 from frontend.components.filters.filter_bar import render_filter_bar
 
-import datetime
 
 def render_dashboard():
-    print(f"[DEBUG][{datetime.datetime.now()}] DASHBOARD PAGE: render_dashboard() called")
     """
     Renders the Dashboard container.
     Content is populated by callback based on processing state.
