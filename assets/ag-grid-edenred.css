@@ -1,0 +1,285 @@
+/* ==========================================================================
+   AG GRID — EDENRED CUSTOM THEME
+   Override do ag-theme-alpine para branding Edenred minimalista.
+   Aplique via className="ag-theme-alpine ag-theme-edenred"
+   ========================================================================== */
+
+/* ---- Container Wrapper ---- */
+.ag-theme-edenred {
+    --ag-font-family: 'Ubuntu', sans-serif;
+    --ag-font-size: 13px;
+    --ag-grid-size: 6px;
+    --ag-row-height: 42px;
+    --ag-header-height: 44px;
+
+    /* Cores neutras minimalistas */
+    --ag-background-color: #FFFFFF;
+    --ag-foreground-color: #334155;
+    --ag-border-color: #F1F5F9;
+    --ag-secondary-border-color: #F1F5F9;
+    --ag-header-background-color: #F8FAFC;
+    --ag-header-foreground-color: #64748B;
+
+    /* Hover & Seleção com accent Edenred */
+    --ag-row-hover-color: #FEF2F2;
+    --ag-selected-row-background-color: rgba(226, 6, 19, 0.06);
+    --ag-range-selection-background-color: rgba(226, 6, 19, 0.08);
+    --ag-range-selection-border-color: #E20613;
+
+    /* Inputs */
+    --ag-input-focus-border-color: #E20613;
+    --ag-checkbox-checked-color: #E20613;
+    --ag-input-border-color: #E2E8F0;
+
+    /* Misc */
+    --ag-odd-row-background-color: #FFFFFF;
+    --ag-modal-overlay-background-color: rgba(248, 250, 252, 0.85);
+    --ag-card-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    --ag-popup-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+
+    /* Container border-radius para combinar com cards */
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #F1F5F9;
+}
+
+/* ---- Header ---- */
+.ag-theme-edenred .ag-header {
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.ag-theme-edenred .ag-header-cell-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748B;
+}
+
+.ag-theme-edenred .ag-header-cell {
+    transition: background-color 0.15s ease;
+}
+
+.ag-theme-edenred .ag-header-cell:hover {
+    background-color: #F1F5F9;
+}
+
+/* Sort icon accent */
+.ag-theme-edenred .ag-sort-ascending-icon,
+.ag-theme-edenred .ag-sort-descending-icon {
+    color: #E20613;
+}
+
+/* ---- Rows ---- */
+.ag-theme-edenred .ag-row {
+    border-bottom: 1px solid #F8FAFC;
+    transition: background-color 0.15s ease;
+}
+
+.ag-theme-edenred .ag-row:last-child {
+    border-bottom: none;
+}
+
+.ag-theme-edenred .ag-row-hover {
+    background-color: #FEF2F2 !important;
+}
+
+.ag-theme-edenred .ag-row-selected {
+    background-color: rgba(226, 6, 19, 0.06) !important;
+}
+
+/* Cell text */
+.ag-theme-edenred .ag-cell {
+    color: #334155;
+    font-size: 0.84rem;
+    line-height: 1.4;
+}
+
+/* Pinned column accent sutil */
+.ag-theme-edenred .ag-pinned-left-header,
+.ag-theme-edenred .ag-cell-last-left-pinned {
+    border-right: 2px solid #F1F5F9 !important;
+}
+
+/* ---- Floating Filters ---- */
+.ag-theme-edenred .ag-floating-filter-input input {
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    padding: 4px 8px;
+    color: #475569;
+    background: #FFFFFF;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ag-theme-edenred .ag-floating-filter-input input:focus {
+    border-color: #E20613;
+    box-shadow: 0 0 0 2px rgba(226, 6, 19, 0.1);
+    outline: none;
+}
+
+/* ---- Paginação ---- */
+.ag-theme-edenred .ag-paging-panel {
+    border-top: 1px solid #F1F5F9;
+    background: #FAFBFC;
+    color: #64748B;
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 8px 16px;
+}
+
+.ag-theme-edenred .ag-paging-button {
+    color: #64748B;
+    transition: color 0.15s ease;
+    cursor: pointer;
+}
+
+.ag-theme-edenred .ag-paging-button:hover {
+    color: #E20613;
+}
+
+/* ---- Filter Menu / Popup ---- */
+.ag-theme-edenred .ag-menu {
+    border-radius: 10px;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.ag-theme-edenred .ag-filter-apply-panel button {
+    background: #E20613;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    padding: 6px 16px;
+    transition: background-color 0.15s ease;
+}
+
+.ag-theme-edenred .ag-filter-apply-panel button:hover {
+    background: #C10510;
+}
+
+/* ---- Tooltip ---- */
+.ag-theme-edenred .ag-tooltip {
+    background: #1E293B;
+    color: #FFFFFF;
+    font-size: 0.78rem;
+    border-radius: 6px;
+    padding: 6px 10px;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* ---- No Rows Overlay ---- */
+.ag-theme-edenred .ag-overlay-no-rows-center {
+    color: #94A3B8;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* ---- Scrollbar minimal ---- */
+.ag-theme-edenred .ag-body-horizontal-scroll-viewport::-webkit-scrollbar,
+.ag-theme-edenred .ag-body-viewport::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.ag-theme-edenred .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb,
+.ag-theme-edenred .ag-body-viewport::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 3px;
+}
+
+.ag-theme-edenred .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb:hover,
+.ag-theme-edenred .ag-body-viewport::-webkit-scrollbar-thumb:hover {
+    background: #94A3B8;
+}
+
+.ag-theme-edenred .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-track,
+.ag-theme-edenred .ag-body-viewport::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* ---- Status bar (se usado) ---- */
+.ag-theme-edenred .ag-status-bar {
+    border-top: 1px solid #F1F5F9;
+    background: #FAFBFC;
+    font-size: 0.75rem;
+    color: #64748B;
+}
+
+/* ==========================================================================
+   FUGAS ACCORDION — Tabela expansível por TGM
+   ========================================================================== */
+
+.prev-fugas-accordion .accordion-item {
+    border: 1px solid #F1F5F9;
+    border-radius: 10px !important;
+    margin-bottom: 6px;
+    overflow: hidden;
+    transition: box-shadow 0.2s ease;
+}
+
+.prev-fugas-accordion .accordion-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.prev-fugas-accordion .accordion-button {
+    padding: 10px 16px;
+    background: #FFFFFF;
+    font-size: 0.85rem;
+    border-radius: 10px !important;
+    box-shadow: none !important;
+}
+
+.prev-fugas-accordion .accordion-button:not(.collapsed) {
+    background: #FEF2F2;
+    border-bottom: 2px solid #E20613;
+    border-radius: 10px 10px 0 0 !important;
+}
+
+.prev-fugas-accordion .accordion-button::after {
+    width: 14px;
+    height: 14px;
+    background-size: 14px;
+    margin-left: 0;
+    margin-right: 8px;
+    order: -1;
+}
+
+.prev-fugas-accordion .accordion-body {
+    padding: 0;
+    background: #FAFBFC;
+}
+
+/* Sub-tabela de clientes */
+.prev-detail-subtable {
+    font-size: 0.78rem;
+}
+
+.prev-detail-subtable th {
+    background: #F8FAFC;
+    color: #64748B;
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    padding: 8px 10px;
+    border-bottom: 2px solid #E2E8F0;
+    white-space: nowrap;
+}
+
+.prev-detail-subtable td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #F1F5F9;
+    color: #334155;
+    vertical-align: middle;
+}
+
+.prev-detail-subtable tr:hover td {
+    background: rgba(226, 6, 19, 0.03);
+}
+
+.prev-detail-subtable tr:last-child td {
+    border-bottom: none;
+}

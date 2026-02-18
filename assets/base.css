@@ -219,3 +219,34 @@ body {
 .btn-empty-state-cta:hover {
     box-shadow: 0 6px 25px 0 rgba(226, 6, 19, 0.35);
 }
+
+/* ==========================================================================
+   LOADING SPINNER — Overlay profissional Edenred
+   ========================================================================== */
+
+/* Spinner container centralizado */
+#dashboard-loading .dash-spinner {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+
+/* Overlay translúcido elegante */
+#dashboard-loading > div:first-child {
+    transition: opacity 0.3s ease !important;
+}
+
+/* SVG do spinner com tamanho maior */
+#dashboard-loading .dash-spinner svg {
+    width: 48px !important;
+    height: 48px !important;
+}
+
+/* Esconder spinners padrão que sobram */
+._dash-loading-callback {
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}

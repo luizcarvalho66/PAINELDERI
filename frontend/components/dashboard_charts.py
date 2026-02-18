@@ -59,12 +59,15 @@ def create_ri_geral_chart(df: pd.DataFrame) -> go.Figure:
     # Data Preparation (Ensuring X is present - caller must guarantee 'x_label')
     x_data = df.get('x_label', [])
     y_data = df['ri_geral'] * 100 # Convert to percentage
+    
+    # Markers maiores quando há poucos pontos para garantir visibilidade
+    marker_size = 10 if len(df) <= 3 else 6
 
     fig.add_trace(go.Scatter(
         x=x_data, 
         y=y_data, 
         mode='lines+markers', 
-        marker=dict(size=6, color=EDENRED_RED), 
+        marker=dict(size=marker_size, color=EDENRED_RED, symbol='circle'), 
         fill='tozeroy',
         fillcolor=EDENRED_RED_LIGHT, 
         line=dict(color=EDENRED_RED, width=3, shape='spline'),
@@ -94,13 +97,16 @@ def create_comparative_chart(df: pd.DataFrame) -> go.Figure:
     fig = go.Figure()
     
     x_data = df.get('x_label', [])
+    
+    # Markers maiores quando há poucos pontos
+    marker_size = 10 if len(df) <= 3 else 6
 
     # Trace 1: Preventiva (Grey/Neutral)
     fig.add_trace(go.Scatter(
         x=x_data, 
         y=df['ri_preventiva'] * 100, 
         mode='lines+markers', 
-        marker=dict(size=6, color=GREY_LINE), 
+        marker=dict(size=marker_size, color=GREY_LINE, symbol='circle'), 
         fill='tozeroy',
         fillcolor=GREY_AREA, 
         line=dict(color=GREY_LINE, width=3, shape='spline'), 
@@ -113,7 +119,7 @@ def create_comparative_chart(df: pd.DataFrame) -> go.Figure:
         x=x_data, 
         y=df['ri_corretiva'] * 100, 
         mode='lines+markers', 
-        marker=dict(size=6, color=EDENRED_RED),
+        marker=dict(size=marker_size, color=EDENRED_RED, symbol='circle'),
         line=dict(color=EDENRED_RED, width=3, shape='spline'), 
         name='Corretiva', 
         hovertemplate='Corr: %{y:.2f}%<extra></extra>'
