@@ -144,7 +144,7 @@ def render_preventiva_section(initial_data=None):
                             dbc.Tab(label="1ª Alçada", tab_id="tab-alcada"),
                         ], id="prev-tabs-ranking", active_tab="tab-estab", className="mb-3 nav-fill"),
                         
-                        html.Div(id="prev-ranking-content", style={"minHeight": "250px"})
+                        html.Div(id="prev-ranking-content", style={"minHeight": "250px", "maxHeight": "420px", "overflowY": "auto"})
                     ])
                 ], className="shadow-sm border-0 rounded-4 h-100")
             ], width=4),
@@ -167,7 +167,8 @@ def render_preventiva_section(initial_data=None):
                         # Container dinâmico — callback gera tabela accordion aqui
                         html.Div(
                             id="prev-accordion-table",
-                            children=initial_data.get('accordion', []) if initial_data else []
+                            children=initial_data.get('accordion', []) if initial_data else [],
+                            style={"maxHeight": "420px", "overflowY": "auto"}
                         ),
 
                         dcc.Download(id="download-preventiva-csv")
