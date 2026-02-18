@@ -49,6 +49,15 @@ def get_layout():
             max_intervals=1,  # Roda apenas 1 vez
             n_intervals=0
         ),
+        
+        # Interval para polling do check de novos dados (ativado pelo check_new_data_on_startup)
+        dcc.Interval(
+            id="new-data-poll-interval",
+            interval=3000,     # Verifica a cada 3 segundos
+            max_intervals=5,   # Máximo 15 segundos de polling
+            disabled=True,     # Inicia desabilitado
+            n_intervals=0
+        ),
 
         # Toast de alerta de novos dados (canto superior direito)
         dbc.Toast(
