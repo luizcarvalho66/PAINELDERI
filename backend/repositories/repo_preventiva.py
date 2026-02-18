@@ -3,8 +3,12 @@
 Repository Preventiva - Lógica de Fugas de Preventivas
 """
 
+import warnings
 import pandas as pd
 from backend.repositories.repo_base import get_connection, safe_memoize
+
+# Suprimir warning repetitivo do pandas sobre SQLAlchemy (DuckDB funciona perfeitamente com pd.read_sql)
+warnings.filterwarnings("ignore", message=".*pandas only supports SQLAlchemy.*", category=UserWarning)
 
 # Lista de termos que indicam que uma manutenção DEVERIA ser preventiva
 # Se aparecerem nas colunas de tipo da tabela CORRETIVA, consideramos "Fuga"
@@ -114,6 +118,128 @@ def get_fugas_data(filters=None, limit=100):
         return df.to_dict('records')
     except Exception as e:
         print(f"Erro no get_fugas_data: {e}")
+        return []
+
+def _has_column(conn, table, column):
+    """Verifica se uma coluna existe numa tabela do DuckDB."""
+    try:
+        result = conn.execute(
+            f"SELECT column_name FROM information_schema.columns WHERE table_name='{table}' AND column_name='{column}'"
+        ).fetchone()
+        return result is not None
+    except:
+        return False
+
+
+@safe_memoize
+def get_fugas_grouped(filters=None, limit=200):
+    """
+    Retorna fugas agrupadas por codigo_tgm (SourceNumber).
+    Fallback: se codigo_tgm não existir no DB, agrupa por codigo_cliente.
+    """
+    conn = get_connection()
+    
+    # Detectar qual coluna usar para agrupamento
+    has_tgm = _has_column(conn, 'ri_corretiva_detalhamento', 'codigo_tgm')
+    group_col = 'codigo_tgm' if has_tgm else 'codigo_cliente'
+    
+    or_condition = _get_fuga_conditions()
+    
+    query = f"""
+    SELECT 
+        {group_col} as codigo_tgm,
+        MIN(nome_cliente) as cliente_principal,
+        COUNT(DISTINCT codigo_cliente) as qtd_clientes,
+        COUNT(*) as total_os,
+        SUM(valor_aprovado) as valor_total,
+        COUNT(DISTINCT numero_os) as total_os_distintas
+    FROM ri_corretiva_detalhamento
+    WHERE ({or_condition})
+    """
+    
+    params = []
+    if filters:
+        if filters.get('clientes'):
+            clients_escaped = "', '".join([str(c).replace("'", "''") for c in filters['clientes'] if c])
+            query += f" AND nome_cliente IN ('{clients_escaped}')"
+        if filters.get('periodos'):
+            period_clauses = []
+            for p in filters['periodos']:
+                y, m = p.split('-')
+                period_clauses.append(f"(YEAR(data_transacao) = {y} AND MONTH(data_transacao) = {m})")
+            if period_clauses:
+                query += f" AND ({' OR '.join(period_clauses)})"
+        if filters.get('uf'):
+            query += " AND uf IN (" + ",".join(["?"]*len(filters['uf'])) + ")"
+            params.extend(filters['uf'])
+    
+    query += f" GROUP BY {group_col} ORDER BY total_os DESC LIMIT {limit}"
+    
+    try:
+        df = pd.read_sql(query, conn, params=params)
+        df['valor_total'] = df['valor_total'].fillna(0).round(2)
+        if not has_tgm:
+            print("[WARN] get_fugas_grouped: coluna 'codigo_tgm' não encontrada, usando 'codigo_cliente' como fallback. Faça um FULL LOAD.")
+        return df.to_dict('records')
+    except Exception as e:
+        print(f"Erro no get_fugas_grouped: {e}")
+        return []
+
+
+def get_fugas_detail_by_tgm(codigo_tgm, filters=None, limit=500):
+    """
+    Retorna detalhes granulares para um SourceNumber (ou codigo_cliente) específico.
+    Resiliente: funciona mesmo antes do re-sync.
+    """
+    conn = get_connection()
+    
+    # Detectar qual coluna usar para filtro
+    has_tgm = _has_column(conn, 'ri_corretiva_detalhamento', 'codigo_tgm')
+    filter_col = 'codigo_tgm' if has_tgm else 'codigo_cliente'
+    
+    or_condition = _get_fuga_conditions()
+    
+    query = f"""
+    SELECT 
+        codigo_cliente,
+        coalesce(nome_cliente, 'Cliente N/A') as cliente,
+        numero_os,
+        descricao_peca as codigo_item,
+        nome_estabelecimento as nome_ec,
+        cidade,
+        uf,
+        tipo_mo,
+        valor_aprovado,
+        nome_aprovador,
+        data_transacao
+    FROM ri_corretiva_detalhamento
+    WHERE {filter_col} = ?
+      AND ({or_condition})
+    """
+    
+    params = [str(codigo_tgm)]
+    if filters:
+        if filters.get('clientes'):
+            clients_escaped = "', '".join([str(c).replace("'", "''") for c in filters['clientes'] if c])
+            query += f" AND nome_cliente IN ('{clients_escaped}')"
+        if filters.get('periodos'):
+            period_clauses = []
+            for p in filters['periodos']:
+                y, m = p.split('-')
+                period_clauses.append(f"(YEAR(data_transacao) = {y} AND MONTH(data_transacao) = {m})")
+            if period_clauses:
+                query += f" AND ({' OR '.join(period_clauses)})"
+    
+    query += f" ORDER BY data_transacao DESC LIMIT {limit}"
+    
+    try:
+        df = pd.read_sql(query, conn, params=params)
+        for col in df.columns:
+            if pd.api.types.is_datetime64_any_dtype(df[col]):
+                df[col] = df[col].dt.strftime('%Y-%m-%d %H:%M:%S')
+        return df.to_dict('records')
+    except Exception as e:
+        print(f"Erro no get_fugas_detail_by_tgm: {e}")
         return []
 
 @safe_memoize

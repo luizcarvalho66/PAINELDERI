@@ -15,8 +15,6 @@ def register_navigation_callbacks(app):
         [Input("url", "pathname")]
     )
     def render_page_content(pathname):
-        import datetime
-        print(f"[DEBUG][{datetime.datetime.now()}] NAVIGATION: Pathname={pathname}")
         if pathname == "/":
             return render_dashboard()
         elif pathname == "/farol":

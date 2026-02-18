@@ -16,8 +16,6 @@ from frontend.pages.dashboard import render_dashboard
 content = html.Div(render_dashboard(), id="page-content", style=CONTENT_STYLE)
 
 def get_layout():
-    import datetime
-    print(f"[DEBUG][{datetime.datetime.now()}] LAYOUT: get_layout() rendering")
     return html.Div([
         dcc.Location(id="url"),
         dcc.Store(id="processing-complete-store", data=False, storage_type="session"),

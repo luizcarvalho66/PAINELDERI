@@ -30,12 +30,8 @@ def register_filter_callbacks(app):
         if not is_processed:
             raise PreventUpdate
         
-        print("[FILTER_CALLBACKS] Populando dropdowns de filtros globais...")
-        
         meses = get_distinct_months()
         clientes = get_distinct_clients_corretiva()
-        
-        print(f"[FILTER_CALLBACKS] Loaded: {len(clientes)} clientes, {len(meses)} meses")
         
         return meses, clientes
     
@@ -105,7 +101,6 @@ def register_filter_callbacks(app):
         """Limpa todos os filtros globais."""
         if not n_clicks:
             raise PreventUpdate
-        print("[FILTER_CALLBACKS] Limpando filtros...")
         return None, None
     
     # ==========================================================================
@@ -136,7 +131,6 @@ def register_filter_callbacks(app):
             "applied": True
         }
         
-        print(f"[FILTER_CALLBACKS] Filtros aplicados: {filters}")
         return filters
     
     # ==========================================================================

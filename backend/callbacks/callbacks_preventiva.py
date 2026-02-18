@@ -1,4 +1,4 @@
-from dash import Input, Output, State, html, dcc, callback_context
+from dash import Input, Output, State, html, dcc, callback_context, no_update
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 import pandas as pd
@@ -6,12 +6,14 @@ from backend.repositories.repo_preventiva import (
     get_fugas_stats, 
     get_fugas_chart_data, 
     get_top_offenders, 
-    get_fugas_data
+    get_fugas_data,
+    get_fugas_grouped,
+    get_fugas_detail_by_tgm
 )
 
 def register_preventiva_callbacks(app):
     
-    # 1. Main Update Callback (KPIs, Chart, Detailed Table)
+    # 1. Main Update Callback (KPIs, Chart, Master AG Grid)
     @app.callback(
         [
             Output("prev-kpi-total", "children"),
@@ -19,50 +21,35 @@ def register_preventiva_callbacks(app):
             Output("prev-kpi-pct", "children"),
             Output("prev-progress-bar", "value"),
             Output("prev-chart-evolution", "figure"),
-            Output("prev-table-detail", "data")
+            Output("prev-table-detail", "rowData")  # AG Grid usa rowData
         ],
         [
-            Input("processing-complete-store", "data"),  # Dispara 1x quando dados estão prontos
+            Input("processing-complete-store", "data"),
             Input("global-filters-applied-store", "data")
         ],
         prevent_initial_call=False
     )
     def update_preventiva_dashboard(is_processed, filters_state):
         if not is_processed:
-            from dash import no_update
             return (no_update,) * 6
-        # Extract filters
         filters = filters_state if filters_state and filters_state.get("applied") else {}
         
-        # 1. Get Stats for KPIs
         stats = get_fugas_stats(filters)
         
-        # Error Handling for DB Lock
         if stats.get("error"):
             error_icon = html.I(className="bi bi-database-x", style={"color": "red"})
-            return (
-                error_icon, # Total
-                error_icon, # Fugas
-                "Erro DB",  # Percent
-                0,          # Progress
-                {},         # Chart
-                []          # Table
-            )
+            return (error_icon, error_icon, "Erro DB", 0, {}, [])
 
         total = stats.get("total_os", 0)
         fugas = stats.get("qtd_fugas", 0)
         pct = stats.get("pct_fuga", 0)
         
-        # 2. Get Chart Data
         chart_data = get_fugas_chart_data(filters)
-        # chart_data format: {'mes_ano': [...], 'pct_fuga': [...], 'total_mensal': [...], 'fugas_mensal': [...]}
-        
         from frontend.components.chart_fugas_preventiva import create_fugas_evolution_chart
         fig = create_fugas_evolution_chart(chart_data)
 
-        # 3. Get Detailed Table Data
-        # Limit default view to 100 rows for performance
-        table_data = get_fugas_data(filters, limit=100)
+        # Master Grid — agrupado por SourceNumber
+        table_data = get_fugas_grouped(filters, limit=200)
         
         return (
             f"{total:,}".replace(",", "."), 
@@ -73,7 +60,51 @@ def register_preventiva_callbacks(app):
             table_data
         )
 
-    # 2. Ranking Update Callback (Tab Switch)
+    # 2. EXPAND DETAIL — AG Grid selectedRows
+    @app.callback(
+        [
+            Output("prev-detail-collapse", "is_open"),
+            Output("prev-detail-table", "rowData"),  # AG Grid rowData
+            Output("prev-detail-tgm-code", "children"),
+            Output("prev-detail-tgm-name", "children"),
+        ],
+        [
+            Input("prev-table-detail", "selectedRows"),  # AG Grid selectedRows
+            Input("btn-close-detail", "n_clicks"),
+        ],
+        [
+            State("global-filters-applied-store", "data"),
+        ],
+        prevent_initial_call=True
+    )
+    def toggle_detail_panel(selected_rows, close_clicks, filters_state):
+        ctx = callback_context
+        if not ctx.triggered:
+            return no_update, no_update, no_update, no_update
+        
+        trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+        
+        # Fechar painel
+        if trigger_id == "btn-close-detail":
+            return False, [], "", ""
+        
+        # AG Grid selectedRows é lista de dicts diretamente
+        if not selected_rows:
+            return False, [], "", ""
+        
+        row = selected_rows[0]
+        codigo_tgm = row.get("codigo_tgm", "")
+        cliente_principal = row.get("cliente_principal", "")
+        
+        if not codigo_tgm:
+            return False, [], "", ""
+        
+        filters = filters_state if filters_state and filters_state.get("applied") else {}
+        detail_data = get_fugas_detail_by_tgm(codigo_tgm, filters, limit=500)
+        
+        return True, detail_data, codigo_tgm, cliente_principal
+
+    # 3. Ranking Update Callback (Tab Switch)
     @app.callback(
         Output("prev-ranking-content", "children"),
         [Input("prev-tabs-ranking", "active_tab")],
@@ -82,20 +113,17 @@ def register_preventiva_callbacks(app):
     def update_preventiva_ranking(active_tab, filters_state):
         filters = filters_state if filters_state and filters_state.get("applied") else {}
         
-        # Map tab to entity
         entity_map = {
             "tab-estab": "estabelecimento",
             "tab-aprov": "aprovador",
             "tab-alcada": "alcada"
         }
         entity = entity_map.get(active_tab, "estabelecimento")
-        
         ranking_data = get_top_offenders(filters, entity=entity, limit=5)
         
         if not ranking_data:
             return html.Div("Sem dados para exibir.", className="text-muted p-3")
         
-        # Create Simple Table
         header = [html.Thead(html.Tr([
             html.Th("Nome", className="text-secondary fs-8"),
             html.Th("Total OS", className="text-secondary fs-8 text-center"),
@@ -115,7 +143,7 @@ def register_preventiva_callbacks(app):
             
         return dbc.Table(header + [html.Tbody(rows)], hover=True, borderless=True, className="mb-0")
 
-    # 3. Export CSV Callback
+    # 4. Export CSV Callback
     @app.callback(
         Output("download-preventiva-csv", "data"),
         Input("btn-export-preventiva", "n_clicks"),
@@ -162,7 +190,7 @@ def register_preventiva_callbacks(app):
         
         return dcc.send_data_frame(df[final_cols].to_csv, "fugas_preventiva_export.csv", index=False)
 
-    # 4. Help Modal Toggle Callback (General)
+    # 5. Help Modal Toggle Callback (General)
     @app.callback(
         Output("prev-help-modal", "is_open"),
         [Input("btn-help-prev-chart", "n_clicks"), Input("btn-help-prev-kpi", "n_clicks")],
@@ -174,7 +202,7 @@ def register_preventiva_callbacks(app):
             return not is_open
         return is_open
 
-    # 5. Ranking Help Modal Toggle Callback (Specific)
+    # 6. Ranking Help Modal Toggle Callback (Specific)
     @app.callback(
         Output("prev-ranking-help-modal", "is_open"),
         [Input("btn-help-prev-ranking", "n_clicks")],
