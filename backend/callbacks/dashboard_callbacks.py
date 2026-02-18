@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 import traceback
 from backend.repositories import get_ri_evolution_data, check_database_status
 from frontend.components.filters.filter_bar import render_filter_bar
-from frontend.components.preventiva_section import render_preventiva_section
+
 from frontend.components.kpi_card import render_kpi_card
 from frontend.components.dashboard_charts import create_ri_geral_chart, create_comparative_chart
 from frontend.components.error_display import render_error_display
@@ -78,7 +78,7 @@ def register_dashboard_callbacks(app):
             Input("processing-complete-store", "data"),
             Input("global-filters-applied-store", "data"),
         ],
-        prevent_initial_call=False
+        prevent_initial_call=True
     )
     def update_dashboard_charts(is_processed, filters_state):
         if not is_processed:
@@ -102,6 +102,8 @@ def register_dashboard_callbacks(app):
     
     def _build_dashboard_content(is_processed, filters_state):
         """Lógica interna do dashboard, separada para facilitar try/except."""
+        import time as _time
+        _t0 = _time.time()
         
         # Extract filters from state
         filters = None
@@ -110,7 +112,10 @@ def register_dashboard_callbacks(app):
         else:
             filters = None
         
+        print(f"[DASHBOARD] Início _build_dashboard_content (filters={bool(filters)})", flush=True)
+        
         df = get_ri_evolution_data(filters)
+        print(f"[DASHBOARD] get_ri_evolution_data: {_time.time()-_t0:.1f}s", flush=True)
         
         # CHECK FOR CRITICAL ERROR STATE
         if 'error_state' in df.columns and df['error_state'].iloc[0] == True:
@@ -324,11 +329,5 @@ def register_dashboard_callbacks(app):
                     ], width=12)
                 ], className="mb-5")
             ]),
-
-            # 3. SEÇÃO DE FUGAS (Full Width)
-            html.Div([
-                html.H3("Fugas de Preventiva", style=section_title_style),
-                render_preventiva_section()
-            ], className="dashboard-section mb-4"),
             
         ], className="animate__animated animate__fadeIn", style={"padding": "24px", "background": "#F8FAFC", "minHeight": "100vh"})

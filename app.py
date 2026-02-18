@@ -1,10 +1,107 @@
 import dash
 import dash_bootstrap_components as dbc
 import os
+import sys
+import signal
+import atexit
 import tempfile
 from frontend.layout import get_layout
 from backend.callbacks import register_all_callbacks
 from database import init_db, DB_PATH
+
+# ============================================================
+# LOCK DE PROCESSO ÚNICO — Garante apenas 1 instância do app
+# ============================================================
+PID_FILE = os.path.join(os.path.dirname(DB_PATH), ".app.pid")
+
+def _kill_previous_instance():
+    """Mata instância anterior se existir, baseado no PID salvo."""
+    if not os.path.exists(PID_FILE):
+        return
+    try:
+        with open(PID_FILE, "r") as f:
+            old_pid = int(f.read().strip())
+        if old_pid == os.getpid():
+            return  # Sou eu mesmo
+        # Tenta matar o processo antigo
+        import psutil
+        try:
+            proc = psutil.Process(old_pid)
+            if "python" in proc.name().lower():
+                print(f"[LOCK] Matando instância anterior (PID {old_pid})...")
+                proc.kill()
+                proc.wait(timeout=5)
+                print(f"[LOCK] PID {old_pid} finalizado.")
+        except psutil.NoSuchProcess:
+            print(f"[LOCK] PID {old_pid} já não existe. Limpando lock file.")
+            os.remove(PID_FILE)
+        except psutil.TimeoutExpired:
+            print(f"[LOCK] AVISO: PID {old_pid} não respondeu ao kill em 5s.")
+        except Exception as e:
+            print(f"[LOCK] Erro ao matar PID {old_pid}: {e}")
+    except ImportError:
+        # Fallback sem psutil — verifica se processo existe
+        try:
+            with open(PID_FILE, "r") as f:
+                old_pid = int(f.read().strip())
+            if old_pid != os.getpid():
+                try:
+                    os.kill(old_pid, 0)  # Apenas verifica se existe (signal 0)
+                    os.kill(old_pid, signal.SIGTERM)
+                    import time; time.sleep(3)
+                    print(f"[LOCK] Sinal SIGTERM enviado para PID {old_pid}.")
+                except (ProcessLookupError, OSError):
+                    # Processo já não existe — limpar lock file
+                    print(f"[LOCK] PID {old_pid} já não existe. Limpando lock file.")
+                    os.remove(PID_FILE)
+        except Exception as e:
+            print(f"[LOCK] Erro no fallback kill: {e}")
+    except Exception:
+        pass
+
+def _cleanup_wal_files():
+    """Remove WAL/tmp files residuais do DuckDB que podem causar locks."""
+    for ext in ['.wal', '.tmp']:
+        wal_path = DB_PATH + ext
+        if os.path.exists(wal_path):
+            try:
+                sz = os.path.getsize(wal_path)
+                os.remove(wal_path)
+                print(f"[LOCK] Removido arquivo residual: {wal_path} ({sz} bytes)")
+            except Exception as e:
+                print(f"[LOCK] Não foi possível remover {wal_path}: {e}")
+
+def _write_pid():
+    """Salva PID atual no lock file."""
+    try:
+        with open(PID_FILE, "w") as f:
+            f.write(str(os.getpid()))
+        print(f"[LOCK] PID {os.getpid()} registrado em {PID_FILE}")
+    except Exception as e:
+        print(f"[LOCK] Erro ao gravar PID: {e}")
+
+def _cleanup_pid():
+    """Remove lock file na saída."""
+    try:
+        if os.path.exists(PID_FILE):
+            with open(PID_FILE, "r") as f:
+                saved_pid = int(f.read().strip())
+            if saved_pid == os.getpid():
+                os.remove(PID_FILE)
+                # Fecha conexões DuckDB
+                from database import close_connection
+                close_connection()
+                print(f"[LOCK] Cleanup: PID file removido, conexões fechadas.")
+    except Exception:
+        pass
+
+# Executar lock + limpeza
+_kill_previous_instance()
+_cleanup_wal_files()
+_write_pid()
+atexit.register(_cleanup_pid)
+signal.signal(signal.SIGINT, lambda s, f: (print("\n[APP] Ctrl+C — encerrando..."), _cleanup_pid(), sys.exit(0)))
+signal.signal(signal.SIGTERM, lambda s, f: (_cleanup_pid(), sys.exit(0)))
 
 # Initialize DB if not exists (Critical for cloud deployment where data.duckdb is gitignored)
 try:

@@ -19,7 +19,9 @@ def register_activation_callbacks(app):
             return no_update
             
         # Verifica banco
-        if check_database_status():
+        has_data = check_database_status()
+        print(f"[ACTIVATION] n={n}, is_processed={is_processed}, has_data={has_data}", flush=True)
+        if has_data:
             return True
             
         return no_update

@@ -421,20 +421,18 @@ def register_sync_callbacks(app):
             _check_result["done"] = True
 
     @app.callback(
-        [
-            Output("sync-new-data-toast", "is_open"),
-            Output("new-data-toast-body", "children"),
-        ],
+        Output("new-data-poll-interval", "disabled", allow_duplicate=True),
         [Input("new-data-check-interval", "n_intervals")],
         prevent_initial_call=True
     )
     def check_new_data_on_startup(n_intervals):
-        """Verifica se há novos dados no Databricks (roda 1x no startup).
+        """Dispara thread de verificação de novos dados (NÃO bloqueia).
         
-        Executa em thread separada com timeout para NUNCA bloquear o UI.
+        Apenas inicia a thread e ativa o polling interval.
+        O resultado é lido pelo callback poll_new_data_check.
         """
         if n_intervals == 0:
-            return False, ""
+            return True  # Mantém polling desabilitado
         
         # Reset e dispara thread
         _check_result["data"] = None
@@ -442,20 +440,40 @@ def register_sync_callbacks(app):
         
         check_thread = threading.Thread(target=_run_check_new_data, daemon=True)
         check_thread.start()
-        check_thread.join(timeout=_CHECK_TIMEOUT_SECONDS)
+        # NÃO faz thread.join() — retorna imediatamente
+        print("[CHECK] Thread de verificação disparada (polling ativado).", flush=True)
+        return False  # Ativa o polling interval
+
+    # =============================================
+    # CALLBACK 5: Polling não-bloqueante para check de novos dados
+    # =============================================
+    @app.callback(
+        [
+            Output("sync-new-data-toast", "is_open"),
+            Output("new-data-toast-body", "children"),
+            Output("new-data-poll-interval", "disabled"),
+        ],
+        [Input("new-data-poll-interval", "n_intervals")],
+        prevent_initial_call=True
+    )
+    def poll_new_data_check(n_intervals):
+        """Polling não-bloqueante para o resultado do check de novos dados.
         
-        if not _check_result["done"]:
-            print(f"[CHECK] Timeout ({_CHECK_TIMEOUT_SECONDS}s) — ignorando check.", flush=True)
-            return False, ""
+        Verifica a cada 3s se a thread de check terminou.
+        Quando terminar, mostra toast (se houver novos dados) e desativa polling.
+        """
+        if _check_result.get("done"):
+            result = _check_result.get("data", {})
+            if result and result.get("has_new_data"):
+                remote_date = result.get("remote_max_date", "?")
+                local_date = result.get("local_max_date", "?")
+                msg = f"Dados disponíveis até {remote_date} (local: até {local_date})."
+                return True, msg, True  # Mostra toast + desativa polling
+            
+            if result and not result.get("error"):
+                print("[CHECK] Dados estão atualizados.", flush=True)
+            
+            return False, "", True  # Sem dados novos + desativa polling
         
-        result = _check_result.get("data", {})
-        if result and result.get("has_new_data"):
-            remote_date = result.get("remote_max_date", "?")
-            local_date = result.get("local_max_date", "?")
-            msg = f"Dados disponíveis até {remote_date} (local: até {local_date})."
-            return True, msg
-        
-        if result and not result.get("error"):
-            print("[CHECK] Dados estão atualizados.", flush=True)
-        
-        return False, ""
+        # Thread ainda rodando — retorna sem atualizar
+        return no_update, no_update, no_update
