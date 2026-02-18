@@ -19,7 +19,6 @@ def register_dashboard_callbacks(app):
         prevent_initial_call=True
     )
     def toggle_dashboard_sections(is_processed):
-        print(f"[DEBUG] toggle_dashboard_sections triggered. is_processed: {is_processed}")
         if not is_processed:
             # Show onboarding, hide charts and filters
             charts_style = {"display": "none"}
@@ -93,7 +92,6 @@ def register_dashboard_callbacks(app):
         try:
             return _build_dashboard_content(is_processed, filters_state)
         except Exception as e:
-            print(f"[DASHBOARD CALLBACK ERROR] Exceção não tratada: {e}")
             traceback.print_exc()
             return html.Div([
                 html.I(className="bi bi-exclamation-triangle-fill text-warning mb-3", style={"fontSize": "2rem"}),
@@ -109,9 +107,8 @@ def register_dashboard_callbacks(app):
         filters = None
         if filters_state and filters_state.get("applied"):
             filters = filters_state
-            print(f"[DASHBOARD] Updating charts with filters: {list(filters.keys())}")
         else:
-            print("[DASHBOARD] Updating charts - no filters applied")
+            filters = None
         
         df = get_ri_evolution_data(filters)
         

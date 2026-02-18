@@ -20,7 +20,6 @@ def register_activation_callbacks(app):
             
         # Verifica banco
         if check_database_status():
-            print("[ACTIVATION] Dados detectados no banco. Ativando dashboard...")
             return True
             
         return no_update
