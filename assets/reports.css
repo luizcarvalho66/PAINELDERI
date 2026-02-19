@@ -1,0 +1,159 @@
+/* ==========================================================================
+   REPORTS HUB - Export Center
+   Minimal & Modern
+   ========================================================================== */
+
+.reports-hub-container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 3rem 0;
+}
+
+/* -- Header -- */
+.reports-hub-header {
+    margin-bottom: 2.5rem;
+}
+
+.reports-hub-title {
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: var(--text-main);
+    margin-bottom: 0.35rem;
+}
+
+.reports-hub-subtitle {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+/* -- Cards Grid -- */
+.reports-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+}
+
+@media (max-width: 640px) {
+    .reports-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* -- Report Card -- */
+.report-card {
+    position: relative;
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 1.75rem 1.5rem;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1.25rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    cursor: default;
+}
+
+.report-card:hover {
+    border-color: var(--border-medium);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* -- Icon -- */
+.report-card-icon {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* -- Content -- */
+.report-card-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.report-card-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-main);
+    margin: 0 0 0.25rem;
+}
+
+.report-card-description {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+    margin: 0 0 1rem;
+}
+
+/* -- Button -- */
+.report-card-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    background: transparent;
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-family: 'Ubuntu', sans-serif;
+    color: var(--text-secondary);
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+
+.report-card-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.report-card-btn:hover:not(:disabled) {
+    background: var(--bg-main);
+    border-color: var(--border-medium);
+    color: var(--text-main);
+}
+
+.report-card-btn i {
+    font-size: 0.8rem;
+}
+
+/* -- Badge -- */
+.report-card-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    padding: 0.15rem 0.5rem;
+    background: var(--bg-main);
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    border-radius: 4px;
+}
+
+/* -- Footer -- */
+.reports-hub-footer-note {
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border-light);
+}
+
+.reports-hub-footer-note p {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+}
+
+.reports-hub-footer-note i {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
