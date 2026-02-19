@@ -7,6 +7,7 @@ from .corretivas_callbacks import register_corretivas_callbacks
 from .callbacks_preventiva import register_preventiva_callbacks
 from .activation_callbacks import register_activation_callbacks
 from .callbacks_sync import register_sync_callbacks
+from .callbacks_reports import register_reports_callbacks
 
 def register_all_callbacks(app):
 
@@ -18,3 +19,5 @@ def register_all_callbacks(app):
     register_preventiva_callbacks(app)
     register_activation_callbacks(app)
     register_sync_callbacks(app)
+    register_reports_callbacks(app)
+

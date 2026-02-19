@@ -157,3 +157,41 @@
     font-size: 0.75rem;
     color: var(--text-muted);
 }
+
+/* -- Active Card (PPT Enabled) -- */
+.report-card-active {
+    border-color: rgba(226, 6, 19, 0.25);
+    cursor: pointer;
+}
+
+.report-card-active:hover {
+    border-color: #E20613;
+    box-shadow: 0 4px 20px rgba(226, 6, 19, 0.12);
+    transform: translateY(-2px);
+}
+
+.report-card-active .report-card-badge {
+    display: none;
+}
+
+.report-card-active .report-card-btn {
+    background: linear-gradient(135deg, #E20613, #c00510);
+    color: white;
+    border-color: transparent;
+    cursor: pointer;
+    opacity: 1;
+}
+
+.report-card-active .report-card-btn:hover {
+    background: linear-gradient(135deg, #c00510, #a00410);
+    box-shadow: 0 2px 8px rgba(226, 6, 19, 0.3);
+    transform: translateY(-1px);
+}
+
+/* -- Spinner inside card -- */
+.report-spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
