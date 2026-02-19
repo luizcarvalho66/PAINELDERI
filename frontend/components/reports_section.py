@@ -1,15 +1,31 @@
 """
 Reports Hub - Export Center
 """
-from dash import html
+from dash import html, dcc
 from dash_iconify import DashIconify
+import dash_bootstrap_components as dbc
 
 
-def _build_report_card(variant, icon_name, title, description, button_label):
+def _build_report_card(variant, icon_name, title, description, button_label,
+                       enabled=False, btn_id=None):
     """Card de relatorio com layout horizontal minimalista."""
+
+    badge = None if enabled else html.Span("Em breve", className="report-card-badge")
+
+    btn_props = {
+        "className": "report-card-btn",
+        "disabled": not enabled,
+    }
+    if btn_id:
+        btn_props["id"] = btn_id
+
+    card_class = f"report-card report-card-{variant}"
+    if enabled:
+        card_class += " report-card-active"
+
     return html.Div(
         [
-            html.Span("Em breve", className="report-card-badge"),
+            badge,
             # Icone
             html.Div(
                 DashIconify(icon=icon_name, width=44, height=44),
@@ -22,14 +38,13 @@ def _build_report_card(variant, icon_name, title, description, button_label):
                     html.P(description, className="report-card-description"),
                     html.Button(
                         [html.I(className="bi bi-download"), button_label],
-                        className="report-card-btn",
-                        disabled=True,
+                        **btn_props,
                     ),
                 ],
                 className="report-card-body",
             ),
         ],
-        className=f"report-card report-card-{variant}",
+        className=card_class,
     )
 
 
@@ -40,11 +55,11 @@ def render_reports_section():
             html.Div(
                 [
                     html.H1(
-                        u"Relat\u00f3rios",
+                        "Relatórios",
                         className="reports-hub-title",
                     ),
                     html.P(
-                        u"Exporte dados para apresenta\u00e7\u00f5es e an\u00e1lises.",
+                        "Exporte dados para apresentações e análises.",
                         className="reports-hub-subtitle",
                     ),
                 ],
@@ -52,27 +67,39 @@ def render_reports_section():
             ),
             html.Div(
                 [
-                    _build_report_card(
-                        variant="ppt",
-                        icon_name="vscode-icons:file-type-powerpoint",
-                        title="PowerPoint",
-                        description=u"Apresenta\u00e7\u00e3o executiva com KPIs e gr\u00e1ficos.",
-                        button_label="Exportar .PPTX",
+                    # PPT — ATIVO
+                    dbc.Spinner(
+                        _build_report_card(
+                            variant="ppt",
+                            icon_name="vscode-icons:file-type-powerpoint",
+                            title="PowerPoint",
+                            description="Apresentação executiva com KPIs e gráficos.",
+                            button_label="Exportar .PPTX",
+                            enabled=True,
+                            btn_id="btn-export-ppt",
+                        ),
+                        color="#E20613",
+                        type="border",
+                        size="sm",
+                        spinner_class_name="report-spinner",
                     ),
+                    # Excel — EM BREVE
                     _build_report_card(
                         variant="excel",
                         icon_name="vscode-icons:file-type-excel",
                         title="Excel",
-                        description=u"Planilha com dados detalhados e filtros.",
+                        description="Planilha com dados detalhados e filtros.",
                         button_label="Exportar .XLSX",
                     ),
                 ],
                 className="reports-grid",
             ),
+            # Download component (hidden)
+            dcc.Download(id="download-ppt"),
             html.Div(
                 html.P([
                     html.I(className="bi bi-info-circle"),
-                    u"Novos formatos ser\u00e3o adicionados em breve.",
+                    "Novos formatos serão adicionados em breve.",
                 ]),
                 className="reports-hub-footer-note",
             ),
