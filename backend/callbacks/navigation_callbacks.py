@@ -2,6 +2,7 @@ from dash import Input, Output, State, html, callback_context
 import dash_bootstrap_components as dbc
 from frontend.pages.dashboard import render_dashboard
 from frontend.components.farol_section import render_farol_section
+from frontend.components.reports_section import render_reports_section
 
 CONTENT_STYLE = {
     "marginLeft": "18rem",
@@ -19,6 +20,8 @@ def register_navigation_callbacks(app):
             return render_dashboard()
         elif pathname == "/farol":
             return render_farol_section()
+        elif pathname == "/relatorios":
+            return render_reports_section()
             
         return html.Div(
             dbc.Container(
