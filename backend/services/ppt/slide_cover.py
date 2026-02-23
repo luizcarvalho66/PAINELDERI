@@ -2,8 +2,8 @@
 """
 Slide 1 — Capa executiva estilo Edenred.
 
-Design split-screen com border radius, ícones profissionais,
-cores alinhadas com base.css, sem redundância.
+Design split-screen com border radius, ícone profissional,
+círculo vermelho gigante e posicionamento perfeito.
 """
 
 import os
@@ -12,11 +12,14 @@ from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
 from pptx.enum.shapes import MSO_SHAPE
+from pptx.oxml.ns import qn
+from pptx.oxml import parse_xml
 
 from .config import (
     WHITE, EDENRED_RED, EDENRED_RED_DARK, EDENRED_CORAL,
     EDENRED_DARK, TEXT_MUTED, BG_LIGHT, BORDER_GRAY,
-    SLIDE_WIDTH, LOGO_PATH, ICONS_DIR,
+    SLIDE_WIDTH, LOGO_PATH, ICONS_DIR, COVER_PATH, MINILOGO_PATH,
+    SLIDE_HEIGHT
 )
 from .helpers import add_text_box
 
@@ -27,196 +30,120 @@ def _add_icon(slide, icon_name, left, top, size=Inches(0.45)):
     if os.path.exists(path):
         slide.shapes.add_picture(path, left, top, width=size, height=size)
 
+def _add_svg_fallback_icon(slide, icon_name, left, top, size=Inches(0.45)):
+    """Se não tiver PNG, tenta SVG."""
+    pass
+
 
 def build_slide_cover(prs):
-    """Capa executiva split-screen com border radius e ícones."""
+    """Capa executiva com foto arredondada e círculo vermelho gigante."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
 
-    # Fundo cinza claro (como o app)
+    # Fundo Branco
     bg = slide.background
     bg.fill.solid()
-    bg.fill.fore_color.rgb = BG_LIGHT
+    bg.fill.fore_color.rgb = WHITE
+
+    # Dimensões da composição unificada
+    margin_x = Inches(1.0)
+    img_top = Inches(0.8)
+    img_height = Inches(5.9)
+    img_width = Inches(9.5) # Imagem bem larga para o círculo cortar ela no meio
 
     # ============================================
-    # BLOCO VERMELHO ESQUERDO (com border radius)
+    # BLOCO IMAGEM ESQUERDA (com border radius suave)
     # ============================================
-    red_w = Inches(6.5)
-    red_h = Inches(6.0)
-    red_margin = Inches(0.4)
+    img_left = margin_x
 
-    red_block = slide.shapes.add_shape(
-        MSO_SHAPE.ROUNDED_RECTANGLE,
-        red_margin, red_margin,
-        red_w, red_h
-    )
-    fill = red_block.fill
-    fill.gradient()
-    fill.gradient_stops[0].color.rgb = EDENRED_RED_DARK   # #C10510
-    fill.gradient_stops[0].position = 0.0
-    fill.gradient_stops[1].color.rgb = EDENRED_RED         # #E20613
-    fill.gradient_stops[1].position = 1.0
-    red_block.line.fill.background()
-    red_block.adjustments[0] = 0.03  # border radius suave
-
-    # Accent branco fino (barra decorativa)
-    accent = slide.shapes.add_shape(
-        MSO_SHAPE.ROUNDED_RECTANGLE,
-        Inches(1.0), Inches(1.3),
-        Inches(0.6), Pt(4)
-    )
-    accent.fill.solid()
-    accent.fill.fore_color.rgb = WHITE
-    accent.line.fill.background()
-    accent.adjustments[0] = 0.5
-
-    # Título principal
-    add_text_box(
-        slide, Inches(1.0), Inches(1.6),
-        Inches(5.2), Inches(2.2),
-        "Regulação\nInteligente",
-        size=46, bold=True, color=WHITE, alignment=PP_ALIGN.LEFT
-    )
-
-    # Linha separadora branca fina
-    sep = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE,
-        Inches(1.0), Inches(3.9),
-        Inches(2.5), Pt(1)
-    )
-    sep.fill.solid()
-    sep.fill.fore_color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-    sep.line.fill.background()
-
-    # Subtítulo
-    add_text_box(
-        slide, Inches(1.0), Inches(4.2),
-        Inches(5.2), Inches(0.5),
-        "RELATÓRIO EXECUTIVO",
-        size=13, bold=True, color=RGBColor(0xFF, 0xCC, 0xCC),
-        alignment=PP_ALIGN.LEFT
-    )
-
-    # Descrição
-    add_text_box(
-        slide, Inches(1.0), Inches(4.8),
-        Inches(5.0), Inches(0.8),
-        "Análise de Performance\nde Manutenção Automotiva",
-        size=12, color=RGBColor(0xFF, 0xBB, 0xBB),
-        alignment=PP_ALIGN.LEFT
-    )
-
-    # ============================================
-    # LADO DIREITO — Card branco com border radius
-    # ============================================
-    card_x = Inches(7.3)
-    card_y = Inches(0.4)
-    card_w = Inches(5.6)
-    card_h = Inches(6.0)
-
-    white_card = slide.shapes.add_shape(
-        MSO_SHAPE.ROUNDED_RECTANGLE,
-        card_x, card_y,
-        card_w, card_h
-    )
-    white_card.fill.solid()
-    white_card.fill.fore_color.rgb = WHITE
-    white_card.line.color.rgb = BORDER_GRAY
-    white_card.line.width = Pt(1)
-    white_card.adjustments[0] = 0.03
-
-    # Ícones profissionais (grid 2x2)
-    icon_size = Inches(0.4)
-    icon_y = Inches(1.0)
-    icon_gap = Inches(0.65)
-    icon_start_x = Inches(7.8)
-
-    icons = ["gear", "wrench", "chart", "car"]
-    for i, icon_name in enumerate(icons):
-        ix = icon_start_x + i * icon_gap
-        # Círculo de fundo para o ícone
-        circle = slide.shapes.add_shape(
-            MSO_SHAPE.OVAL,
-            ix, icon_y,
-            Inches(0.5), Inches(0.5)
+    if os.path.exists(COVER_PATH):
+        pic = slide.shapes.add_picture(COVER_PATH, img_left, img_top, img_width, img_height)
+        spPr = pic.element.spPr
+        prstGeom = spPr.find(qn('a:prstGeom'))
+        if prstGeom is not None:
+            prstGeom.set('prst', 'roundRect')
+            # 20000 = radius 20% nas bordas (cantos arredondados, não pílula total)
+            avLst = parse_xml('<a:avLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:gd name="adj" fmla="val 20000"/></a:avLst>')
+            prstGeom.append(avLst)
+    else:
+        # Fallback se não tiver imagem
+        red_block = slide.shapes.add_shape(
+            MSO_SHAPE.ROUNDED_RECTANGLE,
+            img_left, img_top,
+            img_width, img_height
         )
-        circle.fill.solid()
-        circle.fill.fore_color.rgb = EDENRED_RED
-        circle.line.fill.background()
-        # Ícone PNG branco por cima
-        _add_icon(slide, icon_name, ix + Inches(0.05), icon_y + Inches(0.05), icon_size)
+        fill = red_block.fill
+        fill.solid()
+        fill.fore_color.rgb = TEXT_MUTED
+        red_block.line.fill.background()
+        red_block.adjustments[0] = 0.20
 
-    # Barra vermelha decorativa
-    h_accent = slide.shapes.add_shape(
-        MSO_SHAPE.ROUNDED_RECTANGLE,
-        Inches(7.8), Inches(1.8),
-        Inches(1.2), Pt(4)
+    # ============================================
+    # LADO DIREITO — Círculo Vermelho Gigante (Cortando a imagem)
+    # ============================================
+    circle_radius = Inches(3.0)  # Diametro 6" — proporcional ao slide 7.5"
+    center_y = SLIDE_HEIGHT / 2
+    # Círculo com centro mais pra direita, sobrepondo parcialmente a imagem
+    center_x = SLIDE_WIDTH - Inches(3.8)
+
+    circle_left = center_x - circle_radius
+    circle_top = center_y - circle_radius
+
+    red_circle = slide.shapes.add_shape(
+        MSO_SHAPE.OVAL,
+        circle_left, circle_top,
+        circle_radius * 2, circle_radius * 2
     )
-    h_accent.fill.solid()
-    h_accent.fill.fore_color.rgb = EDENRED_RED
-    h_accent.line.fill.background()
-    h_accent.adjustments[0] = 0.5
+    red_circle.fill.solid()
+    red_circle.fill.fore_color.rgb = EDENRED_RED
+    red_circle.line.fill.background()
 
-    # Título do painel
+    # ============================================
+    # CONTEÚDO (DENTRO DO CÍRCULO)
+    # ============================================
+    # Ícone no topo do círculo
+    icon_size = Inches(0.55)
+    icon_left = center_x - (icon_size / 2)
+    icon_top = center_y - Inches(1.1)
+    _add_icon(slide, "wrench", icon_left, icon_top, icon_size)
+
+    # Textos centralizados no círculo
+    text_width = Inches(4.5)
+    text_left = center_x - (text_width / 2)
+
+    # MTBF
     add_text_box(
-        slide, Inches(7.8), Inches(2.1),
-        Inches(5.0), Inches(0.8),
-        "Painel de Regulação\nInteligente",
-        size=22, bold=True, color=EDENRED_DARK
+        slide, text_left, center_y - Inches(0.35),
+        text_width, Inches(0.7),
+        "MTBF",
+        size=40, bold=True, color=WHITE, alignment=PP_ALIGN.CENTER
     )
 
-    # Data de geração
-    now = datetime.now().strftime("%d/%m/%Y às %H:%M")
+    # Análise Crítica
     add_text_box(
-        slide, Inches(7.8), Inches(3.2),
-        Inches(5.0), Inches(0.4),
-        f"Gerado em {now}",
-        size=11, color=TEXT_MUTED
-    )
-
-    # Badge "Edenred Fleet Solutions"
-    badge = slide.shapes.add_shape(
-        MSO_SHAPE.ROUNDED_RECTANGLE,
-        Inches(7.8), Inches(4.0),
-        Inches(2.8), Inches(0.35)
-    )
-    badge.fill.solid()
-    badge.fill.fore_color.rgb = BG_LIGHT
-    badge.line.fill.background()
-    badge.adjustments[0] = 0.5
-
-    add_text_box(
-        slide, Inches(7.85), Inches(4.02),
-        Inches(2.7), Inches(0.3),
-        "Edenred Fleet Solutions",
-        size=9, bold=True, color=TEXT_MUTED, alignment=PP_ALIGN.CENTER
+        slide, text_left, center_y + Inches(0.25),
+        text_width, Inches(0.5),
+        "Análise Crítica",
+        size=30, bold=True, color=WHITE, alignment=PP_ALIGN.CENTER
     )
 
     # ============================================
     # RODAPÉ
     # ============================================
-
-    # Barra vermelha fina
-    footer_bar = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE,
-        Inches(0), Inches(6.7),
-        SLIDE_WIDTH, Pt(2)
-    )
-    footer_bar.fill.solid()
-    footer_bar.fill.fore_color.rgb = EDENRED_RED
-    footer_bar.line.fill.background()
-
-    # Logo Edenred (rodapé esquerdo, maior)
+    
+    # Logo Edenred (esquerda)
     if os.path.exists(LOGO_PATH):
+        # A logo original costuma ser bem grande, redimensionada para a altura correta
+        # Vamos usar um tamanho padrão: h=0.4
         slide.shapes.add_picture(
             LOGO_PATH,
-            Inches(0.5), Inches(6.85),
-            width=Inches(1.6)
+            margin_x, Inches(6.8),
+            height=Inches(0.4)
         )
 
-    # Tagline "Mover, para o bem."
+    # Tagline (direita)
     add_text_box(
-        slide, Inches(10.3), Inches(6.95),
-        Inches(2.7), Inches(0.4),
+        slide, Inches(9.8), Inches(6.8),
+        Inches(2.5), Inches(0.4),
         "Mover, para o bem.",
-        size=10, bold=False, color=TEXT_MUTED, alignment=PP_ALIGN.RIGHT
+        size=11, bold=True, color=RGBColor(0x1A, 0x1A, 0x2E), alignment=PP_ALIGN.RIGHT
     )

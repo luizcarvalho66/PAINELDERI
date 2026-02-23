@@ -48,6 +48,16 @@ LOGO_PATH = os.path.join(
     "assets", "logo.png"
 )
 
+COVER_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+    "assets", "cover.png"
+)
+
+MINILOGO_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+    "assets", "edenred-minilogo.png"
+)
+
 ICONS_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
     "assets", "icons"
