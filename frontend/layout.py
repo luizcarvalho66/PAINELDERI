@@ -9,9 +9,16 @@ CONTENT_STYLE = {
 }
 
 from frontend.pages.dashboard import render_dashboard
+from frontend.components.farol_section import render_farol_section
+from frontend.components.reports_section import render_reports_section
 
-# Dynamic container for pages — margin-left controlado via CSS (sidebar.css)
-content = html.Div(render_dashboard(), id="page-content")
+# Navegação show/hide: todas as seções existem permanentemente no DOM.
+# A navegação apenas alterna display: block/none, preservando o estado dos charts/KPIs.
+content = html.Div([
+    html.Div(render_dashboard(), id="page-dashboard", style={"display": "block"}),
+    html.Div(render_farol_section(), id="page-farol", style={"display": "none"}),
+    html.Div(render_reports_section(), id="page-reports", style={"display": "none"}),
+], id="page-content")
 
 def get_layout():
     return html.Div([
