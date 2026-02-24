@@ -22,11 +22,9 @@ def _run_sync_background():
     """Executa o sync em background thread."""
     global _sync_state
     try:
-        print("[SYNC] Iniciando sync em background...", flush=True)
         result = sync_all_data(days=150)
         _sync_state["result"] = result
         _sync_state["error"] = None
-        print(f"[SYNC] Finalizado: success={result.get('success')}", flush=True)
     except Exception as e:
         _sync_state["result"] = None
         _sync_state["error"] = str(e)
@@ -332,7 +330,6 @@ def register_sync_callbacks(app):
         if _sync_state["running"] and elapsed > SYNC_TIMEOUT_SECONDS:
             _sync_state["running"] = False
             _sync_state["error"] = f"Timeout ({SYNC_TIMEOUT_SECONDS}s)"
-            print(f"[SYNC] TIMEOUT apos {elapsed}s. Marcando como falha.", flush=True)
 
         if _sync_state["running"]:
             return (
@@ -441,7 +438,6 @@ def register_sync_callbacks(app):
         check_thread = threading.Thread(target=_run_check_new_data, daemon=True)
         check_thread.start()
         # NÃO faz thread.join() — retorna imediatamente
-        print("[CHECK] Thread de verificação disparada (polling ativado).", flush=True)
         return False  # Ativa o polling interval
 
     # =============================================
@@ -471,7 +467,7 @@ def register_sync_callbacks(app):
                 return True, msg, True  # Mostra toast + desativa polling
             
             if result and not result.get("error"):
-                print("[CHECK] Dados estão atualizados.", flush=True)
+                pass
             
             return False, "", True  # Sem dados novos + desativa polling
         

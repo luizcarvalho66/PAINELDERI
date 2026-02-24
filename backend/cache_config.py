@@ -107,7 +107,6 @@ def mark_cache_initialized(cache_dir=None):
     global _cache_initialized, _cache_dir
     _cache_initialized = True
     _cache_dir = cache_dir
-    print(f"[CACHE] Cache marcado como inicializado (dir: {cache_dir})")
 
 def clear_cache():
     """
@@ -120,7 +119,6 @@ def clear_cache():
     
     if _cache_initialized and cache.app:
         try:
-            print("[CACHE] Iniciando limpeza total...")
             
             # 1. Limpa cache in-memory (SimpleCache)
             cache.clear()
@@ -135,11 +133,9 @@ def clear_cache():
                 if os.path.exists(sf):
                     try:
                         os.unlink(sf)
-                        print(f"[CACHE] Snapshot removido: {os.path.basename(sf)}")
                     except Exception as e:
                         print(f"[CACHE] Falha ao remover snapshot {sf}: {e}")
             
-            print("[CACHE] Limpeza concluída com sucesso.")
             return True
         except Exception as e:
             print(f"[CACHE ERROR] Erro durante o flush do cache: {e}")

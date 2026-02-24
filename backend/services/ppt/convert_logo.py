@@ -9,6 +9,4 @@ if os.path.exists(webp_path):
     # Convert webp to png
     img = Image.open(webp_path)
     img.save(png_path, "PNG")
-    print(f"Created {png_path}")
 else:
-    print(f"Could not find {webp_path}")

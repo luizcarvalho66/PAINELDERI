@@ -142,7 +142,8 @@ def check_new_data():
         cursor.execute(query)
         row = cursor.fetchone()
         remote_max_date = str(row[0])[:10] if row and row[0] else None
-        conn_db.close()
+        cursor.close()
+        # NÃO fecha a conn_db pois estamos usando o cache global
 
         # Compara por DATA, não por contagem
         has_new = False
@@ -152,7 +153,6 @@ def check_new_data():
             has_new = True  # Banco vazio, tem dados remotos
 
         icon = "🆕" if has_new else "✅"
-        print(f"{icon} [CHECK] Local max_date: {local_max_date} | Remoto max_date: {remote_max_date} | Local count: {local_count:,} | Novos: {has_new}", flush=True)
         
         return {
             "has_new_data": has_new,
@@ -165,17 +165,50 @@ def check_new_data():
         return {"has_new_data": False, "error": str(e)}
 
 
+# Cache de conexão (evita múltiplos U2M)
+_cached_conn = None
+_conn_created_at = None
+_CONN_TTL_SECONDS = 2700  # 45 min (tokens U2M duram ~1h)
+
+def _close_cached_conn():
+    """Fecha explicitamente a conexão cached, útil se der erro de socket"""
+    global _cached_conn, _conn_created_at
+    if _cached_conn:
+        try:
+            _cached_conn.close()
+        except:
+            pass
+    _cached_conn = None
+    _conn_created_at = None
+
 def get_databricks_conn():
     """
-    Cria conexão com Databricks SQL Warehouse.
+    Cria conexão com Databricks SQL Warehouse ou retorna do cache.
     Detecta automaticamente o ambiente:
     - Databricks App: usa SDK Config (OAuth M2M via Service Principal)
     - Local: usa CLI profile (~/.databrickscfg)
     """
+    global _cached_conn, _conn_created_at
     import traceback
     
+    # Tentar reusar conexão existente para evitar prompt OAuth (U2M)
+    if _cached_conn and _conn_created_at:
+        age_seconds = time.time() - _conn_created_at
+        if age_seconds < _CONN_TTL_SECONDS:
+            try:
+                # Teste simples (ping)
+                cursor = _cached_conn.cursor()
+                cursor.execute("SELECT 1")
+                cursor.fetchall()
+                cursor.close()
+                return _cached_conn
+            except Exception as e:
+                _close_cached_conn()
+        else:
+            _close_cached_conn()
+    
+    
     if IS_DATABRICKS_APP:
-        print("[SYNC] Databricks App detectado.", flush=True)
         
         # Log de diagnóstico: quais variáveis de ambiente existem?
         env_vars = {
@@ -184,13 +217,11 @@ def get_databricks_conn():
             'DATABRICKS_CLIENT_SECRET': 'SET' if os.getenv('DATABRICKS_CLIENT_SECRET') else 'NOT SET',
             'DATABRICKS_TOKEN': 'SET' if os.getenv('DATABRICKS_TOKEN') else 'NOT SET',
         }
-        print(f"[SYNC] Env vars: {env_vars}", flush=True)
         
         # MÉTODO 1: Usar SDK Config que auto-descobre OAuth M2M credentials
         try:
             from databricks.sdk.core import Config
             cfg = Config()
-            print(f"[SYNC] SDK Config: host={cfg.host}, auth_type={cfg.auth_type}", flush=True)
             
             # Tentar obter token - diferentes versões do SDK têm APIs diferentes
             token = None
@@ -199,12 +230,10 @@ def get_databricks_conn():
             # Tentativa 1: cfg.authenticate() sem argumentos (versão mais recente)
             try:
                 auth_result = cfg.authenticate()
-                print(f"[SYNC] cfg.authenticate() retornou: type={type(auth_result)}", flush=True)
                 
                 if callable(auth_result):
                     # É uma HeaderFactory - chama para obter headers
                     headers_result = auth_result()
-                    print(f"[SYNC] HeaderFactory retornou: {type(headers_result)}, keys={list(headers_result.keys()) if isinstance(headers_result, dict) else 'N/A'}", flush=True)
                     if isinstance(headers_result, dict):
                         auth_header = headers_result.get('Authorization', '')
                         if auth_header.startswith('Bearer '):
@@ -229,12 +258,11 @@ def get_databricks_conn():
                 try:
                     token = cfg.token
                     if token:
-                        print(f"[SYNC] Token obtido via cfg.token", flush=True)
+                        pass
                 except AttributeError:
                     pass
             
             if token:
-                print(f"[SYNC] Token obtido ({len(token)} chars). Conectando a {host}...", flush=True)
                 return sql.connect(
                     server_hostname=host,
                     http_path=HTTP_PATH,
@@ -250,7 +278,6 @@ def get_databricks_conn():
             # MÉTODO 2: Fallback para DATABRICKS_TOKEN env var
             token = os.getenv('DATABRICKS_TOKEN')
             if token:
-                print(f"[SYNC] Fallback: usando DATABRICKS_TOKEN ({len(token)} chars)", flush=True)
                 host = os.getenv('DATABRICKS_HOST', HOST).replace("https://", "").replace("http://", "").rstrip("/")
                 return sql.connect(
                     server_hostname=host,
@@ -258,17 +285,22 @@ def get_databricks_conn():
                     access_token=token,
                 )
             
-            print("[SYNC] Nenhum método de auth funcionou!", flush=True)
             raise
     else:
-        print("[SYNC] Ambiente local. Usando CLI profile...", flush=True)
-        return sql.connect(
+        conn = sql.connect(
             server_hostname=HOST,
             http_path=HTTP_PATH,
             auth_type="databricks-cli",
             profile=PROFILE,
             _socket_timeout=900,  # 15min — precisa esperar queries grandes
         )
+        
+    # Salvar no cache antes de retornar
+    if conn:
+        _cached_conn = conn
+        _conn_created_at = time.time()
+        
+    return conn
 
 def _get_local_date_range():
     """
@@ -286,10 +318,9 @@ def _get_local_date_range():
             WHERE data_transacao IS NOT NULL
         """).fetchone()
         if result and result[0]:
-            print(f"📊 [SYNC] Dados locais: {result[2]:,} registros | {result[0]} → {result[1]}", flush=True)
             return result[0], result[1], result[2]
     except Exception as e:
-        print(f"📭 [SYNC] Sem dados locais: {e}", flush=True)
+        pass
     return None, None, 0
 
 
@@ -433,14 +464,12 @@ def _download_with_arrow(cursor_db, chunk_size=50000):
     
     if HAS_ARROW:
         # MODO ARROW: Muito mais rápido para grandes volumes
-        print("[SYNC] Usando fetchmany_arrow() (modo otimizado)", flush=True)
         batches = []
         while True:
             # Verificar timeout do download
             elapsed = time.time() - download_start
             if elapsed > DOWNLOAD_TIMEOUT_SECONDS:
                 is_partial = True
-                print(f"[SYNC] DOWNLOAD TIMEOUT ({elapsed:.0f}s). Usando {total_rows:,} registros já baixados.", flush=True)
                 _update_step("download", "running", f"Timeout! Usando {total_rows:,} registros parciais...")
                 break
             
@@ -459,7 +488,6 @@ def _download_with_arrow(cursor_db, chunk_size=50000):
             elapsed = time.time() - download_start
             rows_per_sec = int(total_rows / elapsed) if elapsed > 0 else 0
             _update_step("download", "running", f"{total_rows:,} registros (Arrow, {elapsed:.0f}s, ~{rows_per_sec:,}/s)...")
-            print(f"[SYNC] Downloaded {total_rows:,} rows (Arrow)...", flush=True)
         
         if not batches:
             return pd.DataFrame(), False
@@ -476,7 +504,6 @@ def _download_legacy(cursor_db, chunk_size=50000):
     """
     Download legado usando fetchmany() puro (sem Arrow).
     """
-    print("[SYNC] Usando fetchmany() (modo legado)", flush=True)
     cols = [c[0] for c in cursor_db.description]
     all_rows = []
     while True:
@@ -486,7 +513,6 @@ def _download_legacy(cursor_db, chunk_size=50000):
         all_rows.extend(chunk)
         _sync_progress["total_records"] = len(all_rows)
         _update_step("download", "running", f"{len(all_rows):,} registros...")
-        print(f"[SYNC] Downloaded {len(all_rows):,} rows...", flush=True)
     
     return pd.DataFrame(all_rows, columns=cols) if all_rows else pd.DataFrame()
 
@@ -500,10 +526,6 @@ def sync_all_data(days=150):
     
     Nunca baixa todos os 2M+ registros desnecessariamente.
     """
-    print(f"\n{'='*60}", flush=True)
-    print(f"🚀 [SYNC] Databricks Sync — Híbrido Inteligente", flush=True)
-    print(f"   Arrow: {'SIM ✅' if HAS_ARROW else 'NÃO ⚠️'} | Janela: {days} dias", flush=True)
-    print(f"{'='*60}", flush=True)
     
     _init_progress()
     start_total = time.time()
@@ -515,7 +537,6 @@ def sync_all_data(days=150):
         conn_db = get_databricks_conn()
         cursor_db = conn_db.cursor()
         _update_step("connect", "done", "Conectado ao SQL Warehouse")
-        print("🔌 [SYNC] Connected.", flush=True)
         
         # Analisar dados locais para decidir estratégia
         min_date, max_date, local_count = _get_local_date_range()
@@ -535,7 +556,6 @@ def sync_all_data(days=150):
             queries_info_list.append(f"📦 Primeira sincronização — baixando últimos {days} dias")
             _sync_progress["sync_mode"] = "Primeira Sincronização"
             _sync_progress["sync_description"] = f"Baixando todos os dados dos últimos {days} dias para construir a base local."
-            print(f"📦 [SYNC] Modo FULL LOAD — buscando últimos {days} dias", flush=True)
         else:
             # TEM DADOS LOCAIS → verificar gaps + novos
             sync_type = "SMART"
@@ -550,13 +570,11 @@ def sync_all_data(days=150):
             # 1. GAP FILL: dados antigos faltantes?
             if min_date > expected_min:
                 gap_days = (min_date - expected_min).days
-                print(f"⚠️  [SYNC] GAP detectado: {gap_days} dias faltando ({expected_min} → {min_date})", flush=True)
                 query_gap = _build_query(date_from=str(expected_min), date_to=str(min_date))
                 queries_to_run.append((f"GAP FILL ({gap_days}d)", query_gap))
                 queries_info_list.append(f"📅 Buscando dados históricos: {exp_str} até {min_str} ({gap_days} dias)")
                 desc_parts.append(f"Recuperando {gap_days} dias de dados históricos faltantes")
             else:
-                print(f"✅ [SYNC] Cobertura retroativa OK: dados desde {min_date} (esperado: {expected_min})", flush=True)
                 desc_parts.append(f"Dados históricos desde {min_str} ✅")
             
             # 2. INCREMENTAL: dados novos após max_date?
@@ -572,7 +590,6 @@ def sync_all_data(days=150):
         _sync_progress["queries_info"] = queries_info_list
         
         if not queries_to_run:
-            print(f"[SYNC] Nada para sincronizar.", flush=True)
             results['success'] = True
             return results
         
@@ -580,14 +597,12 @@ def sync_all_data(days=150):
         all_dfs = []
         for i, (label, query) in enumerate(queries_to_run):
             _update_step("query", "running", f"Query {i+1}/{len(queries_to_run)}: {label}...")
-            print(f"🔍 [SYNC] Executando query {i+1}/{len(queries_to_run)}: {label}...", flush=True)
             cursor_db.execute(query)
             _update_step("query", "done", f"Query {label} executada")
             
             _update_step("download", "running", f"Download {label}...")
             df_part, is_partial = _download_with_arrow(cursor_db, chunk_size=100000)
             partial_label = " ⚠️ PARCIAL" if is_partial else ""
-            print(f"📥 [SYNC] {label}: {len(df_part):,} registros{partial_label}", flush=True)
             
             if len(df_part) > 0:
                 all_dfs.append(df_part)
@@ -595,13 +610,13 @@ def sync_all_data(days=150):
         # Fechar conexão Databricks (libera recursos no Warehouse)
         try:
             cursor_db.close()
-            conn_db.close()
+            # NÃO fechamos conn_db pois estamos usando cache (singleton) 
+            # e ele poderá ser reusado nos próximos minutos.
         except:
             pass
         
         # Concatenar todos os resultados
         if not all_dfs:
-            print("ℹ️  [SYNC] Nenhum dado novo encontrado.", flush=True)
             _update_step("download", "done", "Sem dados novos")
             _update_step("process", "done", "Sem dados")
             _update_step("save_db", "done", "Sem alterações")
@@ -609,7 +624,6 @@ def sync_all_data(days=150):
             _update_step("cache", "done", "Sem alterações")
             results['success'] = True
             elapsed = time.time() - start_total
-            print(f"✅ [SYNC] Finalizado em {elapsed:.1f}s (sem dados novos)", flush=True)
             return results
         
         df = pd.concat(all_dfs, ignore_index=True)
@@ -618,7 +632,6 @@ def sync_all_data(days=150):
         
         _sync_progress["total_records"] = len(df)
         _update_step("download", "done", f"{len(df):,} registros totais")
-        print(f"📊 [SYNC] Total após dedup: {len(df):,} registros", flush=True)
         results["records"] = len(df)
         
         # STEP 4: Processar dados
@@ -655,7 +668,6 @@ def sync_all_data(days=150):
         
         if min_date is not None:
             # MERGE: DELETE duplicatas + INSERT (dados existiam antes)
-            print(f"🔄 [SYNC] Merge de {len(df):,} registros...", flush=True)
             
             # Mapear colunas do staging para auto-migração
             stg_map = {
@@ -697,9 +709,8 @@ def sync_all_data(days=150):
                             for col in missing:
                                 col_type = stg_types.get(col, 'VARCHAR')
                                 conn_local.execute(f"ALTER TABLE {table} ADD COLUMN \"{col}\" {col_type}")
-                                print(f"   📐 {table}: coluna '{col}' adicionada ({col_type})", flush=True)
                     except Exception as schema_err:
-                        print(f"   ⚠️  Schema migration {table}: {schema_err}", flush=True)
+                        pass
 
                     # Deletar registros que serão atualizados (merge seguro)
                     conn_local.execute(f"""
@@ -709,16 +720,14 @@ def sync_all_data(days=150):
                     # Inserir novos/atualizados
                     conn_local.execute(f"INSERT INTO {table} SELECT * FROM {stg}")
                     count = conn_local.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-                    print(f"   ✅ {table}: {count:,} registros", flush=True)
                 except Exception as e:
                     # Tabela pode não existir — cria. Ou schema ainda incompatível — DROP+CREATE
                     try:
                         conn_local.execute(f"DROP TABLE IF EXISTS {table}")
                         conn_local.execute(f"CREATE TABLE {table} AS SELECT * FROM {stg}")
                         count = conn_local.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-                        print(f"   🆕 {table}: recriada com {count:,} registros", flush=True)
                     except Exception as e2:
-                        print(f"   ❌ {table}: ERRO FATAL - {e2}", flush=True)
+                        pass
             
             # Cleanup: remover dados fora da janela de {days} dias
             for table in ['ri_corretiva_detalhamento', 'ri_preventiva_detalhamento',
@@ -729,9 +738,8 @@ def sync_all_data(days=150):
                         WHERE data_transacao < current_date - INTERVAL '{days} days'
                     """)
                     count_after = conn_local.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-                    print(f"   🧹 {table}: {count_after:,} registros (limpos fora de {days}d)", flush=True)
                 except Exception as e:
-                    print(f"   ⚠️  Cleanup {table}: {e}", flush=True)
+                    pass
             
             # Header preventiva: recria (é derivada)
             conn_local.execute("DROP TABLE IF EXISTS logs_regulacao_preventiva_header")
@@ -747,7 +755,6 @@ def sync_all_data(days=150):
             """)
         else:
             # FULL LOAD: Drop + Create (primeiro sync)
-            print(f"📦 [SYNC] FULL LOAD: criando tabelas com {len(df):,} registros...", flush=True)
             
             conn_local.execute("DROP TABLE IF EXISTS ri_corretiva_detalhamento")
             conn_local.execute("CREATE TABLE ri_corretiva_detalhamento AS SELECT * FROM stg_corretiva")
@@ -809,14 +816,10 @@ def sync_all_data(days=150):
             print(f"⚠️  [SYNC] Cache falhou: {e}")
 
         elapsed = time.time() - start_total
-        print(f"\n{'='*60}", flush=True)
-        print(f"✅ [SYNC] SUCESSO ({sync_type}) — {len(df):,} registros em {elapsed:.1f}s", flush=True)
-        print(f"{'='*60}", flush=True)
         results['success'] = True
         
     except Exception as e:
         import traceback
-        print(f"❌ [SYNC] ERRO: {e}", flush=True)
         traceback.print_exc()
         results['errors'].append(str(e))
     finally:
