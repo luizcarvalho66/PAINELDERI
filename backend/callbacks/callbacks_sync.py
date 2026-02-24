@@ -457,13 +457,23 @@ def register_sync_callbacks(app):
         
         Verifica a cada 3s se a thread de check terminou.
         Quando terminar, mostra toast (se houver novos dados) e desativa polling.
+        Suporta resultado do fallback local (quando Databricks está inacessível).
         """
         if _check_result.get("done"):
             result = _check_result.get("data", {})
             if result and result.get("has_new_data"):
-                remote_date = result.get("remote_max_date", "?")
+                is_fallback = result.get("fallback", False)
                 local_date = result.get("local_max_date", "?")
-                msg = f"Dados disponíveis até {remote_date} (local: até {local_date})."
+                
+                if is_fallback:
+                    # Fallback local: não temos a data remota, mas sabemos que está atrasado
+                    days_behind = result.get("days_behind", "?")
+                    msg = f"Dados locais com {days_behind} dias de atraso (último: {local_date}). Sincronize para atualizar."
+                else:
+                    # Check remoto normal
+                    remote_date = result.get("remote_max_date", "?")
+                    msg = f"Dados disponíveis até {remote_date} (local: até {local_date})."
+                
                 return True, msg, True  # Mostra toast + desativa polling
             
             if result and not result.get("error"):

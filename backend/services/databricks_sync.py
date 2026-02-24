@@ -102,67 +102,130 @@ def get_sync_progress():
     return _sync_progress.copy()
 
 
+def _check_local_data_freshness():
+    """
+    Fallback heurístico: verifica se os dados locais estão defasados
+    comparando a data mais recente local com a data de hoje.
+    Não precisa de conexão com Databricks.
+    """
+    import datetime as dt
+    try:
+        conn_local = get_connection()
+        local_count = conn_local.execute("SELECT COUNT(*) FROM ri_corretiva_detalhamento").fetchone()[0]
+        row = conn_local.execute("SELECT MAX(data_transacao) FROM ri_corretiva_detalhamento").fetchone()
+        if row and row[0]:
+            local_max_date = str(row[0])[:10]  # YYYY-MM-DD
+            days_behind = (dt.date.today() - dt.date.fromisoformat(local_max_date)).days
+            # Se dados locais estão a mais de 7 dias do hoje, provavelmente há dados novos
+            if days_behind > 7:
+                print(f"⚠️ [CHECK-LOCAL] Dados locais com {days_behind} dias de atraso (último: {local_max_date}). Recomendado sincronizar.", flush=True)
+                return {
+                    "has_new_data": True,
+                    "remote_max_date": None,  # Desconhecido (sem acesso ao Databricks)
+                    "local_max_date": local_max_date,
+                    "local_count": local_count,
+                    "fallback": True,
+                    "days_behind": days_behind,
+                }
+            else:
+                print(f"✅ [CHECK-LOCAL] Dados locais recentes (último: {local_max_date}, {days_behind}d atrás).", flush=True)
+                return {"has_new_data": False, "local_max_date": local_max_date, "local_count": local_count, "fallback": True}
+        else:
+            # Sem dados locais = precisa sincronizar
+            return {"has_new_data": True, "remote_max_date": None, "local_max_date": None, "local_count": 0, "fallback": True}
+    except Exception:
+        return {"has_new_data": False, "error": "local_check_failed", "fallback": True}
+
+
+def _query_remote_max_date():
+    """Executa a query leve de MAX(date) no Databricks."""
+    conn_db = get_databricks_conn()
+    cursor = conn_db.cursor()
+    query = f"""
+    SELECT MAX(CAST(f.CreatedDate AS DATE)) as max_date
+    FROM hive_metastore.gold.fact_maintenanceitems fi
+    INNER JOIN hive_metastore.gold.fact_maintenanceitem f 
+        ON cast(fi.MaintenanceItemSourceCode as long) = f.IdMaintenanceItem
+    INNER JOIN hive_metastore.gold.dim_customer c
+        ON f.IdCustomer = c.IdCustomer
+    WHERE f.CreatedDate >= date_add(current_date(), -150)
+      AND try_cast(c.SourceNumber AS INT) IN ({", ".join([str(x) for x in TGM_CLIENT_IDS])})
+    """
+    cursor.execute(query)
+    row = cursor.fetchone()
+    remote_max_date = str(row[0])[:10] if row and row[0] else None
+    cursor.close()
+    return remote_max_date
+
+
 def check_new_data():
     """
     Verificação LEVE: compara a DATA MAIS RECENTE remota vs local para detectar novos dados.
     Não baixa dados — apenas faz MAX(date) no Databricks.
-    Retorna dict com has_new_data, remote_max_date, local_max_date.
+    
+    Estratégia de resiliência (3 camadas):
+    1. Tenta conectar ao Databricks normalmente
+    2. Se OAuth falhar (CSRF mismatch), limpa cache e retenta UMA vez
+    3. Se ainda falhar, usa fallback local (compara max_date local vs hoje)
     """
+    # Passo 1: Obter data local (sempre funciona, sem rede)
+    local_count = 0
+    local_max_date = None
     try:
-        # Data mais recente local
-        local_count = 0
-        local_max_date = None
+        conn_local = get_connection()
+        local_count = conn_local.execute("SELECT COUNT(*) FROM ri_corretiva_detalhamento").fetchone()[0]
         try:
-            conn_local = get_connection()
-            local_count = conn_local.execute("SELECT COUNT(*) FROM ri_corretiva_detalhamento").fetchone()[0]
-            try:
-                row = conn_local.execute(
-                    "SELECT MAX(data_transacao) FROM ri_corretiva_detalhamento"
-                ).fetchone()
-                if row and row[0]:
-                    local_max_date = str(row[0])[:10]  # YYYY-MM-DD
-            except:
-                pass
+            row = conn_local.execute(
+                "SELECT MAX(data_transacao) FROM ri_corretiva_detalhamento"
+            ).fetchone()
+            if row and row[0]:
+                local_max_date = str(row[0])[:10]
         except:
             pass
+    except:
+        pass
 
-        # Data mais recente remota (query leve — só MAX)
-        conn_db = get_databricks_conn()
-        cursor = conn_db.cursor()
-        query = f"""
-        SELECT MAX(CAST(f.CreatedDate AS DATE)) as max_date
-        FROM hive_metastore.gold.fact_maintenanceitems fi
-        INNER JOIN hive_metastore.gold.fact_maintenanceitem f 
-            ON cast(fi.MaintenanceItemSourceCode as long) = f.IdMaintenanceItem
-        INNER JOIN hive_metastore.gold.dim_customer c
-            ON f.IdCustomer = c.IdCustomer
-        WHERE f.CreatedDate >= date_add(current_date(), -150)
-          AND try_cast(c.SourceNumber AS INT) IN ({", ".join([str(x) for x in TGM_CLIENT_IDS])})
-        """
-        cursor.execute(query)
-        row = cursor.fetchone()
-        remote_max_date = str(row[0])[:10] if row and row[0] else None
-        cursor.close()
-        # NÃO fecha a conn_db pois estamos usando o cache global
+    # Passo 2: Tentar obter data remota (com retry em caso de OAuth expirado)
+    remote_max_date = None
+    max_attempts = 2  # 1 tentativa normal + 1 retry após limpar cache
+    
+    for attempt in range(1, max_attempts + 1):
+        try:
+            remote_max_date = _query_remote_max_date()
+            break  # Sucesso — sai do loop
+        except Exception as e:
+            error_msg = str(e)
+            is_oauth_error = "mismatching_state" in error_msg.lower() or "MismatchingStateError" in type(e).__name__
+            
+            if is_oauth_error and attempt < max_attempts:
+                # Tentativa 1 falhou com OAuth — limpar cache e retentar
+                print(f"⚠️ [CHECK] OAuth CSRF mismatch (tentativa {attempt}/{max_attempts}). Limpando cache e retentando...", flush=True)
+                _close_cached_conn()
+                time.sleep(1)  # Pequeno delay antes do retry
+                continue
+            elif is_oauth_error:
+                # Retry também falhou — ir para fallback local
+                print("⚠️ [CHECK] OAuth falhou após retry. Usando verificação local.", flush=True)
+                _close_cached_conn()
+                return _check_local_data_freshness()
+            else:
+                # Erro não-OAuth (rede, timeout, etc) — fallback local
+                print(f"❌ [CHECK] Erro ao conectar ao Databricks: {e}. Usando verificação local.", flush=True)
+                return _check_local_data_freshness()
 
-        # Compara por DATA, não por contagem
-        has_new = False
-        if remote_max_date and local_max_date:
-            has_new = remote_max_date > local_max_date
-        elif remote_max_date and not local_max_date:
-            has_new = True  # Banco vazio, tem dados remotos
+    # Passo 3: Comparar remoto vs local
+    has_new = False
+    if remote_max_date and local_max_date:
+        has_new = remote_max_date > local_max_date
+    elif remote_max_date and not local_max_date:
+        has_new = True  # Banco vazio, tem dados remotos
 
-        icon = "🆕" if has_new else "✅"
-        
-        return {
-            "has_new_data": has_new,
-            "remote_max_date": remote_max_date,
-            "local_max_date": local_max_date,
-            "local_count": local_count,
-        }
-    except Exception as e:
-        print(f"❌ [CHECK] Erro ao verificar novos dados: {e}", flush=True)
-        return {"has_new_data": False, "error": str(e)}
+    return {
+        "has_new_data": has_new,
+        "remote_max_date": remote_max_date,
+        "local_max_date": local_max_date,
+        "local_count": local_count,
+    }
 
 
 # Cache de conexão (evita múltiplos U2M)
