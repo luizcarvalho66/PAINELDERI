@@ -271,6 +271,9 @@ def get_ri_evolution_data(filters: dict = None):
         # Add labels for Multi-level Axis
         df['trimestre_label'] = df['trimestre'].apply(lambda x: f"Qtr {x}")
         
+        # x_label — usado pelas funções de chart como eixo X
+        df['x_label'] = df['mes_nome'].str[:3] + ' ' + df['ano'].astype(str)
+        
         return df
         
     except Exception as e:

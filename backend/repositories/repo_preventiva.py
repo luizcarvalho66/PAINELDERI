@@ -237,7 +237,7 @@ def get_fugas_grouped_with_detail(filters=None, limit=20):
         
         df_master = pd.read_sql(query_master, conn, params=params)
         df_master['valor_total'] = df_master['valor_total'].fillna(0).round(2)
-        print(f"[FUGAS] master query: {_time.time()-_t0:.1f}s ({len(df_master)} TGMs)", flush=True)
+        pass  # master query done
         
         tgm_codes = df_master['codigo_tgm'].tolist()
         if not tgm_codes:
@@ -265,7 +265,7 @@ def get_fugas_grouped_with_detail(filters=None, limit=20):
         
         _t1 = _time.time()
         df_detail = pd.read_sql(query_detail, conn, params=params)
-        print(f"[FUGAS] detail query: {_time.time()-_t1:.1f}s ({len(df_detail)} rows)", flush=True)
+        pass  # detail query done
         
         # Formatar datas
         for col in df_detail.columns:
@@ -284,7 +284,7 @@ def get_fugas_grouped_with_detail(filters=None, limit=20):
         for row in records:
             row['detailData'] = detail_by_tgm.get(row['codigo_tgm'], [])
         
-        print(f"[FUGAS] total: {_time.time()-_t0:.1f}s", flush=True)
+        pass  # total done
         return records
     except Exception as e:
         print(f"Erro no get_fugas_grouped_with_detail: {e}")
