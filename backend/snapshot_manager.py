@@ -66,8 +66,7 @@ def save_snapshot(context: str, metrics: dict):
         with open(_get_file_path(), 'w', encoding='utf-8') as f:
             json.dump(history, f, indent=2)
     except Exception as e:
-        print(f"[SNAPSHOT MANAGER] Failed to save snapshot: {e}")
-
+        pass
 def get_last_snapshot(context: str):
     """
     Returns the PREVIOUS snapshot (Penultimate) for comparison.
