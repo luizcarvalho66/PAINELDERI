@@ -9,6 +9,19 @@ from frontend.components.kpi_card import render_kpi_card
 from frontend.components.dashboard_charts import create_ri_geral_chart, create_comparative_chart
 from frontend.components.error_display import render_error_display
 
+def _fmt_br(value, decimals=0):
+    """Formata número no padrão brasileiro: 1.082.022 ou 223,0"""
+    try:
+        v_float = float(value)
+    except (ValueError, TypeError):
+        return value
+        
+    if decimals > 0:
+        formatted = f"{v_float:,.{decimals}f}"
+    else:
+        formatted = f"{v_float:,.0f}"
+    return formatted.replace(",", "X").replace(".", ",").replace("X", ".")
+
 def register_dashboard_callbacks(app):
     # Callback 1: Toggle Visibility of Onboarding, Charts and Filters
     @app.callback(
@@ -77,10 +90,11 @@ def register_dashboard_callbacks(app):
         [
             Input("processing-complete-store", "data"),
             Input("global-filters-applied-store", "data"),
+            Input("chart-granularity-store", "data"),
         ],
         prevent_initial_call=True
     )
-    def update_dashboard_charts(is_processed, filters_state):
+    def update_dashboard_charts(is_processed, filters_state, granularidade):
         if not is_processed:
             return html.Div()
         
@@ -90,7 +104,7 @@ def register_dashboard_callbacks(app):
             return no_update
         
         try:
-            return _build_dashboard_content(is_processed, filters_state)
+            return _build_dashboard_content(is_processed, filters_state, granularidade or 'mensal')
         except Exception as e:
             traceback.print_exc()
             return html.Div([
@@ -100,7 +114,7 @@ def register_dashboard_callbacks(app):
                 html.P("Tente recarregar a página.", className="text-center text-muted mt-2")
             ], className="p-5 d-flex flex-column align-items-center justify-content-center h-100")
     
-    def _build_dashboard_content(is_processed, filters_state):
+    def _build_dashboard_content(is_processed, filters_state, granularidade='mensal'):
         """Lógica interna do dashboard, separada para facilitar try/except."""
         import time as _time
         _t0 = _time.time()
@@ -112,10 +126,13 @@ def register_dashboard_callbacks(app):
         else:
             filters = None
         
-        print(f"[DASHBOARD] Início _build_dashboard_content (filters={bool(filters)})", flush=True)
+        # Injetar granularidade nos filters
+        if filters is None:
+            filters = {'granularidade': granularidade}
+        else:
+            filters['granularidade'] = granularidade
         
         df = get_ri_evolution_data(filters)
-        print(f"[DASHBOARD] get_ri_evolution_data: {_time.time()-_t0:.1f}s", flush=True)
         
         # CHECK FOR CRITICAL ERROR STATE
         if 'error_state' in df.columns and df['error_state'].iloc[0] == True:
@@ -138,8 +155,7 @@ def register_dashboard_callbacks(app):
                     html.P("Os dados podem não ter sido carregados corretamente.", className="text-center text-secondary small")
                 ], className="p-5 d-flex flex-column align-items-center justify-content-center h-100")
             
-        # Prepare X-Axis: Simple chronological timeline (Month/Year)
-        df['x_label'] = df['mes_nome'].str[:3] + '/' + df['ano'].astype(str)
+        # x_label já gerado no repositório baseado na granularidade
         
         # --- CALCULATE METRICS FOR KPIs ---
         # 1. Total Analisado
@@ -206,60 +222,60 @@ def register_dashboard_callbacks(app):
                     # Group 1: Volumetria & Financeiro
                     dbc.Col(render_kpi_card(
                         "Análise Total", 
-                        f"{total_analisado:,}", 
+                        _fmt_br(total_analisado), 
                         "Ordens processadas", 
                         "bi-layers", 
                         "text-primary"
-                    ), width=12, sm=6, md=4, lg=2),
+                    ), width=12, sm=6, md=6, lg=4, xl=2),
                     
                     dbc.Col(render_kpi_card(
                         "Economia Real", 
-                        f"R$ {economia_real/1000000:,.1f}M", 
+                        f"R$ {_fmt_br(economia_real/1000000, 1)}M", 
                         "Valor economizado", 
                         "bi-cash-stack", 
                         "text-success"
-                    ), width=12, sm=6, md=4, lg=2),
+                    ), width=12, sm=6, md=6, lg=4, xl=2),
                     
                     dbc.Col(render_kpi_card(
                         "Share Preventiva", 
-                        f"{ratio_prev_corr:.1f}%", 
+                        f"{_fmt_br(ratio_prev_corr, 1)}%", 
                         "Mix de manutenções", 
                         "bi-pie-chart-fill", 
                         "text-info"
-                    ), width=12, sm=6, md=4, lg=2),
+                    ), width=12, sm=6, md=6, lg=4, xl=2),
 
                     # Group 2: Performance (RI) com Tendências
                     dbc.Col(render_kpi_card(
                         "RI Geral", 
-                        f"{ri_geral_avg:.1f}%", 
+                        f"{_fmt_br(ri_geral_avg, 1)}%", 
                         "Média do período", 
                         "bi-graph-up-arrow", 
                         "text-danger",
                         trend_value=trend_ri_geral,
                         trend_label="vs mês anterior"
-                    ), width=12, sm=6, md=4, lg=2),
+                    ), width=12, sm=6, md=6, lg=4, xl=2),
 
                     dbc.Col(render_kpi_card(
                         "RI Preventiva", 
-                        f"{avg_ri_prev:.1f}%", 
+                        f"{_fmt_br(avg_ri_prev, 1)}%", 
                         "Manutenção programada", 
                         "bi-shield-check", 
                         "text-success",
                         trend_value=trend_ri_prev,
                         trend_label="vs mês anterior"
-                    ), width=12, sm=6, md=4, lg=2),
-
+                    ), width=12, sm=6, md=6, lg=4, xl=2),
+                    
                     dbc.Col(render_kpi_card(
                         "RI Corretiva", 
-                        f"{avg_ri_corr:.1f}%", 
+                        f"{_fmt_br(avg_ri_corr, 1)}%", 
                         "Manutenção sob demanda", 
                         "bi-tools", 
                         "text-danger",
                         trend_value=trend_ri_corr,
                         trend_label="vs mês anterior"
-                    ), width=12, sm=6, md=4, lg=2),
+                    ), width=12, sm=6, md=6, lg=4, xl=2),
                     
-                ], className="g-3 mb-4")
+                ], className="g-3 mb-4 ps-2")
             ], className="dashboard-top-kpis"),
 
 
@@ -268,7 +284,64 @@ def register_dashboard_callbacks(app):
                 # Row 1: Main Overview Chart (Full Width)
                 dbc.Row([
                     dbc.Col([
-                        html.H3("Visão Geral", style=section_title_style),
+                        html.Div([
+                            html.H3("Visão Geral", className="mb-0", style={**section_title_style, "marginBottom": "0px"}),
+                            # Toggle de Granularidade (Estilo Modern Toggle/Pill)
+                            html.Div([
+                                dbc.Button(
+                                    "Mensal", id="btn-gran-mensal",
+                                    size="sm",
+                                    className="px-4 py-1",
+                                    style={
+                                        "backgroundColor": "#FFFFFF" if granularidade == 'mensal' else "transparent",
+                                        "color": "#E20613" if granularidade == 'mensal' else "#64748b",
+                                        "fontWeight": "600" if granularidade == 'mensal' else "500",
+                                        "border": "none",
+                                        "borderRadius": "50rem",
+                                        "boxShadow": "0 2px 8px rgba(0,0,0,0.05)" if granularidade == 'mensal' else "none",
+                                        "transition": "all 0.3s ease-in-out",
+                                        "fontSize": "0.85rem",
+                                    },
+                                    n_clicks=0
+                                ),
+                                dbc.Button(
+                                    "Quinzenal", id="btn-gran-quinzenal",
+                                    size="sm",
+                                    className="px-4 py-1 mx-1",
+                                    style={
+                                        "backgroundColor": "#FFFFFF" if granularidade == 'quinzenal' else "transparent",
+                                        "color": "#E20613" if granularidade == 'quinzenal' else "#64748b",
+                                        "fontWeight": "600" if granularidade == 'quinzenal' else "500",
+                                        "border": "none",
+                                        "borderRadius": "50rem",
+                                        "boxShadow": "0 2px 8px rgba(0,0,0,0.05)" if granularidade == 'quinzenal' else "none",
+                                        "transition": "all 0.3s ease-in-out",
+                                        "fontSize": "0.85rem",
+                                    },
+                                    n_clicks=0
+                                ),
+                                dbc.Button(
+                                    "Semanal", id="btn-gran-semanal",
+                                    size="sm",
+                                    className="px-4 py-1",
+                                    style={
+                                        "backgroundColor": "#FFFFFF" if granularidade == 'semanal' else "transparent",
+                                        "color": "#E20613" if granularidade == 'semanal' else "#64748b",
+                                        "fontWeight": "600" if granularidade == 'semanal' else "500",
+                                        "border": "none",
+                                        "borderRadius": "50rem",
+                                        "boxShadow": "0 2px 8px rgba(0,0,0,0.05)" if granularidade == 'semanal' else "none",
+                                        "transition": "all 0.3s ease-in-out",
+                                        "fontSize": "0.85rem",
+                                    },
+                                    n_clicks=0
+                                ),
+                            ], className="d-flex align-items-center p-1 rounded-pill", style={
+                                "backgroundColor": "#f8fafc", 
+                                "boxShadow": "inset 0 1px 3px rgba(0,0,0,0.06)",
+                                "border": "1px solid #e2e8f0"
+                            })
+                        ], className="d-flex justify-content-between align-items-center mb-4"),
                         dbc.Card([
                             dbc.CardBody([
                                 dcc.Graph(
@@ -276,41 +349,6 @@ def register_dashboard_callbacks(app):
                                     config={'displayModeBar': False},
                                     style={"height": "400px"} 
                                 ),
-                                # --- INSIGHT STRIP ---
-                                html.Div([
-                                    dbc.Row([
-                                        dbc.Col([
-                                            html.Div([
-                                                html.Small("Máxima do Período", className="text-muted", style={"fontSize": "0.75rem"}),
-                                                html.Div([
-                                                    html.I(className="bi bi-arrow-up-circle-fill text-success me-2"),
-                                                    html.Span(f"{df['ri_geral'].max()*100:.2f}%", className="fw-bold text-dark")
-                                                ], className="d-flex align-items-center mt-1"),
-                                                html.Small(df.loc[df['ri_geral'].idxmax()]['x_label'], className="text-muted", style={"fontSize": "0.7rem"})
-                                            ], className="p-2 rounded bg-light border h-100")
-                                        ], width=4),
-                                        dbc.Col([
-                                            html.Div([
-                                                html.Small("Mínima do Período", className="text-muted", style={"fontSize": "0.75rem"}),
-                                                html.Div([
-                                                    html.I(className="bi bi-arrow-down-circle-fill text-danger me-2"),
-                                                    html.Span(f"{df['ri_geral'].min()*100:.2f}%", className="fw-bold text-dark")
-                                                ], className="d-flex align-items-center mt-1"),
-                                                html.Small(df.loc[df['ri_geral'].idxmin()]['x_label'], className="text-muted", style={"fontSize": "0.7rem"})
-                                            ], className="p-2 rounded bg-light border h-100")
-                                        ], width=4),
-                                        dbc.Col([
-                                            html.Div([
-                                                html.Small("Média Global", className="text-muted", style={"fontSize": "0.75rem"}),
-                                                html.Div([
-                                                    html.I(className="bi bi-bar-chart-fill text-primary me-2"),
-                                                    html.Span(f"{df['ri_geral'].mean()*100:.2f}%", className="fw-bold text-dark")
-                                                ], className="d-flex align-items-center mt-1"),
-                                                html.Small("Consolidado", className="text-muted", style={"fontSize": "0.7rem"})
-                                            ], className="p-2 rounded bg-light border h-100")
-                                        ], width=4),
-                                    ], className="g-2 mt-3")
-                                ])
                             ], className="p-4") 
                         ], className="shadow-sm border-0 rounded-4")
                     ], width=12),
@@ -331,3 +369,21 @@ def register_dashboard_callbacks(app):
             ]),
             
         ], className="animate__animated animate__fadeIn", style={"padding": "24px", "background": "#F8FAFC", "minHeight": "100vh"})
+
+    # Callback: Toggle de Granularidade (pill buttons → store)
+    @app.callback(
+        Output("chart-granularity-store", "data"),
+        [
+            Input("btn-gran-mensal", "n_clicks"),
+            Input("btn-gran-quinzenal", "n_clicks"),
+            Input("btn-gran-semanal", "n_clicks"),
+        ],
+        prevent_initial_call=True
+    )
+    def update_granularity(n_mensal, n_quinzenal, n_semanal):
+        triggered = ctx.triggered_id
+        if triggered == "btn-gran-quinzenal":
+            return "quinzenal"
+        elif triggered == "btn-gran-semanal":
+            return "semanal"
+        return "mensal"

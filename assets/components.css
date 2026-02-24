@@ -65,24 +65,14 @@
 }
 
 /* ==========================================================================
-   KPI CARD PREMIUM - Executive Style
+   KPI CARD PREMIUM - Animations
    ========================================================================== */
-
-.kpi-card-premium {
-    cursor: default;
-}
-
-.kpi-card-premium:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04) !important;
-    border-color: rgba(226, 232, 240, 1) !important;
-}
 
 /* Smooth entrance animation */
 @keyframes kpiSlideUp {
     from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(15px);
     }
     to {
         opacity: 1;
@@ -91,7 +81,7 @@
 }
 
 .kpi-card-premium {
-    animation: kpiSlideUp 0.4s ease-out forwards;
+    animation: kpiSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* Staggered animation for multiple cards */

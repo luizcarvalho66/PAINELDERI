@@ -27,23 +27,16 @@ def render_kpi_card(
     subtext: str,
     icon_class: str = "bi-bar-chart",
     color_class: str = "text-dark",
-    trend_value: float = None,  # Nova prop: % de tendência (positivo = up, negativo = down)
-    trend_label: str = None,    # Ex: "vs mês anterior"
+    trend_value: float = None,  
+    trend_label: str = None,    
+    group: str = None,          
 ) -> html.Div:
     """
-    Renders a premium executive KPI card with optional trend indicator.
-    
-    Args:
-        title: Título do KPI (ex: "Economia Real")
-        value: Valor principal (ex: "R$ 102.916.118")
-        subtext: Texto secundário (ex: "Valor economizado")
-        icon_class: Classe do ícone Bootstrap (ex: "bi-currency-dollar")
-        color_class: Classe de cor (text-danger, text-success, etc)
-        trend_value: Percentual de tendência (opcional)
-        trend_label: Label da tendência (opcional)
+    Novo Layout Exclusivo (V4) - Ultra Minimalista e Premium
+    Sem bordas duras, focando na tipografia gigantesca, "watermark" de fundo, e labels em pílula.
     """
     
-    # Mapear cor de acento baseado na classe
+    # 1. Mapeamento de Cores
     accent_color = NEUTRAL_SLATE
     if "danger" in color_class or "red" in color_class:
         accent_color = EDENRED_RED
@@ -56,116 +49,105 @@ def render_kpi_card(
     elif "info" in color_class:
         accent_color = INFO_BLUE
 
-    # Construir indicador de tendência se fornecido
+    # 2. Indicador de Tendência (Super delicado)
     trend_indicator = None
     if trend_value is not None:
         is_positive = trend_value >= 0
-        trend_icon = "bi-arrow-up-short" if is_positive else "bi-arrow-down-short"
+        trend_icon = "bi-arrow-up-right" if is_positive else "bi-arrow-down-right"
         trend_color = SUCCESS_GREEN if is_positive else EDENRED_RED
-        trend_text = f"{abs(trend_value):.1f}%"
         
-        trend_indicator = html.Div([
-            html.Div([
-                html.I(className=trend_icon, style={
-                    "fontSize": "1rem",
-                    "color": trend_color,
-                }),
-                html.Span(trend_text, style={
-                    "fontSize": "0.85rem",
-                    "fontWeight": "600",
-                    "color": trend_color,
-                    "marginLeft": "2px"
-                })
-            ], className="d-flex align-items-center"),
-            html.Small(trend_label or "", className="text-muted", style={
-                "fontSize": "0.65rem",
-                "display": "block",
-                "marginTop": "-2px"
-            }) if trend_label else None
-        ], className="text-end")
+        # Cria uma pílula minúscula ao lado do subtexto
+        trend_indicator = html.Span([
+            html.I(className=trend_icon, style={"marginRight": "3px", "fontSize": "0.75rem"}),
+            html.Span(f"{abs(trend_value):.1f}%", style={"fontWeight": "600", "fontSize": "0.75rem"})
+        ], style={
+            "color": trend_color,
+            "backgroundColor": f"{trend_color}12",
+            "padding": "2px 8px",
+            "borderRadius": "4px",
+            "marginLeft": "8px"
+        })
 
+    # 3. Construção do Layout Premium
     return html.Div([
-        # Header: Título + Ícone
+        
+        # A. Ícone Gigante de Fundo (Watermark)
+        html.I(className=icon_class, style={
+            "position": "absolute",
+            "right": "-10px",
+            "bottom": "-15px",
+            "fontSize": "8rem",
+            "color": accent_color,
+            "opacity": "0.03",
+            "zIndex": "0",
+            "transform": "rotate(-10deg)",
+            "pointerEvents": "none"
+        }),
+        
+        # Container do conteúdo real (Z-index superior)
         html.Div([
-            html.Span(title.upper(), style={
-                "fontSize": "0.7rem",
-                "fontWeight": "700",
-                "color": "#94A3B8",
-                "letterSpacing": "0.8px",
-                "lineHeight": "1"
-            }),
+            
+            # HEADER: Pílula elegante com ícone e título
             html.Div([
-                html.I(className=icon_class, style={
-                    "color": accent_color,
-                    "fontSize": "1.25rem",
-                    "opacity": "0.9"
+                html.Div([
+                    html.I(className=icon_class, style={"fontSize": "0.80rem", "marginRight": "6px", "color": accent_color}),
+                    html.Span(title.upper(), style={
+                        "fontSize": "0.65rem",
+                        "fontWeight": "700",
+                        "color": "#64748B",
+                        "letterSpacing": "1.2px"
+                    })
+                ], style={
+                    "display": "inline-flex",
+                    "alignItems": "center",
+                    "padding": "4px 10px 4px 6px",
+                    "borderRadius": "8px",
+                    "backgroundColor": "#F8FAFC",
+                    "border": "1px solid #E2E8F0"
                 })
+            ], style={"marginBottom": "16px"}),
+            
+            # MIDDLE: Valor do KPI - Monstruoso e Impactante (responsivo)
+            html.Div(value, style={
+                "fontSize": "clamp(1.6rem, 2vw, 2.4rem)",
+                "fontWeight": "800",
+                "color": "#0F172A",
+                "fontFamily": "Ubuntu, sans-serif",
+                "letterSpacing": "-1px",
+                "lineHeight": "1",
+                "marginBottom": "12px",
+                "whiteSpace": "nowrap"
+            }),
+            
+            # BOTTOM: Subtexto integrado com a tendência
+            html.Div([
+                html.Small(subtext, style={
+                    "color": "#94A3B8",
+                    "fontSize": "0.80rem",
+                    "fontWeight": "500"
+                }),
+                trend_indicator if trend_indicator else None
             ], style={
-                "width": "36px",
-                "height": "36px",
-                "borderRadius": "10px",
-                "backgroundColor": f"{accent_color}12",  # 12 = ~7% opacity in hex
                 "display": "flex",
                 "alignItems": "center",
-                "justifyContent": "center"
+                "marginTop": "auto" # Push para o final
             })
-        ], className="d-flex justify-content-between align-items-start mb-3"),
-        
-        # Main Value Row
-        html.Div([
-            # Número grande
-            html.Div([
-                html.Span(value, style={
-                    "fontSize": "1.9rem",
-                    "fontWeight": "800",
-                    "color": "#0F172A",
-                    "fontFamily": "Ubuntu, sans-serif",
-                    "letterSpacing": "-0.5px",
-                    "lineHeight": "1.1"
-                })
-            ]),
-            # Trend (se existir)
-            trend_indicator
-        ], className="d-flex justify-content-between align-items-end mb-2"),
-        
-        # Subtext
-        html.Div([
-            html.Div(style={
-                "width": "4px",
-                "height": "4px",
-                "borderRadius": "50%",
-                "backgroundColor": accent_color,
-                "marginRight": "8px",
-                "flexShrink": "0"
-            }),
-            html.Small(subtext, style={
-                "fontSize": "0.78rem",
-                "fontWeight": "500",
-                "color": "#64748B"
-            })
-        ], className="d-flex align-items-center"),
-        
-        # Accent Bar (bottom)
-        html.Div(style={
-            "position": "absolute",
-            "bottom": "0",
-            "left": "0",
-            "right": "0",
-            "height": "4px",
-            "background": f"linear-gradient(90deg, {accent_color} 0%, {accent_color}40 100%)",
-            "borderRadius": "0 0 12px 12px"
-        })
+            
+        ], style={"position": "relative", "zIndex": "1", "display": "flex", "flexDirection": "column", "height": "100%"})
         
     ], className="kpi-card-premium h-100", style={
         "backgroundColor": "white",
-        "borderRadius": "14px",
-        "padding": "1.25rem 1.5rem 1.5rem",
-        "boxShadow": "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)",
+        "borderRadius": "16px",
+        "padding": "1.5rem",
         "border": "1px solid rgba(226, 232, 240, 0.8)",
-        "transition": "all 0.25s ease",
+        "boxShadow": "0 2px 10px rgba(0, 0, 0, 0.02)",
+        "transition": "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
         "position": "relative",
         "overflow": "hidden",
-        "minHeight": "140px"
+        "minHeight": "145px",
+        "display": "flex",
+        "flexDirection": "column",
+        "height": "100%"
     })
 
 
