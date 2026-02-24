@@ -14,18 +14,18 @@ LOCAL_DATA_DIR = os.path.join(os.getcwd(), "data")
 if os.path.exists("/Volumes"):
     # Estamos no Databricks (provavelmente)
     DB_DIR = VOLUME_PATH
-    print(f"[DATABASE] Ambiente Databricks detectado. Usando Volume: {DB_DIR}")
+    pass  # Ambiente Databricks
 else:
     # Ambiente Local
     DB_DIR = LOCAL_DATA_DIR
-    print(f"[DATABASE] Ambiente Local detectado. Usando pasta persistente: {DB_DIR}")
+    pass  # Ambiente Local
 
 # Garante que o diretório existe
 try:
     if not os.path.exists(DB_DIR):
         os.makedirs(DB_DIR, exist_ok=True)
 except Exception as e:
-    print(f"[DATABASE WARNING] Não foi possível criar diretório {DB_DIR}: {e}")
+    pass  # fallback para temp
     # Fallback extremo para temp se falhar permissão
     DB_DIR = tempfile.gettempdir()
 
@@ -62,12 +62,12 @@ def set_maintenance_mode(active=True):
     active=False -> Resumes normal operation.
     """
     if active:
-        print("[DATABASE] Entering Maintenance Mode (Writing)...")
+        pass  # Maintenance Mode ON
         _maintenance_event.clear()
         close_connection()
         time.sleep(0.5)
     else:
-        print("[DATABASE] Exiting Maintenance Mode.")
+        pass  # Maintenance Mode OFF
         _maintenance_event.set()
 
 def get_connection(read_only=True):
@@ -94,7 +94,7 @@ def get_readonly_connection():
 
     # Block if in maintenance mode
     if not _maintenance_event.is_set():
-        print(f"[DuckDB] Thread {threading.get_ident()} waiting for Maintenance Mode to finish...")
+        pass  # Waiting for maintenance
         if not _maintenance_event.wait(timeout=30):
             raise Exception("Database is in Maintenance Mode (Timeout)")
 
@@ -121,7 +121,7 @@ def get_readonly_connection():
                 _thread_local.conn = conn
                 _conn_pid = current_pid
                 _active_connections.append(conn)
-                print(f"[DuckDB] New Read-Only connection for Thread {threading.get_ident()} (PID {current_pid}).")
+                pass  # New RO connection
             except Exception as e:
                 print(f"[DuckDB CRITICAL] Read-Only Connection Failed: {e}")
                 raise e
@@ -132,7 +132,7 @@ def close_connection():
     """Closes all active connections in the registry and current thread."""
     global _active_connections, _conn_pid
     with _lock:
-        print(f"[DuckDB] Closing {len(_active_connections)} active connections...")
+        pass  # Closing connections
         for conn in _active_connections:
             try:
                 conn.close()
@@ -489,7 +489,7 @@ def init_db():
                     conn.execute("INSERT INTO ref_clientes_tgfm VALUES (?)", [str(code)])
                 except:
                     pass  # Ignore duplicates
-            print(f"[INIT DB] ref_clientes_tgfm: {len(TGFM_ALL_CLIENTS)} clientes carregados")
+            pass  # TGFM loaded
         except ImportError:
             print("[INIT DB WARNING] backend.config.tgfm_clients não encontrado. Tabela ref_clientes_tgfm vazia.")
         except Exception as e:
@@ -512,7 +512,7 @@ def init_db():
     finally:
         if conn:
             conn.close()
-            print("[INIT DB] Connection closed safely.")
+            pass  # Connection closed
 
 if __name__ == "__main__":
     init_db()
