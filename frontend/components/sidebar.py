@@ -36,11 +36,15 @@ def render_sidebar():
     """Render the premium sidebar component."""
     return html.Aside(
         [
-            # Toggle Button
-            html.Button(
+            # Toggle Button — html.Div (NÃO html.Button) para evitar
+            # que o Dash rastreie n_clicks e dispare round-trips ao servidor.
+            # O clique é processado por assets/sidebar-toggle.js (JS puro).
+            html.Div(
                 html.I(className="bi bi-chevron-left toggle-icon"),
                 id="sidebar-toggle",
                 className="sidebar-toggle-btn",
+                role="button",
+                tabIndex="0",
                 **{"aria-label": "Toggle sidebar"},
             ),
             

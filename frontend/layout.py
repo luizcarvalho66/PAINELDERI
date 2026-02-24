@@ -4,16 +4,14 @@ from frontend.components.sidebar import render_sidebar
 
 
 CONTENT_STYLE = {
-    "marginLeft": "260px",
     "padding": "2rem 3rem",
     "minHeight": "100vh",
-    "transition": "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
 }
 
 from frontend.pages.dashboard import render_dashboard
 
-# Dynamic container for pages
-content = html.Div(render_dashboard(), id="page-content", style=CONTENT_STYLE)
+# Dynamic container for pages — margin-left controlado via CSS (sidebar.css)
+content = html.Div(render_dashboard(), id="page-content")
 
 def get_layout():
     return html.Div([
@@ -21,6 +19,7 @@ def get_layout():
         dcc.Store(id="processing-complete-store", data=False, storage_type="session"),
         # Store para estado dos filtros aplicados - DEVE ESTAR NO LAYOUT PRINCIPAL
         dcc.Store(id="global-filters-applied-store", data={}),
+        dcc.Store(id="chart-granularity-store", data="mensal"),
         dcc.Store(id="side_click"), 
         
         # Store para resultado do check de novos dados

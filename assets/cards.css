@@ -69,10 +69,24 @@
 /* PREMIUM KPI CARD - HOVER EFFECTS */
 .kpi-card-premium {
     cursor: default;
+    background-color: #FFFFFF !important;
+    border: 1px solid rgba(226, 232, 240, 0.7) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03) !important;
+    backdrop-filter: blur(10px);
 }
 
 .kpi-card-premium:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01) !important;
-    border-color: rgba(226, 6, 19, 0.3) !important; /* Subtle Edenred Glow */
+    transform: translateY(-4px) !important;
+    box-shadow: 0 16px 32px -4px rgba(0, 0, 0, 0.08), 0 8px 16px -8px rgba(0, 0, 0, 0.04) !important;
+    border-color: rgba(226, 232, 240, 1) !important; 
+}
+
+
+
+/* Trend Badge Pill */
+.kpi-trend-badge {
+    transition: all 0.2s ease;
+}
+.kpi-trend-badge:hover {
+    transform: scale(1.05);
 }

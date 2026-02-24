@@ -1,4 +1,4 @@
-from dash import Input, Output, State, html, callback_context
+from dash import Input, Output, State, html, callback_context, no_update
 import dash_bootstrap_components as dbc
 from frontend.pages.dashboard import render_dashboard
 from frontend.components.farol_section import render_farol_section
@@ -13,11 +13,12 @@ CONTENT_STYLE = {
 def register_navigation_callbacks(app):
     @app.callback(
         Output("page-content", "children"),
-        [Input("url", "pathname")]
+        [Input("url", "pathname")],
+        prevent_initial_call=True
     )
     def render_page_content(pathname):
         if pathname == "/":
-            return render_dashboard()
+            return no_update
         elif pathname == "/farol":
             return render_farol_section()
         elif pathname == "/relatorios":

@@ -35,7 +35,6 @@ def register_reports_callbacks(app):
             return no_update
 
         try:
-            print("[REPORTS] Gerando PPT...", flush=True)
 
             # 1. Dados do dashboard (com filtros se houver)
             filters = None
@@ -45,11 +44,9 @@ def register_reports_callbacks(app):
             df = get_ri_evolution_data(filters)
 
             if df.empty or ('error_state' in df.columns and df['error_state'].iloc[0]):
-                print("[REPORTS] Sem dados disponíveis para gerar PPT", flush=True)
                 return no_update
 
-            # 2. Preparar KPIs (mesma lógica do dashboard_callbacks)
-            df['x_label'] = df['mes_nome'].str[:3] + '/' + df['ano'].astype(str)
+            # x_label já gerado pelo repositório (suporta granularidades)
 
             total_analisado = int((df['qtd_prev'] + df['qtd_corr']).sum())
             ri_geral_avg = df['ri_geral'].mean() * 100
@@ -106,7 +103,6 @@ def register_reports_callbacks(app):
             now = datetime.now().strftime("%Y%m%d_%H%M")
             filename = f"Relatorio_RI_Edenred_{now}.pptx"
 
-            print(f"[REPORTS] PPT gerado com sucesso: {filename}", flush=True)
 
             return dcc.send_bytes(ppt_bytes.getvalue(), filename=filename)
 

@@ -280,6 +280,9 @@
   cursor: pointer;
   z-index: 1001;
   transition: all 0.2s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  outline: none;
 }
 
 .sidebar-toggle-btn:hover {
@@ -416,4 +419,16 @@
   border-right-color: var(--text-main);
 }
 
+/* ==========================================================================
+   PAGE CONTENT - Margin controlado via CSS (sem server callback)
+   ========================================================================== */
+#page-content {
+  margin-left: 260px;
+  padding: 2rem 3rem;
+  min-height: 100vh;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
+.sidebar-premium.collapsed ~ #page-content {
+  margin-left: 72px;
+}

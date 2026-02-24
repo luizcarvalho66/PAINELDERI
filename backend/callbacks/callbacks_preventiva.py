@@ -75,41 +75,54 @@ def _build_accordion_table(table_data):
             ], className="d-flex align-items-center"),
         ], className="d-flex justify-content-between align-items-center w-100 pe-2")
 
-        # Sub-tabela de clientes (body do accordion)
+        # Sub-tabela agrupada por OS (body do accordion)
         if detail_data:
             detail_header = html.Thead(html.Tr([
-                html.Th("Cód. Cliente", style={"width": "100px"}),
+                html.Th("Cód. Cliente", style={"width": "90px"}),
                 html.Th("Cliente"),
-                html.Th("OS", style={"width": "80px"}),
+                html.Th("OS", style={"width": "90px"}),
+                html.Th("Tipo MO", style={"width": "120px"}),
                 html.Th("Estabelecimento"),
-                html.Th("Cidade", style={"width": "90px"}),
-                html.Th("UF", style={"width": "45px"}),
-                html.Th("Tipo MO", style={"width": "100px"}),
-                html.Th("Valor", className="text-end", style={"width": "100px"}),
                 html.Th("Aprovador"),
+                html.Th("Itens", className="text-center", style={"width": "55px"}),
+                html.Th("Valor Total", className="text-end", style={"width": "110px"}),
+                html.Th("Data", style={"width": "85px"}),
             ], className="prev-detail-header"))
 
             detail_rows = []
             for d in detail_data:
+                qtd = d.get('qtd_itens', 1)
                 detail_rows.append(html.Tr([
                     html.Td(d.get('codigo_cliente', ''), className="fw-semibold",
                             style={"fontFamily": "monospace", "fontSize": "0.78rem"}),
                     html.Td(d.get('cliente', ''), style={
-                        "maxWidth": "180px", "overflow": "hidden",
-                        "textOverflow": "ellipsis", "whiteSpace": "nowrap"
-                    }),
-                    html.Td(d.get('numero_os', ''), style={"fontSize": "0.78rem"}),
-                    html.Td(d.get('nome_ec', ''), style={
                         "maxWidth": "150px", "overflow": "hidden",
-                        "textOverflow": "ellipsis", "whiteSpace": "nowrap"
+                        "textOverflow": "ellipsis", "whiteSpace": "nowrap",
+                        "fontSize": "0.78rem"
                     }),
-                    html.Td(d.get('cidade', ''), style={"fontSize": "0.78rem"}),
-                    html.Td(d.get('uf', ''), style={"fontSize": "0.78rem"}),
+                    html.Td(d.get('numero_os', ''), className="fw-semibold",
+                            style={"fontFamily": "monospace", "fontSize": "0.78rem"}),
                     html.Td(d.get('tipo_mo', ''), style={"fontSize": "0.78rem"}),
-                    html.Td(_format_brl(d.get('valor_aprovado')),
+                    html.Td(d.get('nome_ec', ''), style={
+                        "maxWidth": "160px", "overflow": "hidden",
+                        "textOverflow": "ellipsis", "whiteSpace": "nowrap",
+                        "fontSize": "0.78rem"
+                    }),
+                    html.Td(d.get('nome_aprovador', 'N/A'), style={
+                        "maxWidth": "140px", "overflow": "hidden",
+                        "textOverflow": "ellipsis", "whiteSpace": "nowrap",
+                        "fontSize": "0.78rem"
+                    }),
+                    html.Td(
+                        html.Span(str(qtd), className="badge bg-secondary bg-opacity-25 text-dark rounded-pill",
+                                  style={"fontSize": "0.72rem"}),
+                        className="text-center"
+                    ),
+                    html.Td(_format_brl(d.get('valor_total_os')),
                             className="text-end fw-semibold",
                             style={"color": "#C10510", "fontSize": "0.78rem"}),
-                    html.Td(d.get('nome_aprovador', ''), style={"fontSize": "0.78rem"}),
+                    html.Td(str(d.get('data_transacao', ''))[:10], 
+                            style={"fontSize": "0.75rem", "color": "#64748b"}),
                 ], className="prev-detail-row"))
 
             body_content = html.Div(
@@ -221,15 +234,21 @@ def register_preventiva_callbacks(app):
         
         header = [html.Thead(html.Tr([
             html.Th("Nome", className="text-secondary fs-8"),
-            html.Th("Total OS", className="text-secondary fs-8 text-center"),
+            html.Th("Fugas", className="text-secondary fs-8 text-center"),
             html.Th("% Fuga", className="text-secondary fs-8 text-end")
         ]))]
         
         rows = []
         for row in ranking_data:
+            fugas_display = html.Div([
+                html.Span(f"{row['qtd_fugas']:,}".replace(",", "."), className="fw-bold"),
+                html.Br(),
+                html.Small(f"de {row['total_os']:,}".replace(",", ".") + " OS", 
+                          className="text-muted", style={"fontSize": "0.7rem"})
+            ])
             rows.append(html.Tr([
                 html.Td(row['entidade'], className="fw-bold fs-7 text-truncate", style={"maxWidth": "150px"}),
-                html.Td(row['total_os'], className="text-center fs-7"),
+                html.Td(fugas_display, className="text-center fs-7"),
                 html.Td(
                     html.Span(f"{row['pct_fuga']}%", className="badge bg-danger bg-opacity-10 text-danger rounded-pill"), 
                     className="text-end"

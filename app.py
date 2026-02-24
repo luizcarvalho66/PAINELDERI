@@ -117,7 +117,8 @@ app = dash.Dash(
     external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP], # Use clean Bootstrap
     meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
     suppress_callback_exceptions=True,
-    title="Painel RI Edenred"
+    title="Painel RI Edenred",
+    update_title=None  # Impede "Updating..." na aba do browser
 )
 
 server = app.server
