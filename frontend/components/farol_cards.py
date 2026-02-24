@@ -50,9 +50,16 @@ def create_card_inner_content(value: str, trend_value: float, trend_direction: s
     return [
         html.Span(
             value,
-            className="farol-card-value"
+            className="farol-card-value",
+            style={
+                "fontSize": "clamp(1.1rem, 2vw, 2.5rem)", 
+                "whiteSpace": "nowrap",
+                "overflow": "hidden",
+                "textOverflow": "ellipsis",
+                "letterSpacing": "-0.5px"
+            }
         ),
-        trend_element
+        html.Div(trend_element, className="d-flex align-items-center mt-auto pt-2 w-100 flex-wrap gap-2")
     ]
 
 
@@ -64,23 +71,27 @@ def create_farol_card(title: str, icon_class: str, card_id: str, color: str, bg_
     inner_content = create_card_inner_content("0", trend_value, trend_direction, title)
 
     return html.Div([
+        # Cabeçalho: Título + Ícone
         html.Div([
-            # Cabeçalho: Título + Ícone
-            html.Div([
-                html.H6(title, className="farol-card-title"),
-                
-                html.Div([
-                    html.I(className=f"{icon_class} macos-card-icon", style={"color": color}),
-                ], className="macos-card-icon-container", style={"backgroundColor": bg_light})
-            ], className="d-flex justify-content-between align-items-start mb-2"),
+            html.H6(title, className="farol-card-title mb-0 pe-2", style={
+                "lineHeight": "1.2",
+                "whiteSpace": "nowrap", 
+                "overflow": "hidden", 
+                "textOverflow": "ellipsis",
+                "fontSize": "clamp(0.65rem, 1vw, 0.75rem)"
+            }),
             
-            # Corpo: Valor + Trend (Target do Callback)
-            html.Div(
-                inner_content,
-                id=card_id,
-                className="d-flex flex-column align-items-start"
-            )
-        ])
+            html.Div([
+                html.I(className=f"{icon_class} macos-card-icon", style={"color": color}),
+            ], className="macos-card-icon-container flex-shrink-0", style={"backgroundColor": bg_light})
+        ], className="d-flex justify-content-between align-items-center mb-3 w-100"),
+        
+        # Corpo: Valor + Trend (Target do Callback)
+        html.Div(
+            inner_content,
+            id=card_id,
+            className="d-flex flex-column align-items-start h-100 w-100"
+        )
     ], className="farol-card-macos")
 
 
