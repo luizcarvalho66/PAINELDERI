@@ -22,40 +22,30 @@ def _kill_previous_instance():
         with open(PID_FILE, "r") as f:
             old_pid = int(f.read().strip())
         if old_pid == os.getpid():
-            return  # Sou eu mesmo
-        # Tenta matar o processo antigo
+            return
         import psutil
         try:
             proc = psutil.Process(old_pid)
             if "python" in proc.name().lower():
-                print(f"[LOCK] Matando instância anterior (PID {old_pid})...")
                 proc.kill()
                 proc.wait(timeout=5)
-                print(f"[LOCK] PID {old_pid} finalizado.")
         except psutil.NoSuchProcess:
-            print(f"[LOCK] PID {old_pid} já não existe. Limpando lock file.")
             os.remove(PID_FILE)
-        except psutil.TimeoutExpired:
-            print(f"[LOCK] AVISO: PID {old_pid} não respondeu ao kill em 5s.")
-        except Exception as e:
-            print(f"[LOCK] Erro ao matar PID {old_pid}: {e}")
+        except (psutil.TimeoutExpired, Exception):
+            pass
     except ImportError:
-        # Fallback sem psutil — verifica se processo existe
         try:
             with open(PID_FILE, "r") as f:
                 old_pid = int(f.read().strip())
             if old_pid != os.getpid():
                 try:
-                    os.kill(old_pid, 0)  # Apenas verifica se existe (signal 0)
+                    os.kill(old_pid, 0)
                     os.kill(old_pid, signal.SIGTERM)
                     import time; time.sleep(3)
-                    print(f"[LOCK] Sinal SIGTERM enviado para PID {old_pid}.")
                 except (ProcessLookupError, OSError):
-                    # Processo já não existe — limpar lock file
-                    print(f"[LOCK] PID {old_pid} já não existe. Limpando lock file.")
                     os.remove(PID_FILE)
-        except Exception as e:
-            print(f"[LOCK] Erro no fallback kill: {e}")
+        except Exception:
+            pass
     except Exception:
         pass
 
@@ -67,18 +57,18 @@ def _cleanup_wal_files():
             try:
                 sz = os.path.getsize(wal_path)
                 os.remove(wal_path)
-                print(f"[LOCK] Removido arquivo residual: {wal_path} ({sz} bytes)")
+                pass
             except Exception as e:
-                print(f"[LOCK] Não foi possível remover {wal_path}: {e}")
+                pass
 
 def _write_pid():
     """Salva PID atual no lock file."""
     try:
         with open(PID_FILE, "w") as f:
             f.write(str(os.getpid()))
-        print(f"[LOCK] PID {os.getpid()} registrado em {PID_FILE}")
+        pass
     except Exception as e:
-        print(f"[LOCK] Erro ao gravar PID: {e}")
+        pass
 
 def _cleanup_pid():
     """Remove lock file na saída."""
@@ -91,7 +81,7 @@ def _cleanup_pid():
                 # Fecha conexões DuckDB
                 from database import close_connection
                 close_connection()
-                print(f"[LOCK] Cleanup: PID file removido, conexões fechadas.")
+                pass
     except Exception:
         pass
 
@@ -106,7 +96,7 @@ signal.signal(signal.SIGTERM, lambda s, f: (_cleanup_pid(), sys.exit(0)))
 # Initialize DB if not exists (Critical for cloud deployment where data.duckdb is gitignored)
 try:
     # Always ensure schema is up to date (runs migration logic if needed)
-    print(f"Checking database schema at {DB_PATH}...")
+    pass  # Schema check
     init_db()
 except Exception as e:
     print(f"[WARNING] Could not initialize database immediately (likely locked by another worker). Skipping init. Error: {e}")
@@ -157,7 +147,7 @@ if __name__ == "__main__":
     
     debug_mode = env_debug or force_reload
     
-    print(f"Starting server on {host}:{port} (Debug: True)")
+    pass  # Server starting
 
     # DATA CHECK ON STARTUP (Background Thread)
     # Checks if DB has data and runs pricing pipeline if needed
@@ -178,21 +168,21 @@ if __name__ == "__main__":
                 # Database empty — user must sync via sidebar button
                 # NOTE: Auto-import de Parquet foi DESABILITADO para evitar dados fantasma.
                 # Os arquivos em data/export/ podem conter dados com schema legado.
-                print("[APP STARTUP] Database empty. Use o botão 'Sincronizar' no sidebar.", flush=True)
+                pass  # DB empty
             else:
-                 print(f"[APP STARTUP] Database has {count} records. Checking integrity...", flush=True)
+                 pass  # DB has data
                  
                  # INTEGRITY CHECK: Pricing Tables
                  try:
                      pricing_check = conn.execute("SELECT count(*) FROM information_schema.tables WHERE table_name = 'economia_calculada'").fetchone()[0]
                      if pricing_check == 0:
-                         print("[APP STARTUP] Pricing tables missing. Running pricing pipeline...", flush=True)
+                         pass  # Running pricing
                          from engine.pricing import run_full_pricing_pipeline
                          run_full_pricing_pipeline()
                  except Exception as e:
-                     print(f"[APP STARTUP] Warning: Failed to check/run pricing: {e}", flush=True)
+                     pass
         except Exception as e:
-            print(f"[APP STARTUP ERROR] Failed to check/sync data: {e}", flush=True)
+            pass
 
     # Run in background to not block server
     import threading

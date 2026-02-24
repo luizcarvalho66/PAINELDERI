@@ -67,7 +67,12 @@ def create_ri_geral_chart(df: pd.DataFrame) -> go.Figure:
     fig = go.Figure()
     
     # Data Preparation
-    x_data = df.get('x_label', [])
+    if 'x_label' in df.columns:
+        x_data = df['x_label']
+    elif 'mes_ref' in df.columns:
+        x_data = _format_mes_ptbr(df['mes_ref'])
+    else:
+        x_data = list(range(len(df)))
     y_data = df['ri_geral'] * 100
     
     # Dados extras para tooltip
@@ -163,7 +168,12 @@ def create_comparative_chart(df: pd.DataFrame) -> go.Figure:
     """
     fig = go.Figure()
     
-    x_data = df.get('x_label', [])
+    if 'x_label' in df.columns:
+        x_data = df['x_label']
+    elif 'mes_ref' in df.columns:
+        x_data = _format_mes_ptbr(df['mes_ref'])
+    else:
+        x_data = list(range(len(df)))
     marker_size = 10 if len(df) <= 3 else 6
     
     # Período com dias
