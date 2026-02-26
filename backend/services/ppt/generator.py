@@ -15,7 +15,7 @@ from .slide_farol_table import build_slide_farol_table
 
 
 def generate_ppt(kpi_data: dict, fig_geral, fig_comp,
-                 farol_stats: dict, farol_table_data: list) -> io.BytesIO:
+                 farol_stats: dict, farol_table_data: list, df_30d=None, ofensores=None) -> io.BytesIO:
     """
     Gera a apresentação PPT completa e retorna como BytesIO.
 
@@ -25,6 +25,8 @@ def generate_ppt(kpi_data: dict, fig_geral, fig_comp,
         fig_comp: Plotly Figure do Comparativo
         farol_stats: Dict com stats do farol
         farol_table_data: Lista de dicts da tabela do farol
+        df_30d: DataFrame com os dados dos últimos 30 dias (usado para preencher tooltips no Slide 3)
+        ofensores: Lista de dicts com o Top 3 de clientes/oficinas que pioraram a meta.
 
     Returns:
         BytesIO com .pptx
@@ -38,7 +40,7 @@ def generate_ppt(kpi_data: dict, fig_geral, fig_comp,
     # Slide 2: KPIs
     build_slide_kpis(prs, kpi_data)
     # Slide 3: Chart RI Geral
-    build_slide_chart(prs, fig_geral, "Evolução RI Geral")
+    build_slide_chart(prs, fig_geral, "Evolução RI Geral", df_30d=df_30d, ofensores=ofensores)
     # Slide 4: Chart Comparativo
     build_slide_chart(prs, fig_comp, "Corretiva vs Preventiva")
     # Slide 5: Farol Resumo

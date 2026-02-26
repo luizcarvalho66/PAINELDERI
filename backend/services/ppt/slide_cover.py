@@ -24,126 +24,130 @@ from .config import (
 from .helpers import add_text_box
 
 
-def _add_icon(slide, icon_name, left, top, size=Inches(0.45)):
-    """Adiciona ícone PNG ao slide se existir."""
-    path = os.path.join(ICONS_DIR, f"{icon_name}.png")
-    if os.path.exists(path):
-        slide.shapes.add_picture(path, left, top, width=size, height=size)
-
-def _add_svg_fallback_icon(slide, icon_name, left, top, size=Inches(0.45)):
-    """Se não tiver PNG, tenta SVG."""
-    pass
-
-
 def build_slide_cover(prs):
-    """Capa executiva com foto arredondada e círculo vermelho gigante."""
+    """Capa executiva moderna inspirada na nova identidade visual (Gradiente + Círculo Branco)."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
 
-    # Fundo Branco
-    bg = slide.background
-    bg.fill.solid()
-    bg.fill.fore_color.rgb = WHITE
-
-    # Dimensões da composição unificada
-    margin_x = Inches(1.0)
-    img_top = Inches(0.8)
-    img_height = Inches(5.9)
-    img_width = Inches(9.5) # Imagem bem larga para o círculo cortar ela no meio
-
     # ============================================
-    # BLOCO IMAGEM ESQUERDA (com border radius suave)
+    # FUNDO GRADIENTE VIBRANTE
     # ============================================
-    img_left = margin_x
-
-    if os.path.exists(COVER_PATH):
-        pic = slide.shapes.add_picture(COVER_PATH, img_left, img_top, img_width, img_height)
-        spPr = pic.element.spPr
-        prstGeom = spPr.find(qn('a:prstGeom'))
-        if prstGeom is not None:
-            prstGeom.set('prst', 'roundRect')
-            # 20000 = radius 20% nas bordas (cantos arredondados, não pílula total)
-            avLst = parse_xml('<a:avLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:gd name="adj" fmla="val 20000"/></a:avLst>')
-            prstGeom.append(avLst)
-    else:
-        # Fallback se não tiver imagem
-        red_block = slide.shapes.add_shape(
-            MSO_SHAPE.ROUNDED_RECTANGLE,
-            img_left, img_top,
-            img_width, img_height
-        )
-        fill = red_block.fill
-        fill.solid()
-        fill.fore_color.rgb = TEXT_MUTED
-        red_block.line.fill.background()
-        red_block.adjustments[0] = 0.20
-
-    # ============================================
-    # LADO DIREITO — Círculo Vermelho Gigante (Cortando a imagem)
-    # ============================================
-    circle_radius = Inches(3.0)  # Diametro 6" — proporcional ao slide 7.5"
-    center_y = SLIDE_HEIGHT / 2
-    # Círculo com centro mais pra direita, sobrepondo parcialmente a imagem
-    center_x = SLIDE_WIDTH - Inches(3.8)
-
-    circle_left = center_x - circle_radius
-    circle_top = center_y - circle_radius
-
-    red_circle = slide.shapes.add_shape(
-        MSO_SHAPE.OVAL,
-        circle_left, circle_top,
-        circle_radius * 2, circle_radius * 2
+    bg_rect = slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE, 0, 0, SLIDE_WIDTH, SLIDE_HEIGHT
     )
-    red_circle.fill.solid()
-    red_circle.fill.fore_color.rgb = EDENRED_RED
-    red_circle.line.fill.background()
-
-    # ============================================
-    # CONTEÚDO (DENTRO DO CÍRCULO)
-    # ============================================
-    # Ícone no topo do círculo
-    icon_size = Inches(0.55)
-    icon_left = center_x - (icon_size / 2)
-    icon_top = center_y - Inches(1.1)
-    _add_icon(slide, "wrench", icon_left, icon_top, icon_size)
-
-    # Textos centralizados no círculo
-    text_width = Inches(4.5)
-    text_left = center_x - (text_width / 2)
-
-    # MTBF
-    add_text_box(
-        slide, text_left, center_y - Inches(0.35),
-        text_width, Inches(0.7),
-        "MTBF",
-        size=40, bold=True, color=WHITE, alignment=PP_ALIGN.CENTER
-    )
-
-    # Análise Crítica
-    add_text_box(
-        slide, text_left, center_y + Inches(0.25),
-        text_width, Inches(0.5),
-        "Análise Crítica",
-        size=30, bold=True, color=WHITE, alignment=PP_ALIGN.CENTER
-    )
-
-    # ============================================
-    # RODAPÉ
-    # ============================================
+    bg_rect.line.fill.background()
     
-    # Logo Edenred (esquerda)
+    # Usar a API nativa para criar o gradiente
+    fill = bg_rect.fill
+    fill.gradient()
+    
+    # Definir as cores das paradas do gradiente
+    fill.gradient_stops[0].color.rgb = RGBColor(0xE2, 0x06, 0x13)  # Edenred Red
+    fill.gradient_stops[0].position = 0.0
+    fill.gradient_stops[1].color.rgb = RGBColor(0xFF, 0x14, 0x93)  # Magenta/Rosa
+    fill.gradient_stops[1].position = 1.0
+    
+    # Injetar o ângulo de 135° diretamente no XML do gradiente
+    spPr = bg_rect.element.spPr
+    gradFill = spPr.find(qn('a:gradFill'))
+    if gradFill is not None:
+        # Remover qualquer elemento de direção existente (path, lin)
+        for old_dir in gradFill.findall(qn('a:lin')) + gradFill.findall(qn('a:path')):
+            gradFill.remove(old_dir)
+        # Adicionar direção linear diagonal (8100000 = 135°)
+        lin = parse_xml('<a:lin xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" ang="8100000" scaled="1"/>')
+        gradFill.append(lin)
+
+    # ============================================
+    # SHAPE BRANCO (PILL / ELIPSE VERTICAL) DIREITA
+    # ============================================
+    shape_width = Inches(7.5)  
+    shape_height = Inches(9.5) 
+    
+    center_y = Inches(3.0)
+    center_x = SLIDE_WIDTH - Inches(1.5)
+
+    shape_left = center_x - (shape_width / 2)
+    shape_top = center_y - (shape_height / 2)
+
+    white_shape = slide.shapes.add_shape(
+        MSO_SHAPE.OVAL,
+        shape_left, shape_top,
+        shape_width, shape_height
+    )
+    white_shape.fill.solid()
+    white_shape.fill.fore_color.rgb = WHITE
+    white_shape.line.fill.background()
+
+    # ============================================
+    # LOGO EDENRED DENTRO DO SHAPE BRANCO
+    # ============================================
     if os.path.exists(LOGO_PATH):
-        # A logo original costuma ser bem grande, redimensionada para a altura correta
-        # Vamos usar um tamanho padrão: h=0.4
+        logo_w = Inches(4.0)
+        # Centralizar no shape branco (center_x, center_y são o centro do oval)
         slide.shapes.add_picture(
             LOGO_PATH,
-            margin_x, Inches(6.8),
-            height=Inches(0.4)
+            center_x - (logo_w / 2) - Inches(0.3), 
+            center_y - Inches(1.0), 
+            width=logo_w
         )
 
-    # Tagline (direita)
+    # ============================================
+    # CONTEÚDO (TEXTOS NA ESQUERDA)
+    # ============================================
+    text_left = Inches(0.8)
+    
+    # Título Principal (Linha 1)
     add_text_box(
-        slide, Inches(9.8), Inches(6.8),
-        Inches(2.5), Inches(0.4),
-        "Mover, para o bem.",
-        size=11, bold=True, color=RGBColor(0x1A, 0x1A, 0x2E), alignment=PP_ALIGN.RIGHT
+        slide, text_left, Inches(4.3),
+        Inches(10.0), Inches(0.6),
+        "Apresentação",
+        size=36, bold=True, color=WHITE, alignment=PP_ALIGN.LEFT
     )
+
+    # Título Principal (Linha 2)
+    add_text_box(
+        slide, text_left, Inches(4.9),
+        Inches(10.0), Inches(0.6),
+        "Desempenho de RI",
+        size=36, bold=True, color=WHITE, alignment=PP_ALIGN.LEFT
+    )
+
+    # Linha separadora (Pill curta branca)
+    pill = slide.shapes.add_shape(
+        MSO_SHAPE.ROUNDED_RECTANGLE,
+        text_left + Inches(0.05), Inches(5.6), 
+        Inches(0.8), Inches(0.06)
+    )
+    pill.fill.solid()
+    pill.fill.fore_color.rgb = WHITE
+    pill.line.fill.background()
+    pill.adjustments[0] = 0.5 
+
+    # Subtítulo (Período da análise)
+    add_text_box(
+        slide, text_left, Inches(5.85),  
+        Inches(6.0), Inches(0.4),
+        "Análise dos Últimos 30 Dias",
+        size=16, bold=False, color=WHITE, alignment=PP_ALIGN.LEFT
+    )
+
+    # Data do período (calculada automaticamente)
+    from datetime import timedelta
+    data_fim = datetime.now()
+    data_inicio = data_fim - timedelta(days=30)
+    periodo_str = f"{data_inicio.strftime('%d/%m/%Y')} — {data_fim.strftime('%d/%m/%Y')}"
+    add_text_box(
+        slide, text_left, Inches(6.45),
+        Inches(6.0), Inches(0.4),
+        periodo_str,
+        size=14, bold=False, color=WHITE, alignment=PP_ALIGN.LEFT
+    )
+
+    # Numeração no canto inferior direito
+    add_text_box(
+        slide, SLIDE_WIDTH - Inches(0.8), SLIDE_HEIGHT - Inches(0.8),
+        Inches(0.5), Inches(0.4),
+        "1",
+        size=10, bold=False, color=WHITE, alignment=PP_ALIGN.RIGHT
+    )
+

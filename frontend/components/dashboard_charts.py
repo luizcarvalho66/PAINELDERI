@@ -24,6 +24,7 @@ TEXT_DARK = '#1e293b'
 TEXT_MUTED = '#64748b'
 GREY_LINE = '#94a3b8'
 GREY_AREA = 'rgba(148,163,184,0.12)'
+BAR_COLOR = 'rgba(226, 6, 19, 0.18)' # Edenred Red com baixa opacidade para barras de fundo
 
 # Meses em PT-BR
 _MESES_PTBR = {
@@ -63,8 +64,12 @@ AXIS_STYLE = dict(
 def create_ri_geral_chart(df: pd.DataFrame) -> go.Figure:
     """
     Creates the main 'Evolução RI Geral' chart.
+    Agora inclui um Eixo Duplo (Dual-Axis) com o Volume Solicitado em Barras ao fundo.
     """
-    fig = go.Figure()
+    from plotly.subplots import make_subplots
+    
+    # Criar figura com eixo Y secundário
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
     
     # Data Preparation
     if 'x_label' in df.columns:
@@ -82,6 +87,12 @@ def create_ri_geral_chart(df: pd.DataFrame) -> go.Figure:
     os_corr = df.get('qtd_corr', pd.Series([0]*len(df))).astype(int)
     os_prev = df.get('qtd_prev', pd.Series([0]*len(df))).astype(int)
     os_total = os_corr + os_prev
+    
+    # Volume Solicitado (Para as barras de fundo)
+    vol_corr = df.get('sum_total_corr', pd.Series([0]*len(df)))
+    vol_prev = df.get('sum_total_prev', pd.Series([0]*len(df)))
+    vol_total = vol_corr + vol_prev
+    vol_text = [f"R$ {v/1e6:,.1f}M" for v in vol_total]
     
     # Formatar economia
     econ_text = [f"R$ {v/1e6:,.1f}M" for v in economia_total]
@@ -113,13 +124,28 @@ def create_ri_geral_chart(df: pd.DataFrame) -> go.Figure:
     # Texto de aviso para dados parciais
     parcial_text = ["(dados parciais)" if p else "" for p in parciais]
 
+    # Trace 1: Barras de Volume Solicitado (Fundo / Eixo Secundário)
+    fig.add_trace(go.Bar(
+        x=x_data,
+        y=vol_total,
+        name='Volume Solicitado',
+        marker_color=BAR_COLOR,
+        marker_line_width=0,
+        customdata=list(zip(periodo_text, vol_text)),
+        hovertemplate=(
+            '<b>%{customdata[0]}</b><br>'
+            'Volume Solicitado: <b>%{customdata[1]}</b><br>'
+            '<extra></extra>'
+        )
+    ), secondary_y=True)
+
+    # Trace 2: Linha de RI Geral (Frente / Eixo Principal)
     fig.add_trace(go.Scatter(
         x=x_data, 
         y=y_data, 
         mode='lines+markers', 
         marker=dict(size=marker_sizes, color=EDENRED_RED, symbol='circle', opacity=marker_opacities), 
-        fill='tozeroy',
-        fillcolor=EDENRED_RED_LIGHT, 
+        # Removendo area under curve (fill tozeroy) para não tampar as barras
         line=dict(color=EDENRED_RED, width=3, shape='spline'),
         name='RI Geral',
         customdata=list(zip(
@@ -130,7 +156,8 @@ def create_ri_geral_chart(df: pd.DataFrame) -> go.Figure:
             os_prev,
             (df['ri_corretiva'] * 100).round(2),
             (df['ri_preventiva'] * 100).round(2),
-            parcial_text
+            parcial_text,
+            vol_text # index 8
         )),
         hovertemplate=(
             '<b>%{customdata[0]}</b><br>'
@@ -140,24 +167,46 @@ def create_ri_geral_chart(df: pd.DataFrame) -> go.Figure:
             'Corretiva:  %{customdata[5]:.2f}%<br>'
             'Preventiva:  %{customdata[6]:.2f}%<br>'
             '―――――――――――――――――<br>'
-            'Economia:  <b>%{customdata[1]}</b><br>'
-            'OS Analisadas:  %{customdata[2]:,}<br>'
-            '<span style="color:#94a3b8">Corretiva: %{customdata[3]:,}  ·  Preventiva: %{customdata[4]:,}</span>'
+            'Vol. Analisado: <b>%{customdata[8]}</b><br>'
+            'Economia Gerada:  <b>%{customdata[1]}</b><br>'
+            'OS Genuínas:  %{customdata[2]:,}<br>'
             '<extra></extra>'
         )
+    ), secondary_y=False)
+
+    # Merge AXIS_STYLE with specific yaxis overrides
+    yaxis_config = AXIS_STYLE.copy()
+    yaxis_config.update(dict(
+        title=dict(text="RI (%)", font=dict(color=EDENRED_RED, size=12)),
+        ticksuffix="%", 
+        rangemode="tozero",
+        showgrid=False # Sobrescreve AXIS_STYLE pra evitar grelha dupla
     ))
 
     fig.update_layout(
         **BASE_LAYOUT,
-        title=dict(text="<b>Evolução RI Geral</b>", font=dict(size=18, color=TEXT_DARK)),
+        title=dict(text="<b>Evolução RI Geral</b> vs. Vol. Solicitado", font=dict(size=18, color=TEXT_DARK)),
         xaxis=dict(**AXIS_STYLE), 
-        yaxis=dict(
-            **AXIS_STYLE, 
-            ticksuffix="%", 
-            rangemode="tozero"
+        yaxis=yaxis_config,
+        yaxis2=dict(
+            showgrid=True,
+            gridcolor=GRID_COLOR,
+            title=dict(text="Vol. Solicitado (R$)", font=dict(color=TEXT_MUTED, size=12)),
+            tickfont=dict(color=TEXT_MUTED),
+            rangemode="tozero",
+            showline=False
         ),
-        height=380
+        height=380,
+        showlegend=False
     )
+    
+    # Elevar a linha e abaixar as barras visualmente para que a linha flutue lá em cima.
+    # Opcional mas comum em dual-axis
+    max_ri = y_data.max() if not y_data.empty else 100
+    if max_ri > 0: fig.update_yaxes(range=[0, max_ri * 1.5], secondary_y=False)
+    
+    max_vol = vol_total.max() if not vol_total.empty else 1000000
+    if max_vol > 0: fig.update_yaxes(range=[0, max_vol * 1.5], secondary_y=True)
     
     return fig
 

@@ -10,3 +10,4 @@ if os.path.exists(webp_path):
     img = Image.open(webp_path)
     img.save(png_path, "PNG")
 else:
+    pass

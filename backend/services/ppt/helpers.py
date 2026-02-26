@@ -54,7 +54,7 @@ def add_rounded_rect(slide, left, top, width, height, fill_color,
 
 
 def add_gradient_header(slide, title_text):
-    """Header no estilo Edenred: barra com gradiente vermelho → coral."""
+    """(DEPRECATED) Header no estilo Edenred: barra com gradiente vermelho."""
     header_h = Inches(0.85)
 
     # Base vermelha
@@ -88,14 +88,30 @@ def add_gradient_header(slide, title_text):
         title_text, size=26, bold=True, color=WHITE
     )
 
+def add_content_header(slide, title_text):
+    """Header estilo Plano Estratégico (Branco com Título Vermelho e Sublinhado Médio)."""
+    # Texto
+    add_text_box(
+        slide, Inches(0.6), Inches(0.4),
+        Inches(10), Inches(0.6),
+        title_text.upper(), size=24, bold=True, color=EDENRED_RED
+    )
+    
+    # Sublinhado (Pill Curta Vermelha Subjacente)
+    add_rounded_rect(
+        slide, Inches(0.65), Inches(0.95), 
+        Inches(1.2), Inches(0.08), 
+        EDENRED_RED, radius=0.5
+    )
+
 
 def add_footer_logo(slide):
     """Logo Edenred no canto inferior esquerdo."""
     if os.path.exists(LOGO_PATH):
         slide.shapes.add_picture(
             LOGO_PATH,
-            Inches(0.3), Inches(6.75),
-            width=Inches(1.4)
+            Inches(0.4), Inches(6.85),
+            width=Inches(0.65)
         )
 
 
