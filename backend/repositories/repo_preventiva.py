@@ -216,18 +216,19 @@ def get_fugas_grouped_with_detail(filters=None, limit=20):
             filter_sql += " AND uf IN (" + ",".join(["?"]*len(filters['uf'])) + ")"
             params.extend(filters['uf'])
     
-    # STEP 1: Master query (agregação) — single scan
     query_master = f"""
     SELECT 
         {group_col} as codigo_tgm,
         MIN(nome_cliente) as cliente_principal,
         COUNT(DISTINCT codigo_cliente) as qtd_clientes,
-        COUNT(*) as total_os,
-        SUM(valor_aprovado) as valor_total
+        COUNT(DISTINCT numero_os) as total_os,
+        SUM(COALESCE(valor_total, 0)) as valor_total
     FROM ri_corretiva_detalhamento
-    WHERE ({fuga_cond}) {filter_sql}
+    WHERE ({fuga_cond})
+      AND data_transacao >= CURRENT_DATE - INTERVAL 30 DAY
+      {filter_sql}
     GROUP BY {group_col} 
-    ORDER BY total_os DESC 
+    ORDER BY valor_total DESC 
     LIMIT {limit}
     """
     
@@ -250,16 +251,22 @@ def get_fugas_grouped_with_detail(filters=None, limit=20):
         SELECT * FROM (
             SELECT 
                 {group_col} as _tgm_key,
-                codigo_cliente,
-                coalesce(nome_cliente, 'Cliente N/A') as cliente,
+                MAX(codigo_cliente) as codigo_cliente,
+                MAX(coalesce(nome_cliente, 'Cliente N/A')) as cliente,
                 numero_os,
-                nome_estabelecimento as nome_ec,
-                cidade, uf, tipo_mo, valor_aprovado, nome_aprovador,
-                data_transacao,
-                ROW_NUMBER() OVER (PARTITION BY {group_col} ORDER BY data_transacao DESC) as rn
+                MAX(nome_estabelecimento) as nome_ec,
+                MAX(tipo_mo) as tipo_mo,
+                MAX(nome_aprovador) as nome_aprovador,
+                MAX(data_transacao) as data_transacao,
+                COUNT(*) as qtd_itens,
+                SUM(COALESCE(valor_total, 0)) as valor_total_os,
+                ROW_NUMBER() OVER (PARTITION BY {group_col} ORDER BY SUM(COALESCE(valor_total, 0)) DESC) as rn
             FROM ri_corretiva_detalhamento
             WHERE {group_col} IN ({tgm_escaped})
-              AND ({fuga_cond}) {filter_sql}
+              AND ({fuga_cond})
+              AND data_transacao >= CURRENT_DATE - INTERVAL 30 DAY
+              {filter_sql}
+            GROUP BY {group_col}, numero_os
         ) sub WHERE rn <= 10
         """
         
