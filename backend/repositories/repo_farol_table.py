@@ -393,7 +393,7 @@ def save_current_stats_as_previous():
 def get_farol_stats_with_trend() -> dict:
     """
     Retorna as estatísticas atuais enriquecidas com a tendência (delta %)
-    em relação ao snapshot anterior.
+    comparando o mês mais recente com o mês anterior.
     
     Returns:
         Dict com estrutura:
@@ -403,63 +403,141 @@ def get_farol_stats_with_trend() -> dict:
             ...
         }
     """
-    # 0. Initial check: If no snapshot exists, create one now to serve as baseline
-    _initialize_snapshot_if_missing()
+    conn = get_connection()
+    if conn is None:
+        return {k: {"value": 0, "trend": 0.0, "direction": "neutral"} for k in ["verde", "amarelo", "vermelho", "total"]}
+    
+    try:
+        cursor = conn.cursor()
+        
+        # 1. Descobrir os 2 meses mais recentes com dados
+        months_query = """
+        SELECT DISTINCT date_trunc('month', data_transacao) as mes
+        FROM ri_corretiva_detalhamento
+        WHERE data_transacao IS NOT NULL
+        ORDER BY mes DESC
+        LIMIT 2
+        """
+        df_months = cursor.execute(months_query).fetchdf()
+        cursor.close()
+        
+        if df_months.empty:
+            return {k: {"value": 0, "trend": 0.0, "direction": "neutral"} for k in ["verde", "amarelo", "vermelho", "total"]}
+        
+        # Stats do mês mais recente (ou de todos os dados como totais)
+        current = get_farol_stats_full()
+        
+        # 2. Se temos pelo menos 2 meses, calcular stats do mês anterior
+        has_valid_previous = False
+        previous = {}
+        
+        if len(df_months) >= 2:
+            mes_anterior = df_months.iloc[1]['mes']
+            # Calcular stats apenas para o mês anterior
+            previous = _get_farol_stats_for_period(conn, mes_anterior)
+            if previous.get("total", 0) > 0:
+                has_valid_previous = True
+        
+        # 3. Para current, calcular stats apenas do mês mais recente (para comparação justa)
+        mes_atual = df_months.iloc[0]['mes']
+        current_month_stats = _get_farol_stats_for_period(conn, mes_atual)
+        
+        # 4. Calcular deltas (mês atual vs mês anterior)
+        result = {}
+        keys = ["verde", "amarelo", "vermelho", "total"]
+        
+        for k in keys:
+            # O VALUE exibido é o TOTAL (todos os meses), não apenas do mês atual
+            total_val = current.get(k, 0)
+            # Mas o TREND compara mês atual vs mês anterior
+            curr_month_val = current_month_stats.get(k, 0)
+            prev_val = previous.get(k, 0)
+            
+            trend_pct = 0.0
+            direction = "neutral"
+            
+            if has_valid_previous and prev_val > 0:
+                trend_pct = ((curr_month_val - prev_val) / prev_val) * 100
+                
+                if trend_pct > 0.5:
+                    direction = "up"
+                elif trend_pct < -0.5:
+                    direction = "down"
+                
+            result[k] = {
+                "value": total_val,
+                "trend": round(trend_pct, 1),
+                "direction": direction
+            }
+            
+        return result
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        # Fallback: retornar stats sem trend
+        current = get_farol_stats_full()
+        return {k: {"value": current.get(k, 0), "trend": 0.0, "direction": "neutral"} for k in ["verde", "amarelo", "vermelho", "total"]}
 
-    # 1. Obter stats atuais
-    current = get_farol_stats_full()
+
+def _get_farol_stats_for_period(conn, mes_ref) -> dict:
+    """
+    Calcula stats de farol (verde/amarelo/vermelho) para um mês específico.
     
-    # 2. Carregar stats anteriores
-    previous = {}
-    has_valid_previous = False
-    
-    if os.path.exists(STATS_SNAPSHOT_FILE):
-        try:
-            with open(STATS_SNAPSHOT_FILE, 'r') as f:
-                previous = json.load(f)
-                # Verificar se o snapshot tem dados válidos (não vazio, com total > 0)
-                if previous.get("total", 0) > 0:
-                    has_valid_previous = True
-        except Exception as e:
-            print(f"[TRENDS] Erro ao ler snapshot: {e}")
-    
-    # 3. Calcular deltas
-    result = {}
-    keys = ["verde", "amarelo", "vermelho", "total"]
-    
-    for k in keys:
-        curr_val = current.get(k, 0)
-        prev_val = previous.get(k, 0)
+    Args:
+        conn: Conexão DuckDB
+        mes_ref: datetime do mês de referência (primeiro dia do mês)
+    """
+    try:
+        cursor = conn.cursor()
         
-        trend_pct = 0.0
-        direction = "neutral"
+        query = f"""
+        WITH 
+        agg_chave AS (
+            SELECT
+                CONCAT(COALESCE(peca, 'SEM PEÇA'), ' + ', COALESCE(tipo_mo, 'SEM MO')) as chave,
+                COUNT(DISTINCT numero_os) as qtd_os,
+                COUNT(*) as total_itens,
+                SUM(CASE WHEN status_os = 'APROVADA' THEN 1 ELSE 0 END) as itens_aprovacao_auto,
+                PERCENTILE_CONT(0.70) WITHIN GROUP (ORDER BY COALESCE(valor_aprovado, 0)) as p70,
+                AVG(COALESCE(valor_aprovado, 0)) as valor_medio
+            FROM ri_corretiva_detalhamento
+            WHERE date_trunc('month', data_transacao) = ?
+            GROUP BY COALESCE(peca, 'SEM PEÇA'), COALESCE(tipo_mo, 'SEM MO')
+        )
+        SELECT 
+            chave,
+            qtd_os,
+            total_itens,
+            itens_aprovacao_auto as itens_automaticos,
+            CASE 
+                WHEN total_itens > 0 THEN (itens_aprovacao_auto::FLOAT / total_itens) * 100 
+                ELSE 0 
+            END as pct_aprovacao,
+            p70,
+            valor_medio
+        FROM agg_chave
+        """
         
-        # Só calcula tendência se houver snapshot anterior válido
-        if has_valid_previous and prev_val > 0:
-            trend_pct = ((curr_val - prev_val) / prev_val) * 100
+        df = cursor.execute(query, [mes_ref]).fetchdf()
+        cursor.close()
+        
+        if df.empty:
+            return {"verde": 0, "amarelo": 0, "vermelho": 0, "total": 0}
             
-            if trend_pct > 0.5:  # Threshold mínimo para considerar "movimento"
-                direction = "up"
-            elif trend_pct < -0.5:
-                direction = "down"
-        # Se não tem histórico válido, fica neutro (não mostra seta)
-            
-        result[k] = {
-            "value": curr_val,
-            "trend": round(trend_pct, 1),
-            "direction": direction
-        }
+        dados = df.to_dict('records')
+        dados_processados = processar_dados_farol(dados)
+        resumo = get_resumo_farois(dados_processados)
         
-    return result
+        return resumo
+        
+    except Exception as e:
+        return {"verde": 0, "amarelo": 0, "vermelho": 0, "total": 0}
+
 
 def _initialize_snapshot_if_missing():
-    """
-    Internal helper: checks if snapshot exists. If not, creates one from current DB.
-    This ensures we have a baseline for the NEXT sync.
-    """
-    if not os.path.exists(STATS_SNAPSHOT_FILE):
-        print("[TRENDS] Snapshot missing. Initializing baseline from current DB...")
-        save_current_stats_as_previous()
+    """Legacy: mantido para compatibilidade mas não mais necessário."""
+    pass
 
 
 
