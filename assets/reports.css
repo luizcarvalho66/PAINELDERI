@@ -188,10 +188,166 @@
     transform: translateY(-1px);
 }
 
-/* -- Spinner inside card -- */
-.report-spinner {
+/* -- 3D Slide Builder Overlay (Premium Clean Edition) -- */
+.ppt-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(255, 255, 255, 0.75); /* Fundo claro translúcido */
+    backdrop-filter: blur(16px);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    animation: pptFadeIn 0.3s ease-out;
+}
+
+.ppt-builder-box {
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* -- Data Flow Transformation Scene -- */
+.data-flow-scene {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    padding: 1rem 2rem;
+}
+
+/* Origem: Dashboard */
+.df-source-container {
+    width: 80px;
+    height: 80px;
+    background: #F1F5F9;
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+    z-index: 2;
+    position: relative;
+    /* Oscilação muito sutil como se a "máquina" estivesse ligada */
+    animation: dfMachineVibrate 4s infinite ease-in-out;
+}
+
+.df-source-icon {
+    color: #475569; /* Slate-600 */
+}
+
+/* O fluxo no meio */
+.df-stream {
+    width: 120px;
+    height: 4px;
+    background: rgba(226, 6, 19, 0.1);
+    position: relative;
+    border-radius: 2px;
+}
+
+/* Partículas de dados (Os "pacotes") */
+.df-particle {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    top: -2px;
+    left: 0;
+    width: 12px;
+    height: 8px;
+    background-color: #E20613; /* Vermelho Edenred Puro */
+    border-radius: 4px;
+    box-shadow: 0 0 8px rgba(226, 6, 19, 0.5);
+    opacity: 0;
+    animation: dataFly 1.5s infinite var(--delay) cubic-bezier(0.5, 0, 0.2, 1);
+}
+
+.pt-1 { --delay: 0s; }
+.pt-2 { --delay: 0.5s; }
+.pt-3 { --delay: 1s; }
+
+
+/* Destino: PowerPoint */
+.df-target-container {
+    width: 90px;
+    height: 90px;
+    background: #FFFFFF;
+    border: 1px solid rgba(226, 6, 19, 0.1);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(226, 6, 19, 0.1);
+    z-index: 2;
+    position: relative;
+    /* Reage (pulsa) na batida da chegada dos dados */
+    animation: pptReceive 1.5s infinite cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.df-target-icon {
+    /* Cor Original SVG e leve sombra */
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+/* -- Mensagens em Cascata Clean -- */
+.ppt-message-container {
+    position: relative;
+    width: 100%;
+    height: 30px;
+    text-align: center;
+}
+
+.ppt-dynamic-text {
+    position: absolute;
+    width: 100%;
+    left: 0;
+    font-family: 'Ubuntu', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #334155; /* Slate-700 Escuro Elegante */
+    font-size: 0.95rem;
+    opacity: 0;
+}
+
+.msg-1 { animation: textBlinkSequenced 6s infinite 0s; }
+.msg-2 { animation: textBlinkSequenced 6s infinite 2s; }
+.msg-3 { animation: textBlinkSequenced 6s infinite 4s; }
+
+
+/* -- Keyframes Mágicos -- */
+@keyframes pptFadeIn {
+    from { opacity: 0; backdrop-filter: blur(0px); }
+    to { opacity: 1; backdrop-filter: blur(16px); }
+}
+
+@keyframes float3D {
+    /* Mantido fallback vazio para não quebrar css se alguma classe órfã existir */
+}
+
+/* 1. Origem: Máquina Ligada */
+@keyframes dfMachineVibrate {
+    0%, 100% { transform: translateY(0); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05); }
+    50% { transform: translateY(-3px); box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08); }
+}
+
+/* 2. Meio: Dados voando acelerados */
+@keyframes dataFly {
+    0% { left: 0; opacity: 0; transform: scaleX(0.5); }
+    15% { opacity: 1; transform: scaleX(1); }
+    85% { opacity: 1; transform: scaleX(1); }
+    100% { left: 100%; opacity: 0; transform: scaleX(0.5); }
+}
+
+/* 3. Destino: Recebendo pacotes (Batimento Cardíaco / Scale) */
+@keyframes pptReceive {
+    0%, 100% { transform: scale(1); box-shadow: 0 8px 24px rgba(226, 6, 19, 0.1); }
+    25% { transform: scale(1.08); box-shadow: 0 12px 32px rgba(226, 6, 19, 0.25); }
+    50% { transform: scale(1); box-shadow: 0 8px 24px rgba(226, 6, 19, 0.1); }
+}
+
+@keyframes textBlinkSequenced {
+    0%, 30.33%, 100% { opacity: 0; transform: translateY(4px); }
+    3.33%, 27% { opacity: 1; transform: translateY(0); }
 }

@@ -351,3 +351,269 @@ def check_database_status() -> bool:
     except Exception as e:
         print(f"[PERSISTENCE] Erro ao verificar status do banco: {e}")
         return False
+
+@safe_memoize(timeout=300)
+def get_ri_evolution_30d(filters: dict = None):
+    """
+    Fetches the evolution of RI over the last 30 days, grouped by week.
+    Utilizado especificamente para o Slide 3 do Relatório PPT.
+    """
+    try:
+        conn = get_readonly_connection()
+    except Exception as e:
+        return pd.DataFrame()
+
+    if conn is None:
+        return pd.DataFrame()
+
+    try:
+        # Usa current_date - 30 (DuckDB syntax)
+        where_conditions_corr = ["c.data_transacao >= current_date() - INTERVAL '30' DAY"]
+        where_conditions_prev = ["data_transacao >= current_date() - INTERVAL '30' DAY"]
+        
+        if filters and filters.get("clientes"):
+            raw_clients = filters["clientes"]
+            valid_clients = [str(c) for c in raw_clients if c and str(c).strip() != ""]
+            if valid_clients:
+                clients_escaped = "', '".join([c.replace("'", "''") for c in valid_clients])
+                where_conditions_corr.append(f"c.nome_cliente IN ('{clients_escaped}')")
+
+        where_corr = " AND ".join(where_conditions_corr)
+        where_prev = " AND ".join(where_conditions_prev)
+        
+        query_corr = f"""
+        SELECT
+            date_trunc('week', c.data_transacao) as mes_ref,
+            COUNT(DISTINCT c.numero_os) as total_corr,
+            SUM(COALESCE(valor_total, 0)) as sum_total_corr,
+            SUM(COALESCE(valor_aprovado, 0)) as sum_aprovado_corr
+        FROM ri_corretiva_detalhamento c
+        WHERE {where_corr}
+        GROUP BY 1
+        ORDER BY 1
+        """
+        
+        query_pricing_corr = f"""
+        SELECT
+            date_trunc('week', c.data_transacao) as mes_ref,
+            SUM(c.economia_total) as sum_economia_pricing
+        FROM economia_calculada c
+        WHERE {where_corr} AND c.tipo_origem = 'CORRETIVA'
+        GROUP BY 1
+        """
+        
+        query_pricing_prev = f"""
+        SELECT
+            date_trunc('week', c.data_transacao) as mes_ref,
+            SUM(c.economia_total) as sum_economia_pricing_prev
+        FROM economia_calculada c
+        WHERE {where_prev} AND c.tipo_origem = 'PREVENTIVA'
+        GROUP BY 1
+        """
+        
+        query_prev = f"""
+        SELECT
+            date_trunc('week', data_transacao) as mes_ref,
+            COUNT(DISTINCT numero_os) as total_prev,
+            SUM(COALESCE(valor_total, 0)) as sum_total_prev,
+            SUM(COALESCE(valor_aprovado, 0)) as sum_aprovado_prev
+        FROM ri_preventiva_detalhamento
+        WHERE {where_prev}
+        GROUP BY 1
+        ORDER BY 1
+        """
+        
+        df_corr = conn.execute(query_corr).fetchdf()
+        try: df_pricing_corr = conn.execute(query_pricing_corr).fetchdf()
+        except: df_pricing_corr = pd.DataFrame(columns=['mes_ref', 'sum_economia_pricing'])
+        
+        try: df_pricing_prev = conn.execute(query_pricing_prev).fetchdf()
+        except: df_pricing_prev = pd.DataFrame(columns=['mes_ref', 'sum_economia_pricing_prev'])
+        
+        df_prev = conn.execute(query_prev).fetchdf()
+        
+        if df_corr.empty and df_prev.empty:
+            return pd.DataFrame()
+            
+        if not df_corr.empty: df_corr['mes_ref'] = pd.to_datetime(df_corr['mes_ref']).dt.tz_localize(None)
+        else: df_corr = pd.DataFrame(columns=['mes_ref', 'total_corr', 'sum_total_corr', 'sum_aprovado_corr'])
+             
+        if not df_pricing_corr.empty: df_pricing_corr['mes_ref'] = pd.to_datetime(df_pricing_corr['mes_ref']).dt.tz_localize(None)
+        else: df_pricing_corr = pd.DataFrame(columns=['mes_ref', 'sum_economia_pricing'])
+
+        if not df_pricing_prev.empty: df_pricing_prev['mes_ref'] = pd.to_datetime(df_pricing_prev['mes_ref']).dt.tz_localize(None)
+        else: df_pricing_prev = pd.DataFrame(columns=['mes_ref', 'sum_economia_pricing_prev'])
+
+        if not df_prev.empty: df_prev['mes_ref'] = pd.to_datetime(df_prev['mes_ref']).dt.tz_localize(None)
+        else: df_prev = pd.DataFrame(columns=['mes_ref', 'total_prev', 'sum_total_prev', 'sum_aprovado_prev'])
+            
+        df = pd.merge(df_corr, df_prev, on='mes_ref', how='outer').fillna(0)
+        df = pd.merge(df, df_pricing_corr, on='mes_ref', how='left').fillna(0)
+        df = pd.merge(df, df_pricing_prev, on='mes_ref', how='left').fillna(0)
+        
+        df['ano'] = df['mes_ref'].dt.year
+        df['mes_num'] = df['mes_ref'].dt.month
+        
+        df['sum_economia_pricing_prev'] = df.get('sum_economia_pricing_prev', 0)
+        denom_prev = df['sum_aprovado_prev'] + df['sum_economia_pricing_prev']
+        df['ri_preventiva'] = np.where(denom_prev > 0, df['sum_economia_pricing_prev'] / denom_prev, 0.0)
+        
+        denom_corr = df['sum_aprovado_corr'] + df['sum_economia_pricing']
+        df['ri_corretiva'] = np.where(denom_corr > 0, df['sum_economia_pricing'] / denom_corr, 0.0)
+        
+        df = df.sort_values('mes_ref')
+        df['qtd_prev'] = df['total_prev']
+        df['qtd_corr'] = df['total_corr']
+
+        economia_total_corr = df['sum_economia_pricing']
+        economia_total_prev = df['sum_economia_pricing_prev']
+        total_aprovado_real = df['sum_aprovado_corr'] + df['sum_aprovado_prev']
+        base_calculo = total_aprovado_real + economia_total_corr + economia_total_prev
+        
+        df['ri_geral'] = ((economia_total_corr + economia_total_prev) / base_calculo.replace(0, 1)).clip(lower=0)
+        
+        # Formatar a semana para o X axis em português (dia e mês)
+        df['mes_nome'] = df['mes_num'].map(MONTH_MAP)
+        df['x_label'] = df['mes_ref'].dt.strftime('%d/') + df['mes_ref'].dt.strftime('%m')
+        
+        return df
+        
+    except Exception as e:
+        print(f"[REPOSITORY ERROR] get_ri_evolution_30d: {e}")
+        return pd.DataFrame()
+
+
+@safe_memoize(timeout=300)
+def get_top_ofensores_30d(filters: dict = None, limite=3):
+    """
+    Busca os Top Estabelecimentos Ofensores em RI nos últimos 30 dias.
+    Ofensor = Alto Volume de Orçamento (R$) com a MENOR % de RI.
+    Lógica: RI = Economia / (Aprovado + Economia). Menor RI = pior negociação.
+    """
+    try:
+        conn = get_readonly_connection()
+    except:
+        return []
+
+    if conn is None: return []
+
+    try:
+        where_conditions = ["c.data_transacao >= current_date - INTERVAL 30 DAY"]
+        if filters and filters.get("clientes"):
+            valid_clients = [str(cl) for cl in filters["clientes"] if cl and str(cl).strip() != ""]
+            if valid_clients:
+                clients_escaped = "', '".join([cl.replace("'", "''") for cl in valid_clients])
+                where_conditions.append(f"c.nome_cliente IN ('{clients_escaped}')")
+
+        where_clause = " AND ".join(where_conditions)
+        
+        # 1) Agregar por nome_estabelecimento na corretiva
+        # 2) Agregar economia via numero_os (chave compartilhada) e depois resumir por estabelecimento
+        query = f"""
+        WITH base_corr AS (
+            SELECT 
+                c.nome_estabelecimento,
+                c.numero_os,
+                SUM(c.valor_total) as valor_total_os,
+                SUM(c.valor_aprovado) as valor_aprovado_os
+            FROM ri_corretiva_detalhamento c
+            WHERE {where_clause}
+              AND c.nome_estabelecimento IS NOT NULL
+              AND TRIM(c.nome_estabelecimento) != ''
+            GROUP BY 1, 2
+        ),
+        econ_por_os AS (
+            SELECT 
+                e.numero_os,
+                SUM(e.economia_total) as economia_os
+            FROM economia_calculada e
+            WHERE e.data_transacao >= current_date - INTERVAL 30 DAY
+              AND e.tipo_origem = 'CORRETIVA'
+            GROUP BY 1
+        ),
+        joined AS (
+            SELECT
+                b.nome_estabelecimento,
+                b.numero_os,
+                b.valor_total_os,
+                b.valor_aprovado_os,
+                COALESCE(e.economia_os, 0) as economia_os
+            FROM base_corr b
+            LEFT JOIN econ_por_os e ON b.numero_os = e.numero_os
+        )
+        SELECT
+            nome_estabelecimento,
+            SUM(valor_total_os) as volume_solicitado,
+            SUM(valor_aprovado_os) as volume_aprovado,
+            SUM(economia_os) as economia,
+            COUNT(DISTINCT numero_os) as qtd_os
+        FROM joined
+        GROUP BY 1
+        HAVING SUM(valor_total_os) > 5000
+        ORDER BY volume_solicitado DESC
+        LIMIT 20
+        """
+        
+        df = conn.execute(query).fetchdf()
+        if df.empty: return []
+        
+        # Calcular RI por estabelecimento: Economia / (Aprovado + Economia)
+        denom = df['volume_aprovado'] + df['economia']
+        df['ri_percent'] = np.where(denom > 0, df['economia'] / denom, 0.0)
+        
+        # Ordenar pelo Menor RI (pior negociação) com alto volume
+        df = df.sort_values(by=['ri_percent', 'volume_solicitado'], ascending=[True, False]).head(limite)
+        
+        ofensores = []
+        for _, row in df.iterrows():
+            nome_raw = str(row['nome_estabelecimento']).strip()
+            nome = nome_raw[:25] + "..." if len(nome_raw) > 25 else nome_raw
+            ri = float(row['ri_percent']) * 100
+            vol_solicitado = float(row['volume_solicitado'])
+            vol_aprovado = float(row['volume_aprovado'])
+            economia = float(row['economia'])
+            ofensores.append({
+                "nome": nome,
+                "ri_percent": ri,
+                "volume_solicitado": vol_solicitado,
+                "volume_aprovado": vol_aprovado,
+                "economia": economia,
+                "qtd_os": int(row['qtd_os'])
+            })
+            
+        return ofensores
+
+    except Exception as e:
+        print(f"[REPOSITORY ERROR] get_top_ofensores: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
+@safe_memoize(timeout=600)
+def get_distinct_clients():
+    """
+    Retorna lista de nomes de clientes distintos disponíveis no DuckDB.
+    Usado para popular o dropdown de seleção de cliente no modal de exportação PPT.
+    """
+    try:
+        conn = get_readonly_connection()
+    except Exception:
+        return []
+
+    if conn is None:
+        return []
+
+    try:
+        query = """
+        SELECT DISTINCT nome_cliente
+        FROM ri_corretiva_detalhamento
+        WHERE nome_cliente IS NOT NULL
+          AND TRIM(nome_cliente) != ''
+        ORDER BY nome_cliente
+        """
+        df = conn.execute(query).fetchdf()
+        return df['nome_cliente'].tolist()
+    except Exception as e:
+        print(f"[REPOSITORY ERROR] get_distinct_clients: {e}")
+        return []
