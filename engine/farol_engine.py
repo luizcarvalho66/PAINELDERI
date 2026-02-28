@@ -169,7 +169,8 @@ def gerar_sugestao(
     tendencia: float,
     qtd_os: int,
     p70: float,
-    benchmark: float
+    benchmark: float,
+    benchmark_completo: bool = True
 ) -> str:
     """
     Gera uma sugestão de ação textual baseada na análise.
@@ -193,9 +194,12 @@ def gerar_sugestao(
         else:
             parts.append(f"Aprovação baixa ({pct_aprovacao:.0f}%)")
         
-        if p70 > 0 and benchmark > 0 and p70 > benchmark:
+        if p70 > 0 and benchmark > 0 and p70 > benchmark and benchmark_completo:
             diff_pct = ((p70 - benchmark) / benchmark) * 100
-            parts.append(f"P70 {p70_fmt} (+{diff_pct:.0f}% vs benchmark)")
+            if diff_pct > 300:
+                parts.append(f"P70 {p70_fmt} (muito acima do benchmark)")
+            else:
+                parts.append(f"P70 {p70_fmt} (+{diff_pct:.0f}% vs benchmark)")
         elif p70 > 0:
             parts.append(f"P70 {p70_fmt}")
         
@@ -217,8 +221,12 @@ def gerar_sugestao(
     else:
         parts.append(f"Aprovação {pct_aprovacao:.0f}% — próximo do ideal")
     
-    if p70 > 0 and benchmark > 0 and p70 > benchmark * 1.2:
-        parts.append(f"P70 {p70_fmt} acima da referência")
+    if p70 > 0 and benchmark > 0 and p70 > benchmark * 1.2 and benchmark_completo:
+        diff_pct = ((p70 - benchmark) / benchmark) * 100
+        if diff_pct > 300:
+            parts.append(f"P70 {p70_fmt} acima da referência")
+        else:
+            parts.append(f"P70 {p70_fmt} (+{diff_pct:.0f}% vs benchmark)")
     elif p70 > 0:
         parts.append(f"P70 {p70_fmt}")
     
@@ -248,17 +256,18 @@ def processar_dados_farol(dados: List[Dict]) -> List[Dict]:
     """
     resultado = []
     
-    # Calcular benchmark como mediana dos P70s
-    p70_list = [d.get("p70", 0) for d in dados if d.get("p70", 0) > 0]
-    benchmark = sorted(p70_list)[len(p70_list) // 2] if p70_list else 0
-    
     for item in dados:
+        # Benchmark vem do pricing engine (ref_mdo + ref_pecas) via query SQL
+        benchmark = item.get("benchmark", 0)
+        # Benchmark só é considerado completo se AMBAS referências existem
+        benchmark_completo = bool(item.get("has_ref_mo", False) and item.get("has_ref_peca", False))
+        
         farol = calcular_farol(
             pct_aprovacao=item.get("pct_aprovacao", 0),
             tendencia=item.get("tendencia", 0),
             qtd_os=item.get("qtd_os", 0),
             p70=item.get("p70", 0),
-            benchmark=benchmark
+            benchmark=benchmark if benchmark_completo else 0,
         )
         
         resultado.append({

@@ -120,15 +120,20 @@ def get_farol_table_data(filters: dict = None, page: int = 1, page_size: int = 1
             WHERE {where_sql}
             GROUP BY {group_by_expr}
             {"HAVING PERCENTILE_CONT(0.70) WITHIN GROUP (ORDER BY COALESCE(valor_aprovado, 0)) <= 1500" if only_opportunities else ""}
+        ),
+        -- Benchmark via Pricing Engine (P70 do valor total por tipo_mo)
+        benchmark_total AS (
+            SELECT tipo_mo, AVG(p70_total) as avg_p70_total
+            FROM ref_total GROUP BY tipo_mo
         )
         
         SELECT 
-            chave,
-            peca,
-            tipo_mo,
-            qtd_os,
-            total_itens,
-            itens_aprovacao_auto as itens_automaticos,
+            a.chave,
+            a.peca,
+            a.tipo_mo,
+            a.qtd_os,
+            a.total_itens,
+            a.itens_aprovacao_auto as itens_automaticos,
             
             -- Compatibilidade com colunas antigas (zeradas pois não usamos mais)
             0 as itens_tipo_mo_auto,
@@ -136,22 +141,28 @@ def get_farol_table_data(filters: dict = None, page: int = 1, page_size: int = 1
             0 as itens_cliente_pacote,
             
             CASE 
-                WHEN total_itens > 0 
-                THEN (itens_aprovacao_auto::FLOAT / total_itens) * 100 
+                WHEN a.total_itens > 0 
+                THEN (a.itens_aprovacao_auto::FLOAT / a.total_itens) * 100 
                 ELSE 0 
             END as pct_aprovacao,
             
             -- % Aprovação Humana
             CASE 
-                WHEN total_itens > 0 
-                THEN (itens_aprovacao_humana::FLOAT / total_itens) * 100 
+                WHEN a.total_itens > 0 
+                THEN (a.itens_aprovacao_humana::FLOAT / a.total_itens) * 100 
                 ELSE 0 
             END as pct_aprovacao_humana,
             
-            p70,
-            valor_medio
-        FROM agg_chave
-        ORDER BY qtd_os DESC -- Ordenação Inicial (depois reordenamos por Score)
+            a.p70,
+            a.valor_medio,
+            
+            -- Benchmark do Pricing Engine (P70 total por tipo_mo)
+            COALESCE(bt.avg_p70_total, 0) as benchmark,
+            CASE WHEN bt.avg_p70_total IS NOT NULL THEN true ELSE false END as has_ref_mo,
+            true as has_ref_peca
+        FROM agg_chave a
+        LEFT JOIN benchmark_total bt ON a.tipo_mo = bt.tipo_mo
+        ORDER BY a.qtd_os DESC -- Ordenação Inicial (depois reordenamos por Score)
         {limit_clause}
         """
         
@@ -325,6 +336,8 @@ def get_farol_stats_full(filters: dict = None) -> dict:
         agg_chave AS (
             SELECT
                 CONCAT(COALESCE(peca, 'SEM PEÇA'), ' + ', COALESCE(tipo_mo, 'SEM MO')) as chave,
+                COALESCE(peca, 'SEM PEÇA') as peca,
+                COALESCE(tipo_mo, 'SEM MO') as tipo_mo,
                 COUNT(DISTINCT numero_os) as qtd_os,
                 COUNT(*) as total_itens,
                 
@@ -336,19 +349,28 @@ def get_farol_stats_full(filters: dict = None) -> dict:
             FROM ri_corretiva_detalhamento c
             WHERE {where_sql}
             GROUP BY COALESCE(peca, 'SEM PEÇA'), COALESCE(tipo_mo, 'SEM MO')
+        ),
+        -- Benchmark via Pricing Engine (P70 total por tipo_mo)
+        benchmark_total AS (
+            SELECT tipo_mo, AVG(p70_total) as avg_p70_total
+            FROM ref_total GROUP BY tipo_mo
         )
         SELECT 
-            chave,
-            qtd_os,
-            total_itens,
-            itens_aprovacao_auto as itens_automaticos,
+            a.chave,
+            a.qtd_os,
+            a.total_itens,
+            a.itens_aprovacao_auto as itens_automaticos,
             CASE 
-                WHEN total_itens > 0 THEN (itens_aprovacao_auto::FLOAT / total_itens) * 100 
+                WHEN a.total_itens > 0 THEN (a.itens_aprovacao_auto::FLOAT / a.total_itens) * 100 
                 ELSE 0 
             END as pct_aprovacao,
-            p70,
-            valor_medio
-        FROM agg_chave
+            a.p70,
+            a.valor_medio,
+            COALESCE(bt.avg_p70_total, 0) as benchmark,
+            CASE WHEN bt.avg_p70_total IS NOT NULL THEN true ELSE false END as has_ref_mo,
+            true as has_ref_peca
+        FROM agg_chave a
+        LEFT JOIN benchmark_total bt ON a.tipo_mo = bt.tipo_mo
         """
         
         df = cursor.execute(query).fetchdf()
@@ -538,6 +560,8 @@ def _get_farol_stats_for_period(conn, mes_ref) -> dict:
         agg_chave AS (
             SELECT
                 CONCAT(COALESCE(peca, 'SEM PEÇA'), ' + ', COALESCE(tipo_mo, 'SEM MO')) as chave,
+                COALESCE(peca, 'SEM PEÇA') as peca,
+                COALESCE(tipo_mo, 'SEM MO') as tipo_mo,
                 COUNT(DISTINCT numero_os) as qtd_os,
                 COUNT(*) as total_itens,
                 SUM(CASE WHEN status_os = 'APROVADA' THEN 1 ELSE 0 END) as itens_aprovacao_auto,
@@ -546,19 +570,28 @@ def _get_farol_stats_for_period(conn, mes_ref) -> dict:
             FROM ri_corretiva_detalhamento
             WHERE date_trunc('month', data_transacao) = ?
             GROUP BY COALESCE(peca, 'SEM PEÇA'), COALESCE(tipo_mo, 'SEM MO')
+        ),
+        -- Benchmark via Pricing Engine (P70 total por tipo_mo)
+        benchmark_total AS (
+            SELECT tipo_mo, AVG(p70_total) as avg_p70_total
+            FROM ref_total GROUP BY tipo_mo
         )
         SELECT 
-            chave,
-            qtd_os,
-            total_itens,
-            itens_aprovacao_auto as itens_automaticos,
+            a.chave,
+            a.qtd_os,
+            a.total_itens,
+            a.itens_aprovacao_auto as itens_automaticos,
             CASE 
-                WHEN total_itens > 0 THEN (itens_aprovacao_auto::FLOAT / total_itens) * 100 
+                WHEN a.total_itens > 0 THEN (a.itens_aprovacao_auto::FLOAT / a.total_itens) * 100 
                 ELSE 0 
             END as pct_aprovacao,
-            p70,
-            valor_medio
-        FROM agg_chave
+            a.p70,
+            a.valor_medio,
+            COALESCE(bt.avg_p70_total, 0) as benchmark,
+            CASE WHEN bt.avg_p70_total IS NOT NULL THEN true ELSE false END as has_ref_mo,
+            true as has_ref_peca
+        FROM agg_chave a
+        LEFT JOIN benchmark_total bt ON a.tipo_mo = bt.tipo_mo
         """
         
         df = cursor.execute(query, [mes_ref]).fetchdf()
