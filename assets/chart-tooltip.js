@@ -1,0 +1,250 @@
+/**
+ * Premium Chart Tooltip — Edenred RI Dashboard
+ * 
+ * Tooltip JS puro que escuta plotly_hover diretamente no DOM.
+ * NÃO usar dcc.Tooltip (causa ~200ms de delay).
+ * 
+ * Os charts usam hoverinfo="none" + customdata para passar dados.
+ * Z-index: 999999 (acima de tudo)
+ */
+
+(function () {
+    'use strict';
+
+    // =========================================================================
+    // CONFIG
+    // =========================================================================
+    const TOOLTIP_ID = 'premium-chart-tooltip';
+    const OFFSET_X = 15;
+    const OFFSET_Y = -10;
+
+    // =========================================================================
+    // CREATE TOOLTIP ELEMENT
+    // =========================================================================
+    function getOrCreateTooltip() {
+        let tooltip = document.getElementById(TOOLTIP_ID);
+        if (!tooltip) {
+            tooltip = document.createElement('div');
+            tooltip.id = TOOLTIP_ID;
+            tooltip.style.cssText = `
+                position: fixed;
+                z-index: 999999;
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 0.15s ease, transform 0.15s ease;
+                transform: translateY(4px);
+                background: rgba(15, 23, 42, 0.95);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                border: 1px solid rgba(226, 6, 19, 0.3);
+                border-radius: 12px;
+                padding: 14px 18px;
+                font-family: 'Ubuntu', sans-serif;
+                font-size: 13px;
+                color: #f8fafc;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px rgba(226,6,19,0.1);
+                max-width: 360px;
+                line-height: 1.5;
+            `;
+            document.body.appendChild(tooltip);
+        }
+        return tooltip;
+    }
+
+    // =========================================================================
+    // FORMAT HELPERS
+    // =========================================================================
+    function formatCurrency(value) {
+        if (value == null || isNaN(value)) return 'R$ 0';
+        const num = Number(value);
+        if (Math.abs(num) >= 1e6) return `R$ ${(num / 1e6).toFixed(1)}M`;
+        if (Math.abs(num) >= 1e3) return `R$ ${(num / 1e3).toFixed(1)}K`;
+        return `R$ ${num.toFixed(0)}`;
+    }
+
+    function formatNumber(value) {
+        if (value == null || isNaN(value)) return '0';
+        return Number(value).toLocaleString('pt-BR');
+    }
+
+    function formatPercent(value) {
+        if (value == null || isNaN(value)) return '0.00%';
+        return `${Number(value).toFixed(2)}%`;
+    }
+
+    // =========================================================================
+    // BUILD TOOLTIP HTML (RI GERAL — dual-axis chart)
+    // =========================================================================
+    function buildRIGeralHTML(customdata) {
+        // customdata: [periodo, economia_text, os_total, os_corr, os_prev, ri_corr, ri_prev, parcial, vol_text, ri_geral]
+        const periodo   = customdata[0] || '';
+        const economia  = customdata[1] || 'R$ 0';
+        const osTotal   = customdata[2] || 0;
+        const osCorr    = customdata[3] || 0;
+        const osPrev    = customdata[4] || 0;
+        const riCorr    = customdata[5];
+        const riPrev    = customdata[6];
+        const parcial   = customdata[7] || '';
+        const volText   = customdata[8] || 'R$ 0';
+        const riGeral   = customdata[9];
+
+        return `
+            <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.1)">
+                <span style="font-weight:700;font-size:14px;color:#fff">${periodo}</span>
+                ${parcial ? `<span style="color:#f59e0b;font-size:11px;margin-left:6px">${parcial}</span>` : ''}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <span style="width:8px;height:8px;border-radius:50%;background:#E20613;display:inline-block"></span>
+                <span style="color:#94a3b8">RI Geral</span>
+                <span style="font-weight:700;color:#fff;margin-left:auto">${formatPercent(riGeral)}</span>
+            </div>
+            <div style="display:flex;gap:16px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08)">
+                <div>
+                    <div style="color:#64748b;font-size:11px">Corretiva</div>
+                    <div style="font-weight:600;color:#E20613">${formatPercent(riCorr)}</div>
+                </div>
+                <div>
+                    <div style="color:#64748b;font-size:11px">Preventiva</div>
+                    <div style="font-weight:600;color:#94a3b8">${formatPercent(riPrev)}</div>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:12px">
+                <div><span style="color:#64748b">Vol. Solicitado</span></div>
+                <div style="text-align:right;font-weight:600">${volText}</div>
+                <div><span style="color:#64748b">Economia</span></div>
+                <div style="text-align:right;font-weight:600;color:#10b981">${economia}</div>
+                <div><span style="color:#64748b">OS Total</span></div>
+                <div style="text-align:right;font-weight:600">${formatNumber(osTotal)}</div>
+                <div><span style="color:#64748b">OS Corretiva</span></div>
+                <div style="text-align:right">${formatNumber(osCorr)}</div>
+                <div><span style="color:#64748b">OS Preventiva</span></div>
+                <div style="text-align:right">${formatNumber(osPrev)}</div>
+            </div>
+        `;
+    }
+
+    // =========================================================================
+    // BUILD TOOLTIP HTML (COMPARATIVO — corretiva vs preventiva)
+    // =========================================================================
+    function buildComparativoHTML(point) {
+        // customdata: [periodo, os_count]
+        const customdata = point.customdata || [];
+        const periodo = customdata[0] || '';
+        const osCount = customdata[1] || 0;
+        const traceName = point.data ? (point.data.name || '') : '';
+        const yValue = point.y;
+        const isCorretiva = traceName.toLowerCase().includes('corretiva');
+        const dotColor = isCorretiva ? '#E20613' : '#94a3b8';
+
+        return `
+            <div style="margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.1)">
+                <span style="font-weight:700;font-size:14px;color:#fff">${periodo}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                <span style="width:8px;height:8px;border-radius:50%;background:${dotColor};display:inline-block"></span>
+                <span style="color:#94a3b8">${traceName}</span>
+                <span style="font-weight:700;color:#fff;margin-left:auto">${formatPercent(yValue)}</span>
+            </div>
+            <div style="font-size:12px;color:#64748b">
+                OS: <span style="color:#f8fafc;font-weight:600">${formatNumber(osCount)}</span>
+            </div>
+        `;
+    }
+
+    // =========================================================================
+    // DETECT CHART TYPE FROM POINT
+    // =========================================================================
+    function detectChartType(point) {
+        const customdata = point.customdata || [];
+        // RI Geral has 10 items in customdata, Comparativo has 2
+        if (customdata.length >= 9) return 'ri_geral';
+        return 'comparativo';
+    }
+
+    // =========================================================================
+    // EVENT HANDLERS
+    // =========================================================================
+    function showTooltip(event) {
+        const tooltip = getOrCreateTooltip();
+        const points = event.points;
+        if (!points || points.length === 0) return;
+
+        const point = points[0];
+        const customdata = point.customdata || [];
+        const chartType = detectChartType(point);
+
+        let html = '';
+        if (chartType === 'ri_geral') {
+            html = buildRIGeralHTML(customdata);
+        } else {
+            html = buildComparativoHTML(point);
+        }
+
+        tooltip.innerHTML = html;
+
+        // Position near cursor
+        const mouseX = event.event ? event.event.clientX : 0;
+        const mouseY = event.event ? event.event.clientY : 0;
+
+        let leftPos = mouseX + OFFSET_X;
+        let topPos = mouseY + OFFSET_Y;
+
+        // Prevent overflow right
+        const tooltipWidth = tooltip.offsetWidth || 300;
+        if (leftPos + tooltipWidth > window.innerWidth - 20) {
+            leftPos = mouseX - tooltipWidth - OFFSET_X;
+        }
+        // Prevent overflow bottom
+        const tooltipHeight = tooltip.offsetHeight || 200;
+        if (topPos + tooltipHeight > window.innerHeight - 20) {
+            topPos = mouseY - tooltipHeight - OFFSET_Y;
+        }
+        // Prevent overflow top
+        if (topPos < 10) topPos = 10;
+
+        tooltip.style.left = leftPos + 'px';
+        tooltip.style.top = topPos + 'px';
+        tooltip.style.opacity = '1';
+        tooltip.style.transform = 'translateY(0)';
+    }
+
+    function hideTooltip() {
+        const tooltip = document.getElementById(TOOLTIP_ID);
+        if (tooltip) {
+            tooltip.style.opacity = '0';
+            tooltip.style.transform = 'translateY(4px)';
+        }
+    }
+
+    // =========================================================================
+    // ATTACH TO ALL PLOTLY CHARTS (MutationObserver for dynamic loading)
+    // =========================================================================
+    const attached = new WeakSet();
+
+    function attachToPlotlyCharts() {
+        const charts = document.querySelectorAll('.js-plotly-plot');
+        charts.forEach(function (chart) {
+            if (attached.has(chart)) return;
+            attached.add(chart);
+
+            chart.on('plotly_hover', showTooltip);
+            chart.on('plotly_unhover', hideTooltip);
+        });
+    }
+
+    // Initial attach
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+            setTimeout(attachToPlotlyCharts, 1000);
+        });
+    } else {
+        setTimeout(attachToPlotlyCharts, 1000);
+    }
+
+    // Re-attach when DOM changes (Dash re-renders)
+    const observer = new MutationObserver(function () {
+        setTimeout(attachToPlotlyCharts, 300);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+})();
