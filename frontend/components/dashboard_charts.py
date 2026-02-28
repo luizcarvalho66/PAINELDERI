@@ -147,7 +147,15 @@ def create_ri_geral_chart(df: pd.DataFrame, granularidade: str = 'mensal') -> go
         marker_color=BAR_COLOR,
         marker_line_width=0,
         customdata=customdata_unificado,
-        hoverinfo="none",
+        hovertemplate=(
+            "<b>%{customdata[0]}</b> %{customdata[7]}<br>"
+            "<b>RI Geral:</b> %{customdata[9]:.2f}%<br>"
+            "<b>Vol. Solicitado:</b> %{customdata[8]}<br>"
+            "<b>Economia:</b> %{customdata[1]}<br>"
+            "<b>OS Total:</b> %{customdata[2]:,}<br>"
+            "Corretiva: %{customdata[5]:.2f}% · Preventiva: %{customdata[6]:.2f}%"
+            "<extra></extra>"
+        ),
     ), secondary_y=True)
 
     # Trace 2: Linha de RI Geral (Frente / Eixo Principal)
@@ -160,7 +168,15 @@ def create_ri_geral_chart(df: pd.DataFrame, granularidade: str = 'mensal') -> go
         line=dict(color=EDENRED_RED, width=3, shape='spline'),
         name='RI Geral',
         customdata=customdata_unificado,
-        hoverinfo="none",
+        hovertemplate=(
+            "<b>%{customdata[0]}</b> %{customdata[7]}<br>"
+            "<b>RI Geral:</b> %{customdata[9]:.2f}%<br>"
+            "<b>Vol. Solicitado:</b> %{customdata[8]}<br>"
+            "<b>Economia:</b> %{customdata[1]}<br>"
+            "<b>OS Total:</b> %{customdata[2]:,}<br>"
+            "Corretiva: %{customdata[5]:.2f}% · Preventiva: %{customdata[6]:.2f}%"
+            "<extra></extra>"
+        ),
     ), secondary_y=False)
 
     # Merge AXIS_STYLE with specific yaxis overrides
@@ -244,7 +260,12 @@ def create_comparative_chart(df: pd.DataFrame, granularidade: str = 'mensal') ->
         line=dict(color=GREY_LINE, width=3, shape='spline'), 
         name='Preventiva',
         customdata=list(zip(periodo_text, os_prev)),
-        hoverinfo="none",
+        hovertemplate=(
+            "<b>%{customdata[0]}</b><br>"
+            "<b>RI Preventiva:</b> %{y:.2f}%<br>"
+            "<b>OS Preventiva:</b> %{customdata[1]:,}"
+            "<extra></extra>"
+        ),
     ))
 
     # Trace 2: Corretiva
@@ -256,7 +277,12 @@ def create_comparative_chart(df: pd.DataFrame, granularidade: str = 'mensal') ->
         line=dict(color=EDENRED_RED, width=3, shape='spline'), 
         name='Corretiva',
         customdata=list(zip(periodo_text, os_corr)),
-        hoverinfo="none",
+        hovertemplate=(
+            "<b>%{customdata[0]}</b><br>"
+            "<b>RI Corretiva:</b> %{y:.2f}%<br>"
+            "<b>OS Corretiva:</b> %{customdata[1]:,}"
+            "<extra></extra>"
+        ),
     ))
 
     fig.update_layout(
