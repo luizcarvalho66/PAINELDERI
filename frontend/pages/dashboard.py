@@ -43,9 +43,12 @@ def render_dashboard():
                 # Container for Onboarding (Steps)
                 html.Div(id="onboarding-container"),
                 
-                # Card Unificado Visão Geral (Header + Charts Container)
+                # ========== KPIs — container próprio, ACIMA do card de Visão Geral ==========
+                html.Div(id="dashboard-kpis-container"),
+                
+                # ========== Card Visão Geral (Header + Charts) — ABAIXO dos KPIs ==========
                 dbc.Card([
-                    # Cabeçalho do Card (Estático)
+                    # Cabeçalho do Card (Estático): Título + Toggle de Granularidade
                     dbc.CardHeader([
                         html.Div([
                             html.H3("Visão Geral", className="mb-0", style={
@@ -70,10 +73,10 @@ def render_dashboard():
                         ], className="d-flex justify-content-between align-items-center")
                     ], id="granularity-header", className="bg-transparent border-0 pt-4 px-4 pb-0", style={"display": "none"}),
                     
-                    # Corpo do Card (Dinâmico - Gráficos injetados aqui)
+                    # Corpo do Card (Dinâmico - Charts injetados aqui)
                     dbc.CardBody([
                         html.Div(id="dashboard-charts-container")
-                    ], className="p-0")
+                    ], className="p-4")
                 ], className="shadow-sm border-0 rounded-4 mb-4"),
             ]
         ),

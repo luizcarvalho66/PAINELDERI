@@ -250,3 +250,21 @@ body {
     opacity: 0 !important;
     pointer-events: none !important;
 }
+
+/* ==========================================================================
+   dcc.Tooltip - Sempre no topo, nunca cortado
+   ========================================================================== */
+.dash-tooltip {
+    z-index: 99999 !important;
+    overflow: visible !important;
+    pointer-events: none;
+}
+
+/* Impedir que containers pai cortem o tooltip */
+.dash-graph,
+.js-plotly-plot,
+.card,
+.card-body,
+.card-header {
+    overflow: visible !important;
+}

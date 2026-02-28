@@ -27,6 +27,7 @@ def register_dashboard_callbacks(app):
     @app.callback(
         [Output("onboarding-container", "children"),
          Output("dashboard-charts-container", "style"),
+         Output("dashboard-kpis-container", "style"),
          Output("filter-bar-container", "style"),
          Output("granularity-header", "style")],
         Input("processing-complete-store", "data"),
@@ -36,6 +37,7 @@ def register_dashboard_callbacks(app):
         if not is_processed:
             # Show onboarding, hide charts and filters
             charts_style = {"display": "none"}
+            kpis_style = {"display": "none"}
             filters_style = {"display": "none"}
             granularity_style = {"display": "none"}
             onboarding_content = html.Div([
@@ -82,13 +84,16 @@ def register_dashboard_callbacks(app):
                 ], className="empty-state-container text-center",
                    style={"padding": "80px 20px"})
             ], className="p-4")
-            return onboarding_content, charts_style, filters_style, granularity_style
+            return onboarding_content, charts_style, kpis_style, filters_style, granularity_style
         else:
             # Show charts and filters, hide onboarding
-            return None, {"display": "block"}, {"display": "block"}, {"display": "block"}
+            return None, {"display": "block"}, {"display": "block"}, {"display": "block"}, {"display": "block"}
 
     @app.callback(
-        Output("dashboard-charts-container", "children"),
+        [
+            Output("dashboard-kpis-container", "children"),
+            Output("dashboard-charts-container", "children"),
+        ],
         [
             Input("processing-complete-store", "data"),
             Input("global-filters-applied-store", "data"),
@@ -98,23 +103,24 @@ def register_dashboard_callbacks(app):
     )
     def update_dashboard_charts(is_processed, filters_state, granularidade):
         if not is_processed:
-            return html.Div()
+            return html.Div(), html.Div()
         
         # Evitar re-render quando filtros são populados inicialmente (None → None)
         triggered_id = ctx.triggered_id
         if triggered_id == 'global-filters-applied-store' and not filters_state:
-            return no_update
+            return no_update, no_update
         
         try:
             return _build_dashboard_content(is_processed, filters_state, granularidade or 'mensal')
         except Exception as e:
             traceback.print_exc()
-            return html.Div([
+            error_div = html.Div([
                 html.I(className="bi bi-exclamation-triangle-fill text-warning mb-3", style={"fontSize": "2rem"}),
                 html.H4("Erro ao carregar o dashboard", className="text-center text-muted"),
                 html.P(f"Detalhes: {str(e)[:200]}", className="text-center text-secondary small"),
                 html.P("Tente recarregar a página.", className="text-center text-muted mt-2")
             ], className="p-5 d-flex flex-column align-items-center justify-content-center h-100")
+            return html.Div(), error_div
     
     def _build_dashboard_content(is_processed, filters_state, granularidade='mensal'):
         """Lógica interna do dashboard, separada para facilitar try/except."""
@@ -204,8 +210,8 @@ def register_dashboard_callbacks(app):
         
         
         # --- CHARTS GENERATION ---
-        fig_geral = create_ri_geral_chart(df)
-        fig_comp = create_comparative_chart(df)
+        fig_geral = create_ri_geral_chart(df, granularidade=granularidade)
+        fig_comp = create_comparative_chart(df, granularidade=granularidade)
 
         section_title_style = {
             "fontFamily": "Ubuntu", 
@@ -216,99 +222,129 @@ def register_dashboard_callbacks(app):
             "marginBottom": "20px"
         }
 
-        return html.Div([
+        # --- Construir RETORNO separado: (KPIs, Charts) ---
+        
+        # KPIs ribbon
+        kpis_section = html.Div([
+            dbc.Row([
+                # Group 1: Volumetria & Financeiro
+                dbc.Col(render_kpi_card(
+                    "Análise Total", 
+                    _fmt_br(total_analisado), 
+                    "Ordens processadas", 
+                    "bi-layers", 
+                    "text-primary"
+                ), width=12, sm=6, md=6, lg=4, xl=2),
+                
+                dbc.Col(render_kpi_card(
+                    "Economia Real", 
+                    f"R$ {_fmt_br(economia_real/1000000, 1)}M", 
+                    "Valor economizado", 
+                    "bi-cash-stack", 
+                    "text-success"
+                ), width=12, sm=6, md=6, lg=4, xl=2),
+                
+                dbc.Col(render_kpi_card(
+                    "Share Preventiva", 
+                    f"{_fmt_br(ratio_prev_corr, 1)}%", 
+                    "Mix de manutenções", 
+                    "bi-pie-chart-fill", 
+                    "text-info"
+                ), width=12, sm=6, md=6, lg=4, xl=2),
+
+                # Group 2: Performance (RI) com Tendências
+                dbc.Col(render_kpi_card(
+                    "RI Geral", 
+                    f"{_fmt_br(ri_geral_avg, 1)}%", 
+                    "Média do período", 
+                    "bi-graph-up-arrow", 
+                    "text-danger",
+                    trend_value=trend_ri_geral,
+                    trend_label="vs mês anterior"
+                ), width=12, sm=6, md=6, lg=4, xl=2),
+
+                dbc.Col(render_kpi_card(
+                    "RI Preventiva", 
+                    f"{_fmt_br(avg_ri_prev, 1)}%", 
+                    "Manutenção programada", 
+                    "bi-shield-check", 
+                    "text-success",
+                    trend_value=trend_ri_prev,
+                    trend_label="vs mês anterior"
+                ), width=12, sm=6, md=6, lg=4, xl=2),
+                
+                dbc.Col(render_kpi_card(
+                    "RI Corretiva", 
+                    f"{_fmt_br(avg_ri_corr, 1)}%", 
+                    "Manutenção sob demanda", 
+                    "bi-tools", 
+                    "text-danger",
+                    trend_value=trend_ri_corr,
+                    trend_label="vs mês anterior"
+                ), width=12, sm=6, md=6, lg=4, xl=2),
+                
+            ], className="g-3 mb-4 ps-2")
+        ], className="dashboard-top-kpis animate__animated animate__fadeIn")
+        
+        # Charts section
+        charts_section = html.Div([
+            # Chart 1: Evolução RI Geral
+            dcc.Graph(
+                id="fig-ri-geral",
+                figure=fig_geral, 
+                config={'displayModeBar': False},
+                style={"height": "400px"},
+                clear_on_unhover=True
+            ),
+            dcc.Tooltip(
+                id="tooltip-ri-geral",
+                direction="top",
+                style={
+                    "backgroundColor": "#ffffff", 
+                    "color": "#1e293b", 
+                    "borderRadius": "12px", 
+                    "border": "1px solid #e2e8f0", 
+                    "boxShadow": "0 8px 30px rgba(0,0,0,0.12)",
+                    "padding": "0",
+                    "fontFamily": "Ubuntu, sans-serif",
+                    "zIndex": "9999",
+                    "overflow": "visible"
+                }
+            ),
             
-            # 1. TOP KPI ROW (Unified Executive Ribbon)
+            # Chart 2: Comparativo Preventiva vs Corretiva
             html.Div([
-                dbc.Row([
-                    # Group 1: Volumetria & Financeiro
-                    dbc.Col(render_kpi_card(
-                        "Análise Total", 
-                        _fmt_br(total_analisado), 
-                        "Ordens processadas", 
-                        "bi-layers", 
-                        "text-primary"
-                    ), width=12, sm=6, md=6, lg=4, xl=2),
-                    
-                    dbc.Col(render_kpi_card(
-                        "Economia Real", 
-                        f"R$ {_fmt_br(economia_real/1000000, 1)}M", 
-                        "Valor economizado", 
-                        "bi-cash-stack", 
-                        "text-success"
-                    ), width=12, sm=6, md=6, lg=4, xl=2),
-                    
-                    dbc.Col(render_kpi_card(
-                        "Share Preventiva", 
-                        f"{_fmt_br(ratio_prev_corr, 1)}%", 
-                        "Mix de manutenções", 
-                        "bi-pie-chart-fill", 
-                        "text-info"
-                    ), width=12, sm=6, md=6, lg=4, xl=2),
-
-                    # Group 2: Performance (RI) com Tendências
-                    dbc.Col(render_kpi_card(
-                        "RI Geral", 
-                        f"{_fmt_br(ri_geral_avg, 1)}%", 
-                        "Média do período", 
-                        "bi-graph-up-arrow", 
-                        "text-danger",
-                        trend_value=trend_ri_geral,
-                        trend_label="vs mês anterior"
-                    ), width=12, sm=6, md=6, lg=4, xl=2),
-
-                    dbc.Col(render_kpi_card(
-                        "RI Preventiva", 
-                        f"{_fmt_br(avg_ri_prev, 1)}%", 
-                        "Manutenção programada", 
-                        "bi-shield-check", 
-                        "text-success",
-                        trend_value=trend_ri_prev,
-                        trend_label="vs mês anterior"
-                    ), width=12, sm=6, md=6, lg=4, xl=2),
-                    
-                    dbc.Col(render_kpi_card(
-                        "RI Corretiva", 
-                        f"{_fmt_br(avg_ri_corr, 1)}%", 
-                        "Manutenção sob demanda", 
-                        "bi-tools", 
-                        "text-danger",
-                        trend_value=trend_ri_corr,
-                        trend_label="vs mês anterior"
-                    ), width=12, sm=6, md=6, lg=4, xl=2),
-                    
-                ], className="g-3 mb-4 ps-2")
-            ], className="dashboard-top-kpis"),
-
-
-            # 2. MAIN CONTENT AREA (Stacked Charts)
-            html.Div([
-                # Row 1: Main Overview Chart (Full Width) - Container agora é o Card criado em dashboard.py
-                dbc.Row([
-                    dbc.Col([
+                html.H3("Comparativo Preventiva vs Corretiva", style={**section_title_style, "borderLeft": "4px solid #64748b"}),
+                dbc.Card([
+                    dbc.CardBody([
                         dcc.Graph(
-                            figure=fig_geral, 
-                            config={'displayModeBar': False},
-                            style={"height": "400px"} 
+                            id="fig-comp-ri", 
+                            figure=fig_comp, 
+                            config={'displayModeBar': False}, 
+                            style={"height": "300px"},
+                            clear_on_unhover=True
                         ),
-                    ], width=12, className="p-4"),
-                ], className="mb-2"),
-
-                # Row 2: Comparative Chart (Full Width or Split if needed in future)
-                dbc.Row([
-                    dbc.Col([
-                         html.H3("Comparativo Preventiva vs Corretiva", style={**section_title_style, "borderLeft": "4px solid #64748b"}),
-                         dbc.Card([
-                            dbc.CardBody(
-                                dcc.Graph(figure=fig_comp, config={'displayModeBar': False}, style={"height": "300px"}),
-                                className="p-4"
-                            )
-                         ], className="shadow-sm border-0 rounded-4")
-                    ], width=12)
-                ], className="mb-5")
-            ]),
-            
-        ], className="animate__animated animate__fadeIn", style={"padding": "24px", "background": "#F8FAFC", "minHeight": "100vh"})
+                        dcc.Tooltip(
+                            id="tooltip-comp-ri",
+                            direction="top",
+                            style={
+                                "backgroundColor": "#ffffff", 
+                                "color": "#1e293b", 
+                                "borderRadius": "12px", 
+                                "border": "1px solid #e2e8f0", 
+                                "boxShadow": "0 8px 30px rgba(0,0,0,0.12)",
+                                "padding": "0",
+                                "fontFamily": "Ubuntu, sans-serif",
+                                "zIndex": "9999",
+                                "overflow": "visible"
+                            }
+                        ),
+                    ], className="p-4")
+                ], className="shadow-sm border-0 rounded-4")
+            ], className="mt-4 mb-5")
+        ])
+        
+        return kpis_section, charts_section
 
     # Callback: Toggle de Granularidade (premium-toggle → store + visual)
     @app.callback(
@@ -332,3 +368,106 @@ def register_dashboard_callbacks(app):
         elif triggered == "btn-gran-semanal":
             return "semanal", "premium-toggle-btn", "premium-toggle-btn", "premium-toggle-btn active"
         return "mensal", "premium-toggle-btn active", "premium-toggle-btn", "premium-toggle-btn"
+
+    # =========================================================================
+    # TOOLTIP CALLBACKS - 100% CLIENT-SIDE (JavaScript puro, sem round-trip)
+    # =========================================================================
+    app.clientside_callback(
+        """
+        function(hoverData) {
+            if (!hoverData) return [false, window.dash_clientside.no_update, window.dash_clientside.no_update];
+            
+            var pt = hoverData.points[0];
+            var bbox = pt.bbox;
+            var c = pt.customdata;
+            if (!c || c.length < 10) return [false, window.dash_clientside.no_update, window.dash_clientside.no_update];
+            
+            var riGeral = parseFloat(c[9]).toFixed(2);
+            var riCorr = parseFloat(c[5]).toFixed(2);
+            var riPrev = parseFloat(c[6]).toFixed(2);
+            var parcial = c[7] || '';
+            var osTotal = Number(c[2]).toLocaleString('pt-BR');
+            
+            var html = '<div style="width:240px;font-family:Ubuntu,sans-serif">'
+                + '<div style="padding:10px 14px;border-bottom:2px solid #E20613;background:linear-gradient(135deg,#fef2f2,#fff);">'
+                + '<i class="bi bi-calendar3" style="color:#E20613;margin-right:6px"></i>'
+                + '<b style="color:#1e293b;font-size:13px">' + c[0] + '</b>'
+                + (parcial ? '<span style="color:#94a3b8;font-size:10px;margin-left:5px">' + parcial + '</span>' : '')
+                + '</div>'
+                + '<div style="padding:12px 14px">'
+                + '<div style="margin-bottom:10px">'
+                + '<div style="display:flex;align-items:center;margin-bottom:4px">'
+                + '<i class="bi bi-graph-up-arrow" style="color:#E20613;font-size:12px;margin-right:6px"></i>'
+                + '<span style="color:#64748b;font-size:11px">RI Geral</span></div>'
+                + '<span style="color:#1e293b;font-size:20px;font-weight:700">' + riGeral + '%</span>'
+                + '<div style="margin-top:4px;margin-left:2px;border-left:2px solid #e2e8f0;padding-left:8px">'
+                + '<div style="display:flex;justify-content:space-between;margin-bottom:2px">'
+                + '<span style="color:#64748b;font-size:11px">Corretiva</span>'
+                + '<span style="color:#1e293b;font-size:11px;font-weight:600">' + riCorr + '%</span></div>'
+                + '<div style="display:flex;justify-content:space-between">'
+                + '<span style="color:#64748b;font-size:11px">Preventiva</span>'
+                + '<span style="color:#1e293b;font-size:11px;font-weight:600">' + riPrev + '%</span></div>'
+                + '</div></div>'
+                + '<div style="border-top:1px solid #f1f5f9;padding-top:8px;margin-top:4px">'
+                + '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+                + '<span style="color:#64748b;font-size:11px"><i class="bi bi-bar-chart-fill" style="margin-right:4px;font-size:10px"></i>Vol. Analisado</span>'
+                + '<b style="color:#1e293b;font-size:11px">' + c[8] + '</b></div>'
+                + '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+                + '<span style="color:#64748b;font-size:11px"><i class="bi bi-cash-stack" style="margin-right:4px;font-size:10px;color:#16a34a"></i>Economia</span>'
+                + '<b style="color:#16a34a;font-size:11px">' + c[1] + '</b></div>'
+                + '<div style="display:flex;justify-content:space-between">'
+                + '<span style="color:#64748b;font-size:11px"><i class="bi bi-file-earmark-text" style="margin-right:4px;font-size:10px"></i>OS Genu\u00ednas</span>'
+                + '<span style="color:#1e293b;font-size:11px;font-weight:500">' + osTotal + '</span></div>'
+                + '</div></div></div>';
+            
+            return [true, bbox, {props: {children: [{props: {dangerouslySetInnerHTML: {__html: html}}, type: 'Div', namespace: 'dash_html_components'}]}, type: 'Div', namespace: 'dash_html_components'}];
+        }
+        """,
+        Output("tooltip-ri-geral", "show"),
+        Output("tooltip-ri-geral", "bbox"),
+        Output("tooltip-ri-geral", "children"),
+        Input("fig-ri-geral", "hoverData"),
+        prevent_initial_call=True
+    )
+
+    app.clientside_callback(
+        """
+        function(hoverData) {
+            if (!hoverData) return [false, window.dash_clientside.no_update, window.dash_clientside.no_update];
+            
+            var pt = hoverData.points[0];
+            var bbox = pt.bbox;
+            var c = pt.customdata;
+            if (!c || c.length < 2) return [false, window.dash_clientside.no_update, window.dash_clientside.no_update];
+            
+            var isCorr = pt.curveNumber === 1;
+            var title = isCorr ? 'RI Corretiva' : 'RI Preventiva';
+            var color = isCorr ? '#E20613' : '#64748b';
+            var icon = isCorr ? 'bi-tools' : 'bi-shield-check';
+            var yVal = parseFloat(pt.y).toFixed(2);
+            var osVal = Number(c[1]).toLocaleString('pt-BR');
+            
+            var html = '<div style="width:200px;font-family:Ubuntu,sans-serif">'
+                + '<div style="padding:8px 12px;border-bottom:2px solid ' + color + ';background:linear-gradient(135deg,#fafafa,#fff)">'
+                + '<i class="bi bi-calendar3" style="color:' + color + ';margin-right:6px;font-size:12px"></i>'
+                + '<b style="color:#1e293b;font-size:12px">' + c[0] + '</b></div>'
+                + '<div style="padding:10px 12px">'
+                + '<div style="display:flex;align-items:center;margin-bottom:3px">'
+                + '<i class="bi ' + icon + '" style="color:' + color + ';font-size:11px;margin-right:6px"></i>'
+                + '<span style="color:#64748b;font-size:11px">' + title + '</span></div>'
+                + '<span style="color:#1e293b;font-size:18px;font-weight:700">' + yVal + '%</span>'
+                + '<div style="border-top:1px solid #f1f5f9;margin-top:8px;padding-top:6px;display:flex;justify-content:space-between">'
+                + '<span style="color:#64748b;font-size:11px"><i class="bi bi-file-earmark-text" style="margin-right:4px;font-size:10px"></i>OS Analisadas</span>'
+                + '<span style="color:#1e293b;font-size:11px;font-weight:600">' + osVal + '</span></div>'
+                + '</div></div>';
+            
+            return [true, bbox, {props: {children: [{props: {dangerouslySetInnerHTML: {__html: html}}, type: 'Div', namespace: 'dash_html_components'}]}, type: 'Div', namespace: 'dash_html_components'}];
+        }
+        """,
+        Output("tooltip-comp-ri", "show"),
+        Output("tooltip-comp-ri", "bbox"),
+        Output("tooltip-comp-ri", "children"),
+        Input("fig-comp-ri", "hoverData"),
+        prevent_initial_call=True
+    )
+

@@ -44,11 +44,11 @@ BASE_LAYOUT = dict(
     paper_bgcolor=CARD_BG,
     hovermode="closest",
     hoverlabel=dict(
-        bgcolor=CARD_BG, 
+        bgcolor='rgba(15, 23, 42, 0.95)', # Dark Glassmorphism
         font_size=13, 
         font_family="Ubuntu", 
-        font_color=TEXT_DARK,
-        bordercolor=GRID_COLOR
+        font_color='#f8fafc',
+        bordercolor='#E20613'
     ),
     margin=dict(l=50, r=20, t=50, b=40),
 )
@@ -61,7 +61,7 @@ AXIS_STYLE = dict(
     linecolor=GRID_COLOR
 )
 
-def create_ri_geral_chart(df: pd.DataFrame) -> go.Figure:
+def create_ri_geral_chart(df: pd.DataFrame, granularidade: str = 'mensal') -> go.Figure:
     """
     Creates the main 'Evolução RI Geral' chart.
     Agora inclui um Eixo Duplo (Dual-Axis) com o Volume Solicitado em Barras ao fundo.
@@ -97,19 +97,19 @@ def create_ri_geral_chart(df: pd.DataFrame) -> go.Figure:
     # Formatar economia
     econ_text = [f"R$ {v/1e6:,.1f}M" for v in economia_total]
     
-    # Período real (ex: "01 a 24 de Fevereiro 2026")
-    if 'data_min_corr' in df.columns and 'data_max_corr' in df.columns:
+    # Período real formatado conforme granularidade
+    if 'mes_ref' in df.columns:
         periodo_text = []
-        for _, row in df.iterrows():
-            try:
-                d_min = pd.to_datetime(row['data_min_corr'])
-                d_max = pd.to_datetime(row['data_max_corr'])
-                mes_nome = _MESES_PTBR.get(d_min.month, d_min.strftime('%B'))
-                periodo_text.append(f"{d_min.day:02d} a {d_max.day:02d} de {mes_nome} {d_min.year}")
-            except:
-                periodo_text.append(_format_mes_ptbr([row['mes_ref']])[0] if 'mes_ref' in df.columns else '')
-    elif 'mes_ref' in df.columns:
-        periodo_text = _format_mes_ptbr(df['mes_ref'])
+        for d in pd.to_datetime(df['mes_ref']):
+            mes_nome = _MESES_PTBR.get(d.month, d.strftime('%B'))
+            if granularidade == 'semanal':
+                d_end = d + pd.Timedelta(days=6)
+                periodo_text.append(f"Sem. {d.day:02d}/{d.month:02d} a {d_end.day:02d}/{d_end.month:02d}")
+            elif granularidade == 'quinzenal':
+                d_end = d + pd.Timedelta(days=14)
+                periodo_text.append(f"Qz. {d.day:02d}/{d.month:02d} a {d_end.day:02d}/{d_end.month:02d}")
+            else:
+                periodo_text.append(f"{mes_nome} {d.year}")
     else:
         periodo_text = list(x_data)
     
@@ -124,6 +124,21 @@ def create_ri_geral_chart(df: pd.DataFrame) -> go.Figure:
     # Texto de aviso para dados parciais
     parcial_text = ["(dados parciais)" if p else "" for p in parciais]
 
+    # Unificar CustomData para ambos os traços garantindo que o callback do dcc.Tooltip 
+    # não quebre independente se o hover for na barra ou na linha
+    customdata_unificado = list(zip(
+        periodo_text,                          # 0: Período
+        econ_text,                             # 1: Economia
+        os_total,                              # 2: OS Totais
+        os_corr,                               # 3: OS Corretiva
+        os_prev,                               # 4: OS Preventiva
+        (df['ri_corretiva'] * 100).round(2),   # 5: RI Corretiva
+        (df['ri_preventiva'] * 100).round(2),  # 6: RI Preventiva
+        parcial_text,                          # 7: Aviso Parcial
+        vol_text,                              # 8: Vol. Solicitado
+        y_data.round(2)                        # 9: RI Geral (y_data original)
+    ))
+
     # Trace 1: Barras de Volume Solicitado (Fundo / Eixo Secundário)
     fig.add_trace(go.Bar(
         x=x_data,
@@ -131,12 +146,8 @@ def create_ri_geral_chart(df: pd.DataFrame) -> go.Figure:
         name='Volume Solicitado',
         marker_color=BAR_COLOR,
         marker_line_width=0,
-        customdata=list(zip(periodo_text, vol_text)),
-        hovertemplate=(
-            '<b>%{customdata[0]}</b><br>'
-            'Volume Solicitado: <b>%{customdata[1]}</b><br>'
-            '<extra></extra>'
-        )
+        customdata=customdata_unificado,
+        hoverinfo="none",
     ), secondary_y=True)
 
     # Trace 2: Linha de RI Geral (Frente / Eixo Principal)
@@ -148,30 +159,8 @@ def create_ri_geral_chart(df: pd.DataFrame) -> go.Figure:
         # Removendo area under curve (fill tozeroy) para não tampar as barras
         line=dict(color=EDENRED_RED, width=3, shape='spline'),
         name='RI Geral',
-        customdata=list(zip(
-            periodo_text,
-            econ_text,
-            os_total,
-            os_corr,
-            os_prev,
-            (df['ri_corretiva'] * 100).round(2),
-            (df['ri_preventiva'] * 100).round(2),
-            parcial_text,
-            vol_text # index 8
-        )),
-        hovertemplate=(
-            '<b>%{customdata[0]}</b><br>'
-            '%{customdata[7]}<br>'
-            '―――――――――――――――――<br>'
-            'RI Geral:  <b>%{y:.2f}%</b><br>'
-            'Corretiva:  %{customdata[5]:.2f}%<br>'
-            'Preventiva:  %{customdata[6]:.2f}%<br>'
-            '―――――――――――――――――<br>'
-            'Vol. Analisado: <b>%{customdata[8]}</b><br>'
-            'Economia Gerada:  <b>%{customdata[1]}</b><br>'
-            'OS Genuínas:  %{customdata[2]:,}<br>'
-            '<extra></extra>'
-        )
+        customdata=customdata_unificado,
+        hoverinfo="none",
     ), secondary_y=False)
 
     # Merge AXIS_STYLE with specific yaxis overrides
@@ -211,7 +200,7 @@ def create_ri_geral_chart(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
-def create_comparative_chart(df: pd.DataFrame) -> go.Figure:
+def create_comparative_chart(df: pd.DataFrame, granularidade: str = 'mensal') -> go.Figure:
     """
     Creates the 'Corretiva vs Preventiva' comparative chart.
     """
@@ -225,19 +214,19 @@ def create_comparative_chart(df: pd.DataFrame) -> go.Figure:
         x_data = list(range(len(df)))
     marker_size = 10 if len(df) <= 3 else 6
     
-    # Período com dias
-    if 'data_min_corr' in df.columns and 'data_max_corr' in df.columns:
+    # Período formatado dinamicamente
+    if 'mes_ref' in df.columns:
         periodo_text = []
-        for _, row in df.iterrows():
-            try:
-                d_min = pd.to_datetime(row['data_min_corr'])
-                d_max = pd.to_datetime(row['data_max_corr'])
-                mes_nome = _MESES_PTBR.get(d_min.month, d_min.strftime('%B'))
-                periodo_text.append(f"{d_min.day:02d} a {d_max.day:02d} de {mes_nome} {d_min.year}")
-            except:
-                periodo_text.append(_format_mes_ptbr([row['mes_ref']])[0] if 'mes_ref' in df.columns else '')
-    elif 'mes_ref' in df.columns:
-        periodo_text = _format_mes_ptbr(df['mes_ref'])
+        for d in pd.to_datetime(df['mes_ref']):
+            mes_nome = _MESES_PTBR.get(d.month, d.strftime('%B'))
+            if granularidade == 'semanal':
+                d_end = d + pd.Timedelta(days=6)
+                periodo_text.append(f"Sem. {d.day:02d}/{d.month:02d} a {d_end.day:02d}/{d_end.month:02d}")
+            elif granularidade == 'quinzenal':
+                d_end = d + pd.Timedelta(days=14)
+                periodo_text.append(f"Qz. {d.day:02d}/{d.month:02d} a {d_end.day:02d}/{d_end.month:02d}")
+            else:
+                periodo_text.append(f"{mes_nome} {d.year}")
     else:
         periodo_text = list(x_data)
         
@@ -255,13 +244,7 @@ def create_comparative_chart(df: pd.DataFrame) -> go.Figure:
         line=dict(color=GREY_LINE, width=3, shape='spline'), 
         name='Preventiva',
         customdata=list(zip(periodo_text, os_prev)),
-        hovertemplate=(
-            '<b>%{customdata[0]}</b><br>'
-            '―――――――――――――――――<br>'
-            'RI Preventiva:  <b>%{y:.2f}%</b><br>'
-            'OS Analisadas:  %{customdata[1]:,}'
-            '<extra></extra>'
-        )
+        hoverinfo="none",
     ))
 
     # Trace 2: Corretiva
@@ -273,13 +256,7 @@ def create_comparative_chart(df: pd.DataFrame) -> go.Figure:
         line=dict(color=EDENRED_RED, width=3, shape='spline'), 
         name='Corretiva',
         customdata=list(zip(periodo_text, os_corr)),
-        hovertemplate=(
-            '<b>%{customdata[0]}</b><br>'
-            '―――――――――――――――――<br>'
-            'RI Corretiva:  <b>%{y:.2f}%</b><br>'
-            'OS Analisadas:  %{customdata[1]:,}'
-            '<extra></extra>'
-        )
+        hoverinfo="none",
     ))
 
     fig.update_layout(
