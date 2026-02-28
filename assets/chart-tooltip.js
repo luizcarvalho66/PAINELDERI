@@ -157,12 +157,39 @@
     }
 
     // =========================================================================
+    // BUILD TOOLTIP HTML (FUGAS)
+    // =========================================================================
+    function buildFugasHTML(point) {
+        // customdata: [mes_ano, pct_fuga]
+        const customdata = point.customdata || [];
+        const periodo = customdata[0] || '';
+        const pctFuga = customdata[1] || 0;
+        
+        return `
+            <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(0,0,0,0.06)">
+                <div style="display:flex;align-items:center;gap:6px">
+                    <i class="bi bi-calendar2-range" style="color:#64748b;font-size:14px"></i>
+                    <span style="font-weight:700;font-size:14px;color:#1e293b">${periodo}</span>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <span style="width:8px;height:8px;border-radius:50%;background:#E20613;display:inline-block"></span>
+                <span style="color:#475569;font-weight:600">Taxa de Fugas</span>
+                <span style="font-weight:800;color:#E20613;margin-left:auto;font-size:15px">${formatPercent(pctFuga)}</span>
+            </div>
+        `;
+    }
+
+    // =========================================================================
     // DETECT CHART TYPE FROM POINT
     // =========================================================================
     function detectChartType(point) {
         const customdata = point.customdata || [];
-        // RI Geral has 10 items in customdata, Comparativo has 2
+        // RI Geral has 10 items in customdata
         if (customdata.length >= 9) return 'ri_geral';
+        // Fugas has 2 items but uses name '% Fuga', Comparativo has 2 items
+        const traceName = point.data ? (point.data.name || '') : '';
+        if (traceName.includes('Fuga')) return 'fugas';
         return 'comparativo';
     }
 
@@ -181,6 +208,8 @@
         let html = '';
         if (chartType === 'ri_geral') {
             html = buildRIGeralHTML(customdata);
+        } else if (chartType === 'fugas') {
+            html = buildFugasHTML(point);
         } else {
             html = buildComparativoHTML(point);
         }
