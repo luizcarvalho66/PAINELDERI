@@ -296,21 +296,6 @@ def register_dashboard_callbacks(app):
                 style={"height": "400px"},
                 clear_on_unhover=True
             ),
-            dcc.Tooltip(
-                id="tooltip-ri-geral",
-                direction="top",
-                style={
-                    "backgroundColor": "#ffffff", 
-                    "color": "#1e293b", 
-                    "borderRadius": "12px", 
-                    "border": "1px solid #e2e8f0", 
-                    "boxShadow": "0 8px 30px rgba(0,0,0,0.12)",
-                    "padding": "0",
-                    "fontFamily": "Ubuntu, sans-serif",
-                    "zIndex": "9999",
-                    "overflow": "visible"
-                }
-            ),
             
             # Chart 2: Comparativo Preventiva vs Corretiva
             html.Div([
@@ -323,21 +308,6 @@ def register_dashboard_callbacks(app):
                             config={'displayModeBar': False}, 
                             style={"height": "300px"},
                             clear_on_unhover=True
-                        ),
-                        dcc.Tooltip(
-                            id="tooltip-comp-ri",
-                            direction="top",
-                            style={
-                                "backgroundColor": "#ffffff", 
-                                "color": "#1e293b", 
-                                "borderRadius": "12px", 
-                                "border": "1px solid #e2e8f0", 
-                                "boxShadow": "0 8px 30px rgba(0,0,0,0.12)",
-                                "padding": "0",
-                                "fontFamily": "Ubuntu, sans-serif",
-                                "zIndex": "9999",
-                                "overflow": "visible"
-                            }
                         ),
                     ], className="p-4")
                 ], className="shadow-sm border-0 rounded-4")
@@ -369,105 +339,4 @@ def register_dashboard_callbacks(app):
             return "semanal", "premium-toggle-btn", "premium-toggle-btn", "premium-toggle-btn active"
         return "mensal", "premium-toggle-btn active", "premium-toggle-btn", "premium-toggle-btn"
 
-    # =========================================================================
-    # TOOLTIP CALLBACKS - 100% CLIENT-SIDE (JavaScript puro, sem round-trip)
-    # =========================================================================
-    app.clientside_callback(
-        """
-        function(hoverData) {
-            if (!hoverData) return [false, window.dash_clientside.no_update, window.dash_clientside.no_update];
-            
-            var pt = hoverData.points[0];
-            var bbox = pt.bbox;
-            var c = pt.customdata;
-            if (!c || c.length < 10) return [false, window.dash_clientside.no_update, window.dash_clientside.no_update];
-            
-            var riGeral = parseFloat(c[9]).toFixed(2);
-            var riCorr = parseFloat(c[5]).toFixed(2);
-            var riPrev = parseFloat(c[6]).toFixed(2);
-            var parcial = c[7] || '';
-            var osTotal = Number(c[2]).toLocaleString('pt-BR');
-            
-            var html = '<div style="width:240px;font-family:Ubuntu,sans-serif">'
-                + '<div style="padding:10px 14px;border-bottom:2px solid #E20613;background:linear-gradient(135deg,#fef2f2,#fff);">'
-                + '<i class="bi bi-calendar3" style="color:#E20613;margin-right:6px"></i>'
-                + '<b style="color:#1e293b;font-size:13px">' + c[0] + '</b>'
-                + (parcial ? '<span style="color:#94a3b8;font-size:10px;margin-left:5px">' + parcial + '</span>' : '')
-                + '</div>'
-                + '<div style="padding:12px 14px">'
-                + '<div style="margin-bottom:10px">'
-                + '<div style="display:flex;align-items:center;margin-bottom:4px">'
-                + '<i class="bi bi-graph-up-arrow" style="color:#E20613;font-size:12px;margin-right:6px"></i>'
-                + '<span style="color:#64748b;font-size:11px">RI Geral</span></div>'
-                + '<span style="color:#1e293b;font-size:20px;font-weight:700">' + riGeral + '%</span>'
-                + '<div style="margin-top:4px;margin-left:2px;border-left:2px solid #e2e8f0;padding-left:8px">'
-                + '<div style="display:flex;justify-content:space-between;margin-bottom:2px">'
-                + '<span style="color:#64748b;font-size:11px">Corretiva</span>'
-                + '<span style="color:#1e293b;font-size:11px;font-weight:600">' + riCorr + '%</span></div>'
-                + '<div style="display:flex;justify-content:space-between">'
-                + '<span style="color:#64748b;font-size:11px">Preventiva</span>'
-                + '<span style="color:#1e293b;font-size:11px;font-weight:600">' + riPrev + '%</span></div>'
-                + '</div></div>'
-                + '<div style="border-top:1px solid #f1f5f9;padding-top:8px;margin-top:4px">'
-                + '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
-                + '<span style="color:#64748b;font-size:11px"><i class="bi bi-bar-chart-fill" style="margin-right:4px;font-size:10px"></i>Vol. Analisado</span>'
-                + '<b style="color:#1e293b;font-size:11px">' + c[8] + '</b></div>'
-                + '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
-                + '<span style="color:#64748b;font-size:11px"><i class="bi bi-cash-stack" style="margin-right:4px;font-size:10px;color:#16a34a"></i>Economia</span>'
-                + '<b style="color:#16a34a;font-size:11px">' + c[1] + '</b></div>'
-                + '<div style="display:flex;justify-content:space-between">'
-                + '<span style="color:#64748b;font-size:11px"><i class="bi bi-file-earmark-text" style="margin-right:4px;font-size:10px"></i>OS Genu\u00ednas</span>'
-                + '<span style="color:#1e293b;font-size:11px;font-weight:500">' + osTotal + '</span></div>'
-                + '</div></div></div>';
-            
-            return [true, bbox, {props: {children: [{props: {dangerouslySetInnerHTML: {__html: html}}, type: 'Div', namespace: 'dash_html_components'}]}, type: 'Div', namespace: 'dash_html_components'}];
-        }
-        """,
-        Output("tooltip-ri-geral", "show"),
-        Output("tooltip-ri-geral", "bbox"),
-        Output("tooltip-ri-geral", "children"),
-        Input("fig-ri-geral", "hoverData"),
-        prevent_initial_call=True
-    )
-
-    app.clientside_callback(
-        """
-        function(hoverData) {
-            if (!hoverData) return [false, window.dash_clientside.no_update, window.dash_clientside.no_update];
-            
-            var pt = hoverData.points[0];
-            var bbox = pt.bbox;
-            var c = pt.customdata;
-            if (!c || c.length < 2) return [false, window.dash_clientside.no_update, window.dash_clientside.no_update];
-            
-            var isCorr = pt.curveNumber === 1;
-            var title = isCorr ? 'RI Corretiva' : 'RI Preventiva';
-            var color = isCorr ? '#E20613' : '#64748b';
-            var icon = isCorr ? 'bi-tools' : 'bi-shield-check';
-            var yVal = parseFloat(pt.y).toFixed(2);
-            var osVal = Number(c[1]).toLocaleString('pt-BR');
-            
-            var html = '<div style="width:200px;font-family:Ubuntu,sans-serif">'
-                + '<div style="padding:8px 12px;border-bottom:2px solid ' + color + ';background:linear-gradient(135deg,#fafafa,#fff)">'
-                + '<i class="bi bi-calendar3" style="color:' + color + ';margin-right:6px;font-size:12px"></i>'
-                + '<b style="color:#1e293b;font-size:12px">' + c[0] + '</b></div>'
-                + '<div style="padding:10px 12px">'
-                + '<div style="display:flex;align-items:center;margin-bottom:3px">'
-                + '<i class="bi ' + icon + '" style="color:' + color + ';font-size:11px;margin-right:6px"></i>'
-                + '<span style="color:#64748b;font-size:11px">' + title + '</span></div>'
-                + '<span style="color:#1e293b;font-size:18px;font-weight:700">' + yVal + '%</span>'
-                + '<div style="border-top:1px solid #f1f5f9;margin-top:8px;padding-top:6px;display:flex;justify-content:space-between">'
-                + '<span style="color:#64748b;font-size:11px"><i class="bi bi-file-earmark-text" style="margin-right:4px;font-size:10px"></i>OS Analisadas</span>'
-                + '<span style="color:#1e293b;font-size:11px;font-weight:600">' + osVal + '</span></div>'
-                + '</div></div>';
-            
-            return [true, bbox, {props: {children: [{props: {dangerouslySetInnerHTML: {__html: html}}, type: 'Div', namespace: 'dash_html_components'}]}, type: 'Div', namespace: 'dash_html_components'}];
-        }
-        """,
-        Output("tooltip-comp-ri", "show"),
-        Output("tooltip-comp-ri", "bbox"),
-        Output("tooltip-comp-ri", "children"),
-        Input("fig-comp-ri", "hoverData"),
-        prevent_initial_call=True
-    )
 

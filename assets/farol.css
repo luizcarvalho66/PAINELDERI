@@ -301,8 +301,6 @@
   font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  z-index: 2;
-  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -321,6 +319,17 @@
 }
 
 /* Override para o toggle dentro do CardHeader de Visão Geral */
+#granularity-header {
+  position: relative;
+  z-index: 1;
+}
+
+/* CardBody irmão do header precisa de z-index maior para o tooltip sobrepor */
+#granularity-header ~ .card-body {
+  position: relative;
+  z-index: 2;
+}
+
 #granularity-header .premium-toggle-container {
   background-color: #e2e8f0;
   border: 1px solid #cbd5e1;

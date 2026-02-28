@@ -258,6 +258,8 @@ body {
     z-index: 99999 !important;
     overflow: visible !important;
     pointer-events: none;
+    transition: opacity 0.05s ease !important;
+    animation: none !important;
 }
 
 /* Impedir que containers pai cortem o tooltip */
