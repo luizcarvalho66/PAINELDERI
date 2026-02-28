@@ -279,11 +279,11 @@ def get_fugas_grouped_with_detail(filters=None, limit=20, date_start=None, date_
             filter_sql += " AND uf IN (" + ",".join(["?"]*len(filters['uf'])) + ")"
             params.extend(filters['uf'])
     
-    # Date range: default últimos 30 dias
+    # Date range: default últimos 3 meses (90 dias)
     if not date_start or not date_end:
         from datetime import date as _date, timedelta as _td
         date_end = _date.today().isoformat()
-        date_start = (_date.today() - _td(days=30)).isoformat()
+        date_start = (_date.today() - _td(days=90)).isoformat()
     
     query_master = f"""
     SELECT 
@@ -434,17 +434,17 @@ def get_fugas_detail_by_tgm(codigo_tgm, filters=None, limit=500):
 def get_fugas_stats(filters=None, date_start=None, date_end=None, tipo_ativo="VEICULOS"):
     """
     Calcula KPIs: Total de OSs analisadas, Qtde Fugas, % Fuga
-    Conta por OS distinta. Default: últimos 30 dias.
+    Conta por OS distinta. Default: últimos 3 meses (90 dias).
     tipo_ativo: VEICULOS | EQUIPAMENTOS | TODOS
     """
     conn = get_connection()
     
-    # Date range: default últimos 30 dias
+    # Date range: default últimos 3 meses (90 dias)
     date_filter = ""
     if date_start and date_end:
         date_filter = f"AND CAST(data_transacao AS DATE) BETWEEN '{date_start}' AND '{date_end}'"
     else:
-        date_filter = "AND data_transacao >= CURRENT_DATE - INTERVAL 30 DAY"
+        date_filter = "AND data_transacao >= CURRENT_DATE - INTERVAL 90 DAY"
     
     fuga_conditions = _get_fuga_conditions()
     asset_filter = _get_asset_type_filter(tipo_ativo)
@@ -504,19 +504,19 @@ def get_fugas_chart_data(filters=None, date_start=None, date_end=None, tipo_ativ
     """
     Retorna % Fugas agrupado por Ano/Mes para o gráfico.
     Conta por OS distinta (não por item).
-    Default: últimos 30 dias se sem date range.
+    Default: últimos 3 meses (90 dias) se sem date range.
     tipo_ativo: VEICULOS | EQUIPAMENTOS | TODOS
     """
     conn = get_connection()
     or_condition = _get_fuga_conditions()
     asset_filter = _get_asset_type_filter(tipo_ativo)
 
-    # Date range: default últimos 30 dias
+    # Date range: default últimos 3 meses (90 dias)
     date_filter = ""
     if date_start and date_end:
         date_filter = f"AND CAST(data_transacao AS DATE) BETWEEN '{date_start}' AND '{date_end}'"
     else:
-        date_filter = "AND data_transacao >= CURRENT_DATE - INTERVAL 30 DAY"
+        date_filter = "AND data_transacao >= CURRENT_DATE - INTERVAL 90 DAY"
 
     query = f"""
     SELECT 

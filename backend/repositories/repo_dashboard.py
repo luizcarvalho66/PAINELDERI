@@ -95,6 +95,10 @@ def get_ri_evolution_data(filters: dict = None):
         # Check tipo_manutencao filter
         tipo = filters.get("tipo_manutencao", "TODAS") if filters else "TODAS"
         
+        # Granularidade dinâmica: mensal (default), quinzenal, semanal
+        gran = filters.get("granularidade", "mensal") if filters else "mensal"
+        gran_sql_map = {"mensal": "month", "quinzenal": "week", "semanal": "week"}
+        date_trunc_interval = gran_sql_map.get(gran, "month")
 
 
 
@@ -107,8 +111,10 @@ def get_ri_evolution_data(filters: dict = None):
         # 1. Fetch Corretiva Data - RI = (valor_total - valor_aprovado) / valor_total
         query_corr = f"""
         SELECT
-            date_trunc('month', c.data_transacao) as mes_ref,
-            COUNT(DISTINCT c.numero_os) as total_corr, -- CORRIDO: Ordens, não Itens
+            date_trunc('{date_trunc_interval}', c.data_transacao) as mes_ref,
+            MIN(c.data_transacao) as data_min_corr,
+            MAX(c.data_transacao) as data_max_corr,
+            COUNT(DISTINCT c.numero_os) as total_corr,
             SUM(COALESCE(valor_total, 0)) as sum_total_corr,
             SUM(COALESCE(valor_aprovado, 0)) as sum_aprovado_corr
         FROM ri_corretiva_detalhamento c
@@ -122,7 +128,7 @@ def get_ri_evolution_data(filters: dict = None):
         # 1.1 Fetch Pricing Data - CORRETIVA (Economia Real via Engine)
         query_pricing_corr = f"""
         SELECT
-            date_trunc('month', c.data_transacao) as mes_ref,
+            date_trunc('{date_trunc_interval}', c.data_transacao) as mes_ref,
             SUM(c.economia_total) as sum_economia_pricing
         FROM economia_calculada c
         WHERE {where_corr}
@@ -131,9 +137,9 @@ def get_ri_evolution_data(filters: dict = None):
         """
         
         # 1.2 Fetch Pricing Data - PREVENTIVA (Economia Real via Engine)
-        query_pricing_prev = """
+        query_pricing_prev = f"""
         SELECT
-            date_trunc('month', c.data_transacao) as mes_ref,
+            date_trunc('{date_trunc_interval}', c.data_transacao) as mes_ref,
             SUM(c.economia_total) as sum_economia_pricing_prev
         FROM economia_calculada c
         WHERE c.data_transacao IS NOT NULL
@@ -141,11 +147,13 @@ def get_ri_evolution_data(filters: dict = None):
         GROUP BY 1
         """
         
-        # 2. Fetch Preventiva Data - CORRIGIDO: usando ri_preventiva_detalhamento
+        # 2. Fetch Preventiva Data
         query_prev = f"""
         SELECT
-            date_trunc('month', data_transacao) as mes_ref,
-            COUNT(DISTINCT numero_os) as total_prev, -- CORRIGIDO: Ordens (assumindo numero_os existe)
+            date_trunc('{date_trunc_interval}', data_transacao) as mes_ref,
+            MIN(data_transacao) as data_min_prev,
+            MAX(data_transacao) as data_max_prev,
+            COUNT(DISTINCT numero_os) as total_prev,
             SUM(COALESCE(valor_total, 0)) as sum_total_prev,
             SUM(COALESCE(valor_aprovado, 0)) as sum_aprovado_prev
         FROM ri_preventiva_detalhamento
@@ -178,8 +186,10 @@ def get_ri_evolution_data(filters: dict = None):
         # Ensure datetime type for merge (normalize to naive to avoid timezone mismatch)
         if not df_corr.empty:
             df_corr['mes_ref'] = pd.to_datetime(df_corr['mes_ref']).dt.tz_localize(None)
+            df_corr['data_min_corr'] = pd.to_datetime(df_corr['data_min_corr']).dt.tz_localize(None)
+            df_corr['data_max_corr'] = pd.to_datetime(df_corr['data_max_corr']).dt.tz_localize(None)
         else:
-             df_corr = pd.DataFrame(columns=['mes_ref', 'total_corr', 'sum_total_corr', 'sum_aprovado_corr'])
+             df_corr = pd.DataFrame(columns=['mes_ref', 'data_min_corr', 'data_max_corr', 'total_corr', 'sum_total_corr', 'sum_aprovado_corr'])
              
         if not df_pricing_corr.empty:
             df_pricing_corr['mes_ref'] = pd.to_datetime(df_pricing_corr['mes_ref']).dt.tz_localize(None)
@@ -193,8 +203,10 @@ def get_ri_evolution_data(filters: dict = None):
 
         if not df_prev.empty:
             df_prev['mes_ref'] = pd.to_datetime(df_prev['mes_ref']).dt.tz_localize(None)
+            df_prev['data_min_prev'] = pd.to_datetime(df_prev['data_min_prev']).dt.tz_localize(None)
+            df_prev['data_max_prev'] = pd.to_datetime(df_prev['data_max_prev']).dt.tz_localize(None)
         else:
-            df_prev = pd.DataFrame(columns=['mes_ref', 'total_prev', 'sum_total_prev', 'sum_aprovado_prev'])
+            df_prev = pd.DataFrame(columns=['mes_ref', 'data_min_prev', 'data_max_prev', 'total_prev', 'sum_total_prev', 'sum_aprovado_prev'])
             
         # Merge Corr + Prev
         df = pd.merge(df_corr, df_prev, on='mes_ref', how='outer').fillna(0)
@@ -271,8 +283,16 @@ def get_ri_evolution_data(filters: dict = None):
         # Add labels for Multi-level Axis
         df['trimestre_label'] = df['trimestre'].apply(lambda x: f"Qtr {x}")
         
-        # x_label — usado pelas funções de chart como eixo X
-        df['x_label'] = df['mes_nome'].str[:3] + ' ' + df['ano'].astype(str)
+        # x_label — formatação dinâmica conforme granularidade
+        if gran == 'semanal':
+            # Semana: "dd/mm"
+            df['x_label'] = df['mes_ref'].dt.strftime('%d/%m')
+        elif gran == 'quinzenal':
+            # Quinzenal: "dd/mm"
+            df['x_label'] = df['mes_ref'].dt.strftime('%d/%m/%y')
+        else:
+            # Mensal (default): "Set 2025"
+            df['x_label'] = df['mes_nome'].str[:3] + ' ' + df['ano'].astype(str)
         
         return df
         
