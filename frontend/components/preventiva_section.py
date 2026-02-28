@@ -13,7 +13,7 @@ def render_preventiva_section(initial_data=None):
             - accordion: componente Accordion já montado
     """
     today = date.today()
-    thirty_days_ago = today - timedelta(days=30)
+    three_months_ago = today - timedelta(days=90)  # Padrão: últimos 3 meses
     
     return html.Div([
         # ROW 1: Main Chart (Left 8) + KPIs Stacked (Right 4)
@@ -38,7 +38,7 @@ def render_preventiva_section(initial_data=None):
                                 html.I(className="bi bi-calendar3 text-muted me-2", style={"fontSize": "0.85rem"}),
                                 dcc.DatePickerRange(
                                     id="prev-date-picker",
-                                    start_date=thirty_days_ago,
+                                    start_date=three_months_ago,
                                     end_date=today,
                                     display_format="DD/MM/YY",
                                     start_date_placeholder_text="Início",
