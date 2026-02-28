@@ -409,6 +409,73 @@ def render_farol_section() -> html.Div:
                                   style={"fontSize": "0.8rem", "color": "#64748b"})
                     ], className="mt-3 p-2 border-start border-3", style={"borderColor": "#E20613 !important"})
                     
+                ]),
+                
+                # SEÇÃO: BENCHMARK DE MERCADO
+                html.Hr(style={"margin": "24px 0", "borderColor": "#e2e8f0"}),
+                
+                html.Div([
+                    html.Div("BENCHMARK DE MERCADO", className="macos-section-title mb-3"),
+                    
+                    html.P([
+                        "A coluna ",
+                        html.Strong("Recomendação"),
+                        " pode exibir o desvio do P70 em relação ao ",
+                        html.Strong("benchmark de mercado"),
+                        " — um valor de referência calculado pelo ",
+                        html.Strong("Motor de Pricing"),
+                        "."
+                    ], style={"fontSize": "0.9rem", "color": "#475569", "marginBottom": "16px"}),
+                    
+                    # Fórmula
+                    html.Div([
+                        html.Div([
+                            html.I(className="bi bi-graph-up-arrow me-2", style={"color": "#0ea5e9"}),
+                            html.Strong("Como é calculado:")
+                        ], className="mb-2"),
+                        html.Code(
+                            "Benchmark = P70 de mercado para o mesmo tipo de Mão de Obra (ref_total)",
+                            style={
+                                "display": "block",
+                                "backgroundColor": "#f1f5f9",
+                                "padding": "12px 16px",
+                                "borderRadius": "8px",
+                                "fontSize": "0.85rem",
+                                "fontFamily": "monospace",
+                                "color": "#1e293b"
+                            }
+                        )
+                    ], className="mb-3"),
+                    
+                    # Explicação
+                    html.Div([
+                        html.Div([
+                            html.I(className="bi bi-bar-chart-fill me-2", style={"color": "#0ea5e9", "fontSize": "1.2rem"}),
+                            html.Div([
+                                html.Div("Valor de Mercado (P70)", style={"fontWeight": "700", "fontSize": "0.85rem", "color": "#0ea5e9"}),
+                                html.Div("Percentil 70 do valor total aprovado para o mesmo tipo de MO no mercado nacional", style={"fontSize": "0.78rem", "color": "#64748b"})
+                            ], className="ms-2")
+                        ], className="d-flex align-items-center")
+                    ], className="macos-card mb-3"),
+                    
+                    # Como interpretar
+                    html.Div([
+                        html.Div([
+                            html.I(className="bi bi-info-circle-fill me-2", style={"color": "#64748b"}),
+                            html.Strong("Como interpretar:", style={"color": "#1e293b"})
+                        ], className="mb-2"),
+                        html.Div([
+                            html.Div([
+                                html.Span("+20% vs benchmark", style={"fontFamily": "monospace", "fontSize": "0.8rem", "color": "#E20613", "fontWeight": "600"}),
+                                html.Span(" — P70 está 20% acima do valor de referência do mercado", style={"fontSize": "0.8rem", "color": "#64748b"})
+                            ], className="mb-1"),
+                            html.Div([
+                                html.Span("-15% vs benchmark", style={"fontFamily": "monospace", "fontSize": "0.8rem", "color": "#10b981", "fontWeight": "600"}),
+                                html.Span(" — P70 está 15% abaixo do mercado (bom)", style={"fontSize": "0.8rem", "color": "#64748b"})
+                            ]),
+                        ], className="ps-4")
+                    ], className="p-3 rounded", style={"backgroundColor": "#f8fafc", "border": "1px solid #e2e8f0"})
+                    
                 ])
                 
             ], className="macos-modal-body"),
