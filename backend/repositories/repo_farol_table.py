@@ -8,6 +8,10 @@ Author: Luiz Eduardo Carvalho
 import pandas as pd
 from backend.repositories.repo_base import get_connection, safe_memoize
 from engine.farol_engine import processar_dados_farol, get_resumo_farois
+from backend.repositories.repo_preventiva import TIPOS_MO_OPORTUNIDADE_RI
+
+# Gera cláusula IN para filtro de oportunidades por tipo_mo
+_OPORTUNIDADE_MO_IN = "'" + "', '".join(TIPOS_MO_OPORTUNIDADE_RI) + "'"
 
 
 # NOTA: Cache reativado após correções. Monitorar comportamento com filtros vazios.
@@ -53,6 +57,26 @@ def get_farol_table_data(filters: dict = None, page: int = 1, page_size: int = 1
         
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         
+        # Filtro de oportunidades: tipo_mo pré-definido + OS com ≤ 2 itens
+        opp_cte = ""
+        source_table = "ri_corretiva_detalhamento"
+        if only_opportunities:
+            where_sql += f" AND UPPER(COALESCE(tipo_mo, '')) IN ({_OPORTUNIDADE_MO_IN})"
+            # CTE para filtrar apenas OS com ≤ 2 itens (regra de negócio)
+            opp_cte = """
+            os_elegiveis AS (
+                SELECT numero_os
+                FROM ri_corretiva_detalhamento
+                GROUP BY numero_os
+                HAVING COUNT(*) <= 2
+            ),
+            dados_filtrados AS (
+                SELECT c.*
+                FROM ri_corretiva_detalhamento c
+                INNER JOIN os_elegiveis oe ON c.numero_os = oe.numero_os
+            ),"""
+            source_table = "dados_filtrados"
+        
         # Verifica se tem filtro de prioridade -> Se sim, precisamos buscar TUDO para filtrar no Python
         filter_prioridade = filters.get("prioridade") if filters else None
         
@@ -73,9 +97,9 @@ def get_farol_table_data(filters: dict = None, page: int = 1, page_size: int = 1
             key_expr = "CONCAT(COALESCE(peca, 'SEM PEÇA'), ' + ', COALESCE(tipo_mo, 'SEM MO'))"
             group_by_expr = "COALESCE(peca, 'SEM PEÇA'), COALESCE(tipo_mo, 'SEM MO')"
 
-        # Query base para calcular "Real Approval" usando nome_aprovador
+        # Query base
         query = f"""
-        WITH 
+        WITH {opp_cte}
         agg_chave AS (
             SELECT
                 {key_expr} as chave,
@@ -84,8 +108,7 @@ def get_farol_table_data(filters: dict = None, page: int = 1, page_size: int = 1
                 COUNT(DISTINCT numero_os) as qtd_os,
                 COUNT(*) as total_itens,
                 
-                -- CRITÉRIO CORRETO: Itens com status_os APROVADA
-                -- Mede a taxa real de aprovação dos itens
+                -- Taxa de aprovação dos itens
                 SUM(CASE WHEN status_os = 'APROVADA' THEN 1 ELSE 0 END) as itens_aprovacao_auto,
                 
                 -- ITENS NÃO APROVADOS: Reprovados, Cancelados ou Pendentes
@@ -93,7 +116,7 @@ def get_farol_table_data(filters: dict = None, page: int = 1, page_size: int = 1
                 
                 PERCENTILE_CONT(0.70) WITHIN GROUP (ORDER BY COALESCE(valor_aprovado, 0)) as p70,
                 AVG(COALESCE(valor_aprovado, 0)) as valor_medio
-            FROM ri_corretiva_detalhamento c
+            FROM {source_table} c
             WHERE {where_sql}
             GROUP BY {group_by_expr}
             {"HAVING PERCENTILE_CONT(0.70) WITHIN GROUP (ORDER BY COALESCE(valor_aprovado, 0)) <= 1500" if only_opportunities else ""}
@@ -217,14 +240,29 @@ def get_farol_total_count(filters: dict = None, only_opportunities: bool = False
         where_sql = " AND ".join(where_clauses)
         
         having_clause = ""
+        opp_cte = ""
+        source_table = "ri_corretiva_detalhamento"
         if only_opportunities:
+            where_sql += f" AND UPPER(COALESCE(tipo_mo, '')) IN ({_OPORTUNIDADE_MO_IN})"
             having_clause = "HAVING PERCENTILE_CONT(0.70) WITHIN GROUP (ORDER BY COALESCE(valor_aprovado, 0)) <= 1500"
+            # CTE para filtrar apenas OS com ≤ 2 itens (regra de negócio)
+            opp_cte = """
+            os_elegiveis AS (
+                SELECT numero_os
+                FROM ri_corretiva_detalhamento
+                GROUP BY numero_os
+                HAVING COUNT(*) <= 2
+            ),
+            dados_filtrados AS (
+                SELECT c.*
+                FROM ri_corretiva_detalhamento c
+                INNER JOIN os_elegiveis oe ON c.numero_os = oe.numero_os
+            ),"""
+            source_table = "dados_filtrados"
         
         # Decide Grouping Logic
         if group_by_client:
             group_by_expr = "COALESCE(peca, 'SEM PEÇA'), COALESCE(tipo_mo, 'SEM MO'), COALESCE(nome_cliente, 'N/A')"
-            # Note: The key construction in inner SELECT matters less for COUNT(*), 
-            # but GROUP BY must match to count unique groups
             key_expr = "CONCAT(COALESCE(peca, 'SEM PEÇA'), ' + ', COALESCE(tipo_mo, 'SEM MO'), ' | ', COALESCE(nome_cliente, 'N/A'))"
         else:
             group_by_expr = "COALESCE(peca, 'SEM PEÇA'), COALESCE(tipo_mo, 'SEM MO')"
@@ -232,12 +270,16 @@ def get_farol_total_count(filters: dict = None, only_opportunities: bool = False
 
         query = f"""
         SELECT COUNT(*) as total FROM (
-            SELECT 
-                {key_expr} as chave
-            FROM ri_corretiva_detalhamento
-            WHERE {where_sql}
-            GROUP BY {group_by_expr}
-            {having_clause}
+            WITH {opp_cte}
+            src AS (
+                SELECT 
+                    {key_expr} as chave
+                FROM {source_table}
+                WHERE {where_sql}
+                GROUP BY {group_by_expr}
+                {having_clause}
+            )
+            SELECT * FROM src
         ) subq
         """
         

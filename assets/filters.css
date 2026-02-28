@@ -8,31 +8,47 @@
    ========================================================================== */
 
 .filter-bar {
-    background: #ffffff;
-    border-radius: 24px; /* Premium Rounded */
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); /* Smoother shadow */
-    border: 1px solid rgba(226, 6, 19, 0.05); /* Subtle red tint */
+    background: rgba(255, 255, 255, 0.85); /* Glassmorphism Premium */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 24px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06), 0 2px 10px rgba(226, 6, 19, 0.04);
+    border: 1px solid rgba(226, 6, 19, 0.12); /* Borda sutil avermelhada */
     margin-bottom: 24px;
-    padding: 12px 24px;
+    padding: 14px 24px;
 }
 
 .filter-bar-inner {
     display: flex;
     align-items: center;
-    gap: 20px;
-    flex-wrap: wrap;
+    gap: 14px;
+    flex-wrap: nowrap; /* NUNCA quebrar linha */
 }
 
 /* Label da barra */
 .filter-bar-label {
     display: flex;
     align-items: center;
-    color: var(--edenred-red, #E20613);
+    gap: 10px;
+    color: var(--text-main, #1E293B);
     font-weight: 700;
-    font-size: 14px;
+    font-size: 15px;
     white-space: nowrap;
-    padding-right: 16px;
-    border-right: 2px solid #f1f5f9;
+    padding-right: 20px;
+    border-right: 2px solid #e2e8f0;
+}
+
+.filter-bar-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    background: linear-gradient(135deg, var(--edenred-red, #E20613) 0%, #B9050F 100%);
+    color: white;
+    border-radius: 10px;
+    font-size: 16px;
+    box-shadow: 0 4px 15px rgba(226, 6, 19, 0.35);
 }
 
 /* ==========================================================================
@@ -43,22 +59,44 @@
 .filter-bar-fields {
     display: flex;
     align-items: center;
-    gap: 32px; /* Espaço aumentado entre grupos */
+    gap: 20px;
     flex: 1;
-    flex-wrap: nowrap; /* IMPEDIR QUEBRA DE LINHA */
+    flex-wrap: nowrap;
+    min-width: 0; /* Allow shrinking */
 }
 
 /* Force horizontal group (Label + Input) */
 .filter-inline-group {
     display: flex;
-    flex-direction: row !important; /* FORCAR LINHA */
+    flex-direction: row !important;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     white-space: nowrap;
+    min-width: 0; /* Allow shrinking */
 }
 
 .filter-inline-group--toggle {
-    margin-left: 8px;
+    margin-left: 4px;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+/* Compactar o premium-toggle DENTRO da barra de filtros */
+.filter-inline-group--toggle .premium-toggle-container {
+    padding: 3px;
+    border-radius: 10px;
+    gap: 0;
+}
+
+.filter-inline-group--toggle .premium-toggle-btn {
+    padding: 5px 14px;
+    font-size: 0.78rem;
+    border-radius: 7px;
+    gap: 5px;
+}
+
+.filter-inline-group--toggle .premium-toggle-btn i {
+    font-size: 0.75rem;
 }
 
 .filter-inline-label {
@@ -81,9 +119,10 @@
    ========================================================================== */
 
 .filter-inline-dropdown {
-    width: 220px; /* Fixed robust width */
-    max-width: 300px;
-    flex-shrink: 0 !important; /* PREVENT SHRINKING */
+    width: 180px;
+    min-width: 140px;
+    max-width: 220px;
+    flex-shrink: 1; /* ALLOW SHRINKING */
 }
 
 .filter-inline-dropdown .Select-control {
@@ -110,7 +149,7 @@
 
 .filter-inline-dropdown .Select.is-focused .Select-control {
     border-color: var(--edenred-red, #E20613) !important;
-    box-shadow: 0 0 0 4px rgba(226, 6, 19, 0.1) !important;
+    box-shadow: 0 0 0 4px rgba(226, 6, 19, 0.08) !important;
     background: white !important;
 }
 
@@ -180,21 +219,58 @@
     color: #1e293b !important;
 }
 
-/* ==========================================================================
-   FILTER BAR ACTIONS
-   ========================================================================== */
-
 .filter-bar-actions {
     display: flex;
     align-items: center;
     margin-left: auto;
-    padding-left: 16px;
+    padding-left: 14px;
     border-left: 1px solid #e2e8f0;
+    flex-shrink: 0; /* Nunca encolher os botões de ação */
+    white-space: nowrap;
 }
 
-.filter-bar-actions .btn {
-    font-size: 12px !important;
-    font-weight: 500 !important;
+.btn-filter-apply {
+    background: linear-gradient(135deg, var(--edenred-red, #E20613) 0%, #B9050F 100%);
+    color: white;
+    border: none;
+    border-radius: 999px;
+    padding: 8px 24px;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    font-family: 'Ubuntu', sans-serif;
+    box-shadow: 0 4px 12px rgba(226, 6, 19, 0.25);
+    transition: all 0.2s ease;
+}
+
+.btn-filter-apply:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(226, 6, 19, 0.35);
+    color: white;
+}
+
+.btn-filter-apply:active {
+    transform: translateY(0);
+}
+
+.btn-filter-clear {
+    background: #f1f5f9;
+    color: #64748b;
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.btn-filter-clear:hover {
+    background: #e2e8f0;
+    color: #334155;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.08);
 }
 
 /* ==========================================================================
@@ -283,17 +359,19 @@
    ========================================================================== */
 
 .filter-bar {
-    animation: slideDown 0.3s ease-out;
+    animation: fadeInUpGlass 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-@keyframes slideDown {
+@keyframes fadeInUpGlass {
     from {
         opacity: 0;
-        transform: translateY(-8px);
+        transform: translateY(12px);
+        filter: blur(4px);
     }
     to {
         opacity: 1;
         transform: translateY(0);
+        filter: blur(0);
     }
 }
 

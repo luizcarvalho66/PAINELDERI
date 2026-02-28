@@ -79,7 +79,7 @@ flowchart TB
 
     subgraph SYNC["🔄 Sync Layer"]
         S1["databricks_sync.py"]
-        S2["tgm_client_config.py\n(~377 códigos TGM)"]
+        S2["tgm_client_config.py\n(253 códigos TGM)"]
     end
 
     subgraph LOCAL["💾 DuckDB Local"]
@@ -145,7 +145,7 @@ painel-RI-DATABRICKS/
 │   │   └── repo_logs_corretiva.py  # Queries legado (logs_corretiva)
 │   ├── services/
 │   │   ├── databricks_sync.py      # ETL Databricks → DuckDB
-│   │   ├── tgm_client_config.py    # Lista de clientes TGM (~377 IDs)
+│   │   ├── tgm_client_config.py    # Lista de clientes TGM (253 IDs)
 │   │   └── ppt/                    # Geração de relatório PowerPoint
 │   │       ├── generate_ppt.py     # Orquestrador de slides
 │   │       ├── slide_cover.py      # Slide 1 — Capa
@@ -246,7 +246,7 @@ erDiagram
 | `economia_calculada`         | Gerada pelo Engine de Pricing                              | ~500K             | Cálculo real de economia (mediana)         |
 | `ref_aprovacao_automatica`   | Hardcoded (database.py)                                    | 21 registros      | Farol: filtra itens fora da auto-aprovação |
 | `ref_pecas_intercambiaveis`  | Hardcoded (database.py)                                    | ~150 registros    | Pricing: define chave de agrupamento       |
-| `ref_clientes_tgfm`          | Config (tgfm_clients.py)                                   | ~377 registros    | Filtro global de clientes                  |
+| `ref_clientes_tgfm`          | Config (tgfm_clients.py)                                   | 253 registros     | Filtro global de clientes                  |
 | `logs_corretiva`             | Legado (sync Databricks)                                   | ~500K             | Queries legadas                            |
 | `logs_regulacao_preventiva`  | Legado (sync Databricks)                                   | ~200K             | Queries legadas                            |
 
@@ -346,7 +346,7 @@ A tabela `ref_aprovacao_automatica` lista 21 tipos de MO que podem ser pré-apro
 
 ### 6. Filtro de Clientes TGM
 
-Os dados já chegam filtrados do Databricks. O sync aplica `WHERE try_cast(c.SourceNumber AS INT) IN (...)` usando a lista de ~377 códigos TGM definidos em `tgm_client_config.py`.
+Os dados já chegam filtrados do Databricks. O sync aplica `WHERE try_cast(c.SourceNumber AS INT) IN (...)` usando a lista de 253 códigos TGM definidos em `tgm_client_config.py`.
 
 ```mermaid
 flowchart LR

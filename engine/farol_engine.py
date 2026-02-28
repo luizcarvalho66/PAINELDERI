@@ -43,8 +43,6 @@ LIMIAR_VERDE = 80.0
 LIMIAR_AMARELO = 50.0
 
 # Limiar de queda para alerta vermelho (%)
-# Limiar de queda para alerta vermelho (%)
-# Limiar de queda para alerta vermelho (%)
 LIMIAR_QUEDA_CRITICA = 15.0
 # Limiar de Score para ser considerado CRÍTICO (Vermelho)
 LIMIAR_SCORE_VERMELHO = 70.0
@@ -163,31 +161,6 @@ def calcular_score_prioridade(
     )
     
     return round(max(0.0, min(100.0, score_final)), 1)
-    """
-    Calcula um score de 0-100 para ordenação por prioridade.
-    Maior score = maior prioridade de ação.
-    
-    Fórmula:
-        score = (peso_aprov * score_aprov) + (peso_vol * score_vol) + (peso_tend * score_tend)
-    """
-    # Score de aprovação: inverso (menor aprovação = maior score)
-    score_aprov = max(0, 100 - pct_aprovacao)
-    
-    # Score de volume: normalizado (assumindo max ~10.000 OSs)
-    score_vol = min(100, (qtd_os / 100) * 10)  # Escala logarítmica suave
-    
-    # Score de tendência: se negativa, contribui para prioridade
-    score_tend = max(0, -tendencia) * 2  # Amplifica quedas
-    score_tend = min(100, score_tend)
-    
-    # Combinar com pesos
-    score_final = (
-        (PESO_APROVACAO * score_aprov) +
-        (PESO_VOLUME * score_vol) +
-        (PESO_TENDENCIA * score_tend)
-    )
-    
-    return round(min(100, max(0, score_final)), 2)
 
 
 def gerar_sugestao(
@@ -200,36 +173,62 @@ def gerar_sugestao(
 ) -> str:
     """
     Gera uma sugestão de ação textual baseada na análise.
-    Estilo profissional sem emojis.
+    Sugestões acionáveis com dados concretos.
     """
-    sugestoes = []
+    # Formatar P70 para exibição
+    p70_fmt = f"R$ {p70:,.0f}".replace(",", ".") if p70 > 0 else ""
     
     if cor == FarolCor.VERDE:
-        return "Performando bem - Manter monitoramento"
+        if qtd_os > 200:
+            return f"Performando bem ({pct_aprovacao:.0f}% aprov.) — manter padrão"
+        return f"Aprovação {pct_aprovacao:.0f}% — manter monitoramento"
     
     if cor == FarolCor.VERMELHO:
-        sugestoes.append("Ação urgente necessária")
+        parts = []
         
-        if pct_aprovacao < 30:
-            sugestoes.append("Revisar critérios de aprovação automática")
+        if pct_aprovacao < 10:
+            parts.append(f"Aprovação crítica ({pct_aprovacao:.0f}%)")
+        elif pct_aprovacao < 30:
+            parts.append(f"Apenas {pct_aprovacao:.0f}% aprovadas")
+        else:
+            parts.append(f"Aprovação baixa ({pct_aprovacao:.0f}%)")
+        
+        if p70 > 0 and benchmark > 0 and p70 > benchmark:
+            diff_pct = ((p70 - benchmark) / benchmark) * 100
+            parts.append(f"P70 {p70_fmt} (+{diff_pct:.0f}% vs benchmark)")
+        elif p70 > 0:
+            parts.append(f"P70 {p70_fmt}")
         
         if tendencia <= -LIMIAR_QUEDA_CRITICA:
-            sugestoes.append(f"Investigar queda de {abs(tendencia):.0f}%")
-        
-        if p70 > benchmark > 0:
-            diff_pct = ((p70 - benchmark) / benchmark) * 100
-            sugestoes.append(f"P70 {diff_pct:.0f}% acima do benchmark")
-    
-    elif cor == FarolCor.AMARELO:
-        sugestoes.append("Oportunidade de melhoria")
-        
-        if tendencia < -5:
-            sugestoes.append(f"Atenção: tendência de queda ({tendencia:.0f}%)")
+            parts.append(f"Queda de {abs(tendencia):.0f}%")
         
         if qtd_os > 500:
-            sugestoes.append("Alto volume - priorizar análise")
+            parts.append(f"{qtd_os} OS — revisar negociação")
+        elif qtd_os > 100:
+            parts.append(f"{qtd_os} OS")
+        
+        return " | ".join(parts)
     
-    return " | ".join(sugestoes) if sugestoes else "Revisar item"
+    # AMARELO
+    parts = []
+    
+    if pct_aprovacao < 60:
+        parts.append(f"Aprovação {pct_aprovacao:.0f}% — buscar melhoria")
+    else:
+        parts.append(f"Aprovação {pct_aprovacao:.0f}% — próximo do ideal")
+    
+    if p70 > 0 and benchmark > 0 and p70 > benchmark * 1.2:
+        parts.append(f"P70 {p70_fmt} acima da referência")
+    elif p70 > 0:
+        parts.append(f"P70 {p70_fmt}")
+    
+    if tendencia < -5:
+        parts.append(f"Tendência -{abs(tendencia):.0f}%")
+    
+    if qtd_os > 500:
+        parts.append(f"Alto volume ({qtd_os} OS)")
+    
+    return " | ".join(parts) if parts else f"Aprovação {pct_aprovacao:.0f}%"
 
 
 def processar_dados_farol(dados: List[Dict]) -> List[Dict]:

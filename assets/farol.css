@@ -316,7 +316,25 @@
 .premium-toggle-btn.active {
   background-color: white !important;
   color: var(--edenred-red) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 10px rgba(226, 6, 19, 0.15), 0 1px 4px rgba(0, 0, 0, 0.08);
+  font-weight: 700;
+}
+
+/* Override para o toggle dentro do CardHeader de Visão Geral */
+#granularity-header .premium-toggle-container {
+  background-color: #e2e8f0;
+  border: 1px solid #cbd5e1;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+#granularity-header .premium-toggle-btn {
+  color: #475569;
+  font-weight: 600;
+}
+
+#granularity-header .premium-toggle-btn:hover {
+  color: #1e293b;
+  background-color: rgba(255, 255, 255, 0.6);
 }
 
 .premium-toggle-btn.active-oportunidade {

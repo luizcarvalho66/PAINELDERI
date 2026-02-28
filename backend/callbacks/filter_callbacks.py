@@ -40,12 +40,9 @@ def register_filter_callbacks(app):
     # ==========================================================================
     @app.callback(
         [
-            Output("filter-tipo-todas", "color"),
-            Output("filter-tipo-todas", "outline"),
-            Output("filter-tipo-corretiva", "color"),
-            Output("filter-tipo-corretiva", "outline"),
-            Output("filter-tipo-preventiva", "color"),
-            Output("filter-tipo-preventiva", "outline"),
+            Output("filter-tipo-todas", "className"),
+            Output("filter-tipo-corretiva", "className"),
+            Output("filter-tipo-preventiva", "className"),
             Output("filter-tipo-store", "data"),
         ],
         [
@@ -63,28 +60,23 @@ def register_filter_callbacks(app):
         
         triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
         
-        # Estado padrão: todos outline secondary
-        todas = ("secondary", True)
-        corr = ("secondary", True)
-        prev = ("secondary", True)
+        # Estado padrão: todos inativos
+        todas_cls = "premium-toggle-btn"
+        corr_cls = "premium-toggle-btn"
+        prev_cls = "premium-toggle-btn"
         tipo_valor = "TODAS"
         
         if triggered_id == "filter-tipo-todas":
-            todas = ("danger", False)
+            todas_cls = "premium-toggle-btn active"
             tipo_valor = "TODAS"
         elif triggered_id == "filter-tipo-corretiva":
-            corr = ("danger", False)
+            corr_cls = "premium-toggle-btn active"
             tipo_valor = "CORRETIVA"
         elif triggered_id == "filter-tipo-preventiva":
-            prev = ("danger", False)
+            prev_cls = "premium-toggle-btn active"
             tipo_valor = "PREVENTIVA"
         
-        return (
-            todas[0], todas[1],
-            corr[0], corr[1],
-            prev[0], prev[1],
-            tipo_valor
-        )
+        return todas_cls, corr_cls, prev_cls, tipo_valor
     
     # ==========================================================================
     # CALLBACK: Limpar todos os filtros
@@ -178,56 +170,3 @@ def register_filter_callbacks(app):
             return tags, "active-filters-indicator has-filters"
         return [], "active-filters-indicator"
     
-    # ==========================================================================
-    # CALLBACK: Exportar dados filtrados
-    # ==========================================================================
-    @app.callback(
-        Output("download-filtered-data", "data"),
-        Input("btn-export-global", "n_clicks"),
-        State("global-filters-applied-store", "data"),
-        prevent_initial_call=True
-    )
-    def export_filtered_data(n_clicks, filters):
-        """Exporta dados filtrados para Excel."""
-        if not n_clicks:
-            raise PreventUpdate
-        
-        from database import get_connection
-        conn = get_connection()
-        if conn is None:
-            raise PreventUpdate
-        
-        try:
-            query = """
-            SELECT 
-                nome_cliente, numero_os, peca, tipo_mo, 
-                valor_aprovado, data_transacao, uf
-            FROM ri_corretiva_detalhamento
-            WHERE data_transacao IS NOT NULL
-            """
-            
-            # Aplicar filtros
-            if filters:
-                if filters.get("clientes"):
-                    clients = "', '".join(filters["clientes"])
-                    query += f" AND nome_cliente IN ('{clients}')"
-                    
-                if filters.get("periodos"):
-                    period_clauses = []
-                    for p in filters["periodos"]:
-                        year, month = p.split("-")
-                        period_clauses.append(f"(year(data_transacao) = {year} AND month(data_transacao) = {month})")
-                    if period_clauses:
-                        query += f" AND ({' OR '.join(period_clauses)})"
-            
-            query += " ORDER BY data_transacao DESC LIMIT 50000"
-            
-            df = conn.execute(query).fetchdf()
-            
-            if df.empty:
-                raise PreventUpdate
-            
-            return dcc.send_data_frame(df.to_excel, "ri_dados_filtrados.xlsx", index=False)
-        except Exception as e:
-            print(f"[EXPORT ERROR] {e}")
-            raise PreventUpdate

@@ -219,11 +219,11 @@ def render_farol_section() -> html.Div:
         # MODAL DE AJUDA - REDESIGN "MACOS STYLE" (HORIZONTAL)
         # =====================================================================
         dbc.Modal([
-            # HEADER TRANSPARENTE
+            # HEADER
             dbc.ModalHeader([
                 html.Div([
                     html.I(className="bi bi-stoplights-fill me-2", style={"color": "#E20613", "fontSize": "1.2rem"}),
-                    html.Span("Como o farol funciona?", style={
+                    html.Span("Como o Farol funciona?", style={
                         "fontFamily": "DIN, sans-serif",
                         "fontWeight": "700",
                         "fontSize": "1.1rem",
@@ -232,10 +232,10 @@ def render_farol_section() -> html.Div:
                 ], className="d-flex align-items-center")
             ], close_button=True, className="macos-modal-header"),
             
-            # BODY COM LAYOUT HORIZONTAL (GRID)
+            # BODY
             dbc.ModalBody([
                 dbc.Row([
-                    # COLUNA ESQUERDA: GLOSSÁRIO VISUAL
+                    # COLUNA ESQUERDA: CORES DO FAROL
                     dbc.Col([
                         html.Div("ENTENDA AS CORES", className="macos-section-title"),
                         
@@ -245,7 +245,7 @@ def render_farol_section() -> html.Div:
                                 html.I(className="bi bi-check-circle-fill", style={"color": "#10b981", "fontSize": "1.5rem"}),
                                 html.Div([
                                     html.Div("Performando Bem", style={"fontWeight": "700", "fontSize": "0.9rem", "color": "#10b981"}),
-                                    html.Div("> 80% de aprovação", style={"fontSize": "0.8rem", "color": "#64748b"})
+                                    html.Div("≥ 80% de aprovação", style={"fontSize": "0.8rem", "color": "#64748b"})
                                 ], className="ms-3")
                             ], className="d-flex align-items-center")
                         ], className="macos-card"),
@@ -267,41 +267,40 @@ def render_farol_section() -> html.Div:
                                 html.I(className="bi bi-x-circle-fill", style={"color": "#E20613", "fontSize": "1.5rem"}),
                                 html.Div([
                                     html.Div("Ação Prioritária", style={"fontWeight": "700", "fontSize": "0.9rem", "color": "#E20613"}),
-                                    html.Div("< 50% de aprovação ou queda crítica", style={"fontSize": "0.8rem", "color": "#64748b"})
+                                    html.Div("< 50% de aprovação ou queda ≥ 15%", style={"fontSize": "0.8rem", "color": "#64748b"})
                                 ], className="ms-3")
                             ], className="d-flex align-items-center")
                         ], className="macos-card"),
                         
+                        # Nota crítica
+                        html.Div([
+                            html.I(className="bi bi-exclamation-diamond-fill me-2", style={"color": "#E20613", "fontSize": "0.8rem"}),
+                            html.Span("Itens com < 10% de aprovação são sempre Vermelho.",
+                                     style={"fontSize": "0.75rem", "color": "#E20613", "fontWeight": "600"})
+                        ], className="d-flex align-items-center mt-2 p-2 rounded",
+                           style={"backgroundColor": "rgba(226, 6, 19, 0.05)"}),
+                        
                     ], width=12, lg=5, className="border-end pe-4"),
                     
-                    # COLUNA DIREITA: CONTEXTO E CRITÉRIOS
+                    # COLUNA DIREITA: O QUE ANALISAMOS + OPORTUNIDADES
                     dbc.Col([
-                        html.Div("CRITÉRIOS DE URGÊNCIA", className="macos-section-title"),
+                        html.Div("O QUE ANALISAMOS", className="macos-section-title"),
                         
-                        # Grid de ícones
+                        html.P("Cada linha é uma combinação Peça + Mão de Obra:",
+                               style={"fontSize": "0.85rem", "color": "#475569", "marginBottom": "12px"}),
+                        
                         html.Div([
-                            dbc.Row([
-                                dbc.Col(html.Div([
-                                    html.I(className="bi bi-cash-coin mb-2", style={"color": "#E20613", "fontSize": "1.4rem"}),
-                                    html.Div("Custo Médio", style={"fontSize": "0.8rem", "fontWeight": "600"})
-                                ], className="text-center p-2"), width=3),
-                                
-                                dbc.Col(html.Div([
-                                    html.I(className="bi bi-x-lg mb-2", style={"color": "#E20613", "fontSize": "1.4rem"}),
-                                    html.Div("Reprovação", style={"fontSize": "0.8rem", "fontWeight": "600"})
-                                ], className="text-center p-2"), width=3),
-                                
-                                dbc.Col(html.Div([
-                                    html.I(className="bi bi-boxes mb-2", style={"color": "#0ea5e9", "fontSize": "1.4rem"}),
-                                    html.Div("Volume OS", style={"fontSize": "0.8rem", "fontWeight": "600"})
-                                ], className="text-center p-2"), width=3),
-                                
-                                dbc.Col(html.Div([
-                                    html.I(className="bi bi-graph-down-arrow mb-2", style={"color": "#f59e0b", "fontSize": "1.4rem"}),
-                                    html.Div("Tendência", style={"fontSize": "0.8rem", "fontWeight": "600"})
-                                ], className="text-center p-2"), width=3),
-                            ], className="g-2 mb-3 bg-light rounded p-2"),
-                        ]),
+                            html.Div([html.Span("% Auto", className="fw-bold", style={"color": "#10b981", "fontSize": "0.82rem"}),
+                                      html.Span(" — Taxa de aprovação dos itens", className="text-muted", style={"fontSize": "0.8rem"})], className="mb-1"),
+                            html.Div([html.Span("% Humana", className="fw-bold", style={"color": "#64748b", "fontSize": "0.82rem"}),
+                                      html.Span(" — Itens reprovados, cancelados ou pendentes", className="text-muted", style={"fontSize": "0.8rem"})], className="mb-1"),
+                            html.Div([html.Span("P70", className="fw-bold", style={"color": "#E20613", "fontSize": "0.82rem"}),
+                                      html.Span(" — Percentil 70 dos valores aprovados", className="text-muted", style={"fontSize": "0.8rem"})], className="mb-1"),
+                            html.Div([html.Span("OS", className="fw-bold", style={"color": "#0ea5e9", "fontSize": "0.82rem"}),
+                                      html.Span(" — Quantidade de ordens de serviço distintas", className="text-muted", style={"fontSize": "0.8rem"})], className="mb-1"),
+                            html.Div([html.Span("Score", className="fw-bold", style={"color": "#1e293b", "fontSize": "0.82rem"}),
+                                      html.Span(" — Prioridade de ação (0-100)", className="text-muted", style={"fontSize": "0.8rem"})]),
+                        ], className="macos-card", style={"backgroundColor": "#f8fafc"}),
                         
                         html.Div("MODO OPORTUNIDADES", className="macos-section-title mt-4"),
                         
@@ -310,10 +309,18 @@ def render_farol_section() -> html.Div:
                                 html.I(className="bi bi-lightbulb-fill text-warning me-2"),
                                 html.Strong("Foco em Ganhos Rápidos", className="text-dark")
                             ], className="mb-2"),
-                            html.P(
-                                "Ao ativar o modo 'Oportunidades', filtramos apenas itens até R$ 1.500 (P70). Focar nestes itens gera impacto financeiro imediato com menor esforço de negociação.",
-                                style={"fontSize": "0.85rem", "color": "#64748b", "lineHeight": "1.5"}
-                            )
+                            html.P("Filtra a tabela com 3 critérios:", style={"fontSize": "0.83rem", "color": "#475569", "marginBottom": "8px"}),
+                            html.Div([
+                                html.Div([html.Span("❶ ", style={"color": "#E20613", "fontWeight": "700"}),
+                                          html.Span("MDO pré-definida", className="fw-semibold"),
+                                          html.Span(" — Alinhamento, Lavagem, Lubrificação, etc.", className="text-muted", style={"fontSize": "0.78rem"})], className="mb-1"),
+                                html.Div([html.Span("❷ ", style={"color": "#E20613", "fontWeight": "700"}),
+                                          html.Span("P70 ≤ R$ 1.500", className="fw-semibold"),
+                                          html.Span(" — Valor até R$ 1.500", className="text-muted", style={"fontSize": "0.78rem"})], className="mb-1"),
+                                html.Div([html.Span("❸ ", style={"color": "#E20613", "fontWeight": "700"}),
+                                          html.Span("OS ≤ 2 itens", className="fw-semibold"),
+                                          html.Span(" — Apenas OS simples", className="text-muted", style={"fontSize": "0.78rem"})]),
+                            ], style={"fontSize": "0.83rem"}),
                         ], className="macos-card", style={"backgroundColor": "#fffbeb", "border": "1px solid #fef3c7"})
                         
                     ], width=12, lg=7, className="ps-4"),
@@ -323,13 +330,13 @@ def render_farol_section() -> html.Div:
                 html.Hr(style={"margin": "24px 0", "borderColor": "#e2e8f0"}),
                 
                 html.Div([
-                    html.Div("REGRA DE NEGÓCIO DO SCORE", className="macos-section-title mb-3"),
+                    html.Div("SCORE DE PRIORIDADE", className="macos-section-title mb-3"),
                     
                     html.P([
                         "O ",
                         html.Strong("Score de Prioridade"),
-                        " (0-100) define a urgência de ação para cada item. ",
-                        "Quanto maior o score, mais prioritária é a ação."
+                        " (0-100) define a urgência de ação. ",
+                        "Calculado automaticamente com 4 fatores:"
                     ], style={"fontSize": "0.9rem", "color": "#475569", "marginBottom": "16px"}),
                     
                     # Fórmula Visual
@@ -360,7 +367,7 @@ def render_farol_section() -> html.Div:
                                     html.Span("40%", style={"fontSize": "1.5rem", "fontWeight": "700", "color": "#E20613"}),
                                     html.Div("Aprovação", style={"fontSize": "0.8rem", "fontWeight": "600", "color": "#64748b"})
                                 ], className="text-center"),
-                                html.Small("Menor aprovação = Maior score", style={"color": "#94a3b8", "fontSize": "0.7rem"})
+                                html.Small("Menor % = Maior score", style={"color": "#94a3b8", "fontSize": "0.7rem"})
                             ], className="text-center p-3 bg-light rounded")
                         ], width=6, md=3, className="mb-2"),
                         
@@ -370,7 +377,7 @@ def render_farol_section() -> html.Div:
                                     html.Span("30%", style={"fontSize": "1.5rem", "fontWeight": "700", "color": "#E20613"}),
                                     html.Div("P70 (Custo)", style={"fontSize": "0.8rem", "fontWeight": "600", "color": "#64748b"})
                                 ], className="text-center"),
-                                html.Small("Maior custo = Maior score", style={"color": "#94a3b8", "fontSize": "0.7rem"})
+                                html.Small("Teto R$ 2.000", style={"color": "#94a3b8", "fontSize": "0.7rem"})
                             ], className="text-center p-3 bg-light rounded")
                         ], width=6, md=3, className="mb-2"),
                         
@@ -380,7 +387,7 @@ def render_farol_section() -> html.Div:
                                     html.Span("20%", style={"fontSize": "1.5rem", "fontWeight": "700", "color": "#0ea5e9"}),
                                     html.Div("Volume OS", style={"fontSize": "0.8rem", "fontWeight": "600", "color": "#64748b"})
                                 ], className="text-center"),
-                                html.Small("Mais OSs = Maior score", style={"color": "#94a3b8", "fontSize": "0.7rem"})
+                                html.Small("Teto 500 OS", style={"color": "#94a3b8", "fontSize": "0.7rem"})
                             ], className="text-center p-3 bg-light rounded")
                         ], width=6, md=3, className="mb-2"),
                         
@@ -398,7 +405,7 @@ def render_farol_section() -> html.Div:
                     # Nota de ordenação
                     html.Div([
                         html.I(className="bi bi-sort-down me-2", style={"color": "#64748b"}),
-                        html.Span("A tabela é ordenada automaticamente por Score (maior primeiro), priorizando itens que requerem ação urgente.",
+                        html.Span("Tabela ordenada por Score (maior primeiro) — itens que requerem ação imediata ficam no topo.",
                                   style={"fontSize": "0.8rem", "color": "#64748b"})
                     ], className="mt-3 p-2 border-start border-3", style={"borderColor": "#E20613 !important"})
                     

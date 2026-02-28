@@ -1,4 +1,5 @@
-from dash import Input, Output, State, html, dcc, callback_context, no_update
+from dash import Input, Output, State, html, dcc, callback_context, no_update, MATCH, ALL
+import json
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 import pandas as pd
@@ -87,11 +88,43 @@ def _build_accordion_table(table_data):
                 html.Th("Itens", className="text-center", style={"width": "55px"}),
                 html.Th("Valor Total", className="text-end", style={"width": "110px"}),
                 html.Th("Data", style={"width": "85px"}),
+                html.Th("", style={"width": "75px"}),
             ], className="prev-detail-header"))
 
             detail_rows = []
             for d in detail_data:
                 qtd = d.get('qtd_itens', 1)
+                valor = d.get('valor_total_os', 0) or 0
+                valor_mo = d.get('valor_mo_os', 0) or 0
+                valor_peca = d.get('valor_peca_os', 0) or 0
+                tipo_mo = d.get('tipo_mo', '')
+                peca = d.get('descricao_peca', '') or ''
+                
+                os_num = str(d.get('numero_os', ''))
+
+                # Coluna de valor — destaque vermelho para valores altos
+                valor_style = {"fontSize": "0.78rem", "fontWeight": "600"}
+                if valor > 10000:
+                    valor_style["color"] = "#C10510"
+                else:
+                    valor_style["color"] = "#1E293B"
+
+                valor_cell = html.Td(
+                    _format_brl(valor),
+                    className="text-end",
+                    style=valor_style
+                )
+
+                # Botão de detalhes — TODAS as linhas
+                detail_btn = html.Td(
+                    html.Button(
+                        [html.I(className="bi bi-search me-1", style={"fontSize": "0.6rem"}), "Detalhes"],
+                        id={"type": "prev-val-info", "index": os_num},
+                        className="prev-detail-badge",
+                    ),
+                    className="text-center"
+                )
+                
                 detail_rows.append(html.Tr([
                     html.Td(d.get('codigo_cliente', ''), className="fw-semibold",
                             style={"fontFamily": "monospace", "fontSize": "0.78rem"}),
@@ -118,11 +151,10 @@ def _build_accordion_table(table_data):
                                   style={"fontSize": "0.72rem"}),
                         className="text-center"
                     ),
-                    html.Td(_format_brl(d.get('valor_total_os')),
-                            className="text-end fw-semibold",
-                            style={"color": "#C10510", "fontSize": "0.78rem"}),
+                    valor_cell,
                     html.Td(str(d.get('data_transacao', ''))[:10], 
                             style={"fontSize": "0.75rem", "color": "#64748b"}),
+                    detail_btn,
                 ], className="prev-detail-row"))
 
             body_content = html.Div(
@@ -159,9 +191,30 @@ def _build_accordion_table(table_data):
 
 def register_preventiva_callbacks(app):
     
+    # 0. Toggle Veículos / Equipamentos (visual + store) — Premium Toggle
+    @app.callback(
+        [
+            Output("prev-toggle-veiculos", "className"),
+            Output("prev-toggle-equipamentos", "className"),
+            Output("prev-tipo-ativo-store", "data"),
+        ],
+        [
+            Input("prev-toggle-veiculos", "n_clicks"),
+            Input("prev-toggle-equipamentos", "n_clicks"),
+        ],
+        prevent_initial_call=True
+    )
+    def toggle_tipo_ativo(n_veic, n_equip):
+        ctx = callback_context
+        if not ctx.triggered:
+            return no_update, no_update, no_update
+        triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+        if triggered_id == "prev-toggle-equipamentos":
+            return "premium-toggle-btn", "premium-toggle-btn active", "EQUIPAMENTOS"
+        # Default: veículos
+        return "premium-toggle-btn active", "premium-toggle-btn", "VEICULOS"
+    
     # 1. Main Update Callback (KPIs, Chart, Accordion Table)
-    # Escuta processing-complete-store para carga inicial E
-    # global-filters-applied-store para atualização via filtros
     @app.callback(
         [
             Output("prev-kpi-total", "children"),
@@ -173,17 +226,32 @@ def register_preventiva_callbacks(app):
         ],
         [
             Input("processing-complete-store", "data"),
-            Input("global-filters-applied-store", "data")
+            Input("global-filters-applied-store", "data"),
+            Input("prev-date-picker", "start_date"),
+            Input("prev-date-picker", "end_date"),
+            Input("prev-detail-date-range", "start_date"),
+            Input("prev-detail-date-range", "end_date"),
+            Input("prev-tipo-ativo-store", "data"),
         ],
         prevent_initial_call=True
     )
-    def update_preventiva_dashboard(is_processed, filters_state):
+    def update_preventiva_dashboard(is_processed, filters_state, date_start, date_end, detail_start, detail_end, tipo_ativo):
         if not is_processed:
             return (no_update,) * 6
         
         filters = filters_state if filters_state and filters_state.get("applied") else {}
         
-        stats = get_fugas_stats(filters)
+        # Datas do chart (prev-date-picker)
+        ds = str(date_start)[:10] if date_start else None
+        de = str(date_end)[:10] if date_end else None
+        
+        # Datas do detalhamento (prev-detail-date-range)
+        dds = str(detail_start)[:10] if detail_start else None
+        dde = str(detail_end)[:10] if detail_end else None
+        
+        tipo = tipo_ativo or "VEICULOS"
+        
+        stats = get_fugas_stats(filters, date_start=ds, date_end=de, tipo_ativo=tipo)
         
         if stats.get("error"):
             error_icon = html.I(className="bi bi-database-x", style={"color": "red"})
@@ -193,12 +261,12 @@ def register_preventiva_callbacks(app):
         fugas = stats.get("qtd_fugas", 0)
         pct = stats.get("pct_fuga", 0)
         
-        chart_data = get_fugas_chart_data(filters)
+        chart_data = get_fugas_chart_data(filters, date_start=ds, date_end=de, tipo_ativo=tipo)
         from frontend.components.chart_fugas_preventiva import create_fugas_evolution_chart
         fig = create_fugas_evolution_chart(chart_data)
 
-        # Buscar dados agrupados COM detalhes embutidos
-        table_data = get_fugas_grouped_with_detail(filters, limit=50)
+        # Buscar dados agrupados COM detalhes — usando datas do detail picker
+        table_data = get_fugas_grouped_with_detail(filters, limit=50, date_start=dds, date_end=dde, tipo_ativo=tipo)
         
         # Gerar tabela accordion HTML
         accordion = _build_accordion_table(table_data)
@@ -215,11 +283,22 @@ def register_preventiva_callbacks(app):
     # 2. Ranking Update Callback (Tab Switch)
     @app.callback(
         Output("prev-ranking-content", "children"),
-        [Input("prev-tabs-ranking", "active_tab")],
-        [State("global-filters-applied-store", "data")]
+        [
+            Input("prev-tabs-ranking", "active_tab"),
+            Input("global-filters-applied-store", "data"),
+            Input("processing-complete-store", "data"),
+            Input("prev-detail-date-range", "start_date"),
+            Input("prev-detail-date-range", "end_date"),
+            Input("prev-tipo-ativo-store", "data"),
+        ],
+        prevent_initial_call=True
     )
-    def update_preventiva_ranking(active_tab, filters_state):
+    def update_preventiva_ranking(active_tab, filters_state, is_processed, detail_start, detail_end, tipo_ativo):
         filters = filters_state if filters_state and filters_state.get("applied") else {}
+        
+        # Datas do detail picker
+        dds = str(detail_start)[:10] if detail_start else None
+        dde = str(detail_end)[:10] if detail_end else None
         
         entity_map = {
             "tab-estab": "estabelecimento",
@@ -227,7 +306,8 @@ def register_preventiva_callbacks(app):
             "tab-alcada": "alcada"
         }
         entity = entity_map.get(active_tab, "estabelecimento")
-        ranking_data = get_top_offenders(filters, entity=entity, limit=5)
+        tipo = tipo_ativo or "VEICULOS"
+        ranking_data = get_top_offenders(filters, entity=entity, limit=5, date_start=dds, date_end=dde, tipo_ativo=tipo)
         
         if not ranking_data:
             return html.Div("Sem dados para exibir.", className="text-muted p-3")
@@ -257,58 +337,17 @@ def register_preventiva_callbacks(app):
             
         return dbc.Table(header + [html.Tbody(rows)], hover=True, borderless=True, className="mb-0")
 
-    # 3. Export CSV Callback
-    @app.callback(
-        Output("download-preventiva-csv", "data"),
-        Input("btn-export-preventiva", "n_clicks"),
-        State("global-filters-applied-store", "data"),
-        prevent_initial_call=True
-    )
-    def export_preventiva_csv(n_clicks, filters_state):
-        if not n_clicks:
-            return None
-            
-        filters = filters_state if filters_state and filters_state.get("applied") else {}
-        data = get_fugas_data(filters, limit=50000)
-        
-        if not data:
-            return None
-            
-        df = pd.DataFrame(data)
-        
-        rename_map = {
-            "nome_ec": "Nome do EC",
-            "codigo_ec": "Código EC",
-            "cidade": "Cidade",
-            "uf": "UF",
-            "numero_os": "Número OS",
-            "cliente": "Cliente",
-            "codigo_cliente": "Código do Cliente",
-            "nome_aprovador": "Nome Aprovador",
-            "tipo_mo": "Tipo MO",
-            "valor_aprovado": "Valor Aprovado",
-            "data_transacao": "Data Transação"
-        }
-        df = df.rename(columns=rename_map)
-        
-        cols_order = [
-            "Data Transação", "Número OS", "Código EC", "Nome do EC", 
-            "Cidade", "UF", "Código do Cliente", "Cliente", 
-            "Tipo MO", "Valor Aprovado", "Nome Aprovador"
-        ]
-        final_cols = [c for c in cols_order if c in df.columns]
-        
-        return dcc.send_data_frame(df[final_cols].to_csv, "fugas_preventiva_export.csv", index=False)
+
 
     # 4. Help Modal Toggle Callback (General)
     @app.callback(
         Output("prev-help-modal", "is_open"),
-        [Input("btn-help-prev-chart", "n_clicks"), Input("btn-help-prev-kpi", "n_clicks")],
+        [Input("btn-help-prev-chart", "n_clicks"), Input("btn-help-prev-kpi", "n_clicks"), Input("btn-help-prev-table", "n_clicks")],
         [State("prev-help-modal", "is_open")],
         prevent_initial_call=True
     )
-    def toggle_preventiva_help_modal(n1, n2, is_open):
-        if n1 or n2:
+    def toggle_preventiva_help_modal(n1, n2, n3, is_open):
+        if n1 or n2 or n3:
             return not is_open
         return is_open
 
@@ -323,3 +362,295 @@ def register_preventiva_callbacks(app):
         if n:
             return not is_open
         return is_open
+
+    # 6. Modal de Breakdown de Valor — Versão com Itens Individuais
+    @app.callback(
+        [Output("prev-valor-modal", "is_open"),
+         Output("prev-valor-modal-body", "children")],
+        Input({"type": "prev-val-info", "index": ALL}, "n_clicks"),
+        prevent_initial_call=True
+    )
+    def open_valor_detail_modal(all_clicks):
+        ctx = callback_context
+        if not ctx.triggered or not any(all_clicks):
+            return False, no_update
+        
+        try:
+            triggered = ctx.triggered[0]
+            btn_id = json.loads(triggered["prop_id"].rsplit(".", 1)[0])
+            os_num = btn_id["index"]
+        except:
+            return False, no_update
+
+        # Buscar TODOS os itens individuais da OS
+        try:
+            from backend.repositories.repo_base import get_connection
+            conn = get_connection()
+            
+            # Query agregada (resumo)
+            row = conn.execute(f"""
+                SELECT 
+                    numero_os, MAX(nome_cliente) as cliente,
+                    MAX(nome_estabelecimento) as ec,
+                    MAX(familia_veiculo) as familia,
+                    MAX(modelo_veiculo) as modelo,
+                    MAX(placa) as placa,
+                    SUM(COALESCE(valor_total, 0)) as valor,
+                    SUM(COALESCE(valor_mo, 0)) as valor_mo,
+                    SUM(COALESCE(valor_peca, 0)) as valor_peca,
+                    COUNT(*) as qtd_itens
+                FROM ri_corretiva_detalhamento
+                WHERE numero_os = '{os_num}'
+                GROUP BY numero_os
+            """).fetchone()
+            if not row:
+                return False, no_update
+            
+            # Query de itens individuais (o detalhe real)
+            items_df = conn.execute(f"""
+                SELECT 
+                    descricao_peca,
+                    tipo_mo,
+                    COALESCE(valor_total, 0) as valor_total,
+                    COALESCE(valor_mo, 0) as valor_mo,
+                    COALESCE(valor_peca, 0) as valor_peca,
+                    COALESCE(complemento_peca, '') as complemento
+                FROM ri_corretiva_detalhamento
+                WHERE numero_os = '{os_num}'
+                ORDER BY COALESCE(valor_total, 0) DESC
+            """).fetchdf()
+            
+            valor = float(row[6] or 0)
+            valor_mo = float(row[7] or 0)
+            valor_peca = float(row[8] or 0)
+            
+            if valor_peca == 0 and valor > valor_mo:
+                valor_peca = round(valor - valor_mo, 2)
+            
+            cliente = row[1] or ''
+            ec = row[2] or ''
+            familia = row[3] or 'N/A'
+            modelo = row[4] or 'N/A'
+            placa = row[5] or 'N/A'
+            qtd_itens = row[9] or 1
+        except Exception as e:
+            print(f"Erro ao buscar dados OS {os_num}: {e}")
+            return False, no_update
+        
+        pct_mo = round(valor_mo / valor * 100) if valor > 0 else 0
+        pct_peca = 100 - pct_mo
+        bar_mo_color = "#E20613" if pct_mo >= 80 else "#F59E0B"
+        bar_peca_color = "#3B82F6"
+        
+        # ═══════════════════════════════════════════════
+        # PAINEL ESQUERDO: Resumo + Composição + Flags
+        # ═══════════════════════════════════════════════
+        
+        # Header: OS + cliente + veículo
+        header_info = html.Div([
+            html.Div([
+                html.Span(f"OS {os_num}", style={
+                    "fontFamily": "monospace", "fontWeight": "700",
+                    "backgroundColor": "#F1F5F9", "padding": "4px 10px",
+                    "borderRadius": "6px", "fontSize": "0.85rem"
+                }),
+                html.Span(f" — {cliente}", style={"color": "#64748B", "fontSize": "0.85rem", "marginLeft": "8px"}),
+            ], className="mb-1"),
+            html.Div([
+                html.I(className="bi bi-shop me-1", style={"color": "#94A3B8", "fontSize": "0.75rem"}),
+                html.Span(ec, style={"fontSize": "0.78rem", "color": "#64748B"}),
+            ], className="mb-1"),
+            html.Div([
+                html.I(className="bi bi-truck me-1", style={"color": "#94A3B8", "fontSize": "0.75rem"}),
+                html.Span(f"{familia} • {modelo}", style={"fontSize": "0.78rem", "color": "#64748B"}),
+                html.Span(f" • Placa: {placa}", style={"fontSize": "0.72rem", "color": "#94A3B8", "marginLeft": "6px"}) if placa != 'N/A' else None,
+            ]),
+        ], className="mb-3 pb-2", style={"borderBottom": "1px solid #F1F5F9"})
+        
+        # Valor total
+        valor_display = html.Div([
+            html.Div("VALOR TOTAL DA OS", style={"fontSize": "0.68rem", "color": "#94A3B8", "textTransform": "uppercase", "letterSpacing": "0.05em", "fontWeight": "600"}),
+            html.Div(_format_brl(valor), style={"fontSize": "1.5rem", "fontWeight": "800", "color": "#1E293B", "lineHeight": "1.2"}),
+            html.Div(f"{qtd_itens} {'item' if qtd_itens == 1 else 'itens'}", style={"fontSize": "0.78rem", "color": "#64748B"}),
+        ], className="mb-3")
+        
+        # Barra de composição
+        composition_bar = html.Div([
+            html.Div(style={
+                "width": f"{max(pct_mo, 2)}%", "height": "8px",
+                "backgroundColor": bar_mo_color, 
+                "borderRadius": "4px 0 0 4px" if pct_peca > 0 else "4px",
+            }),
+            html.Div(style={
+                "width": f"{max(pct_peca, 0)}%", "height": "8px",
+                "backgroundColor": bar_peca_color, 
+                "borderRadius": "0 4px 4px 0" if pct_mo > 0 else "4px",
+            }) if pct_peca > 0 else None,
+        ], className="d-flex", style={"borderRadius": "4px", "overflow": "hidden", "backgroundColor": "#F1F5F9"})
+        
+        composition_legend = html.Div([
+            html.Div([
+                html.Span(style={"width": "10px", "height": "10px", "borderRadius": "2px",
+                                 "backgroundColor": bar_mo_color, "display": "inline-block", "marginRight": "6px"}),
+                html.Span(f"Mão de Obra: {_format_brl(valor_mo)} ({pct_mo}%)", style={"fontSize": "0.8rem", "color": "#334155"}),
+            ], className="d-flex align-items-center"),
+            html.Div([
+                html.Span(style={"width": "10px", "height": "10px", "borderRadius": "2px",
+                                 "backgroundColor": bar_peca_color, "display": "inline-block", "marginRight": "6px"}),
+                html.Span(f"Peças: {_format_brl(valor_peca)} ({pct_peca}%)", style={"fontSize": "0.8rem", "color": "#334155"}),
+            ], className="d-flex align-items-center mt-1"),
+        ], className="mt-2 mb-3")
+        
+        # Flags de anomalia
+        flags = []
+        if valor > 30000:
+            flags.append(html.Div([
+                html.I(className="bi bi-exclamation-triangle-fill me-2", style={"color": "#F59E0B"}),
+                html.Span("Valor acima de R$ 30 mil", style={"fontSize": "0.78rem"}),
+            ], className="d-flex align-items-center",
+               style={"backgroundColor": "#FFFBEB", "padding": "6px 10px", "borderRadius": "6px", "border": "1px solid #FDE68A"}))
+        
+        if pct_mo >= 95 and valor > 15000:
+            flags.append(html.Div([
+                html.I(className="bi bi-info-circle-fill me-2", style={"color": "#3B82F6"}),
+                html.Span("100% MO, sem peças — possível serviço integrado", style={"fontSize": "0.78rem"}),
+            ], className="d-flex align-items-center mt-2",
+               style={"backgroundColor": "#EFF6FF", "padding": "6px 10px", "borderRadius": "6px", "border": "1px solid #BFDBFE"}))
+        
+        if valor_peca == 0 and valor_mo > 0 and abs(valor - valor_mo) < 1:
+            flags.append(html.Div([
+                html.I(className="bi bi-wrench-adjustable me-2", style={"color": "#8B5CF6"}),
+                html.Span("EC lançou tudo como MO — peças não separadas", style={"fontSize": "0.78rem"}),
+            ], className="d-flex align-items-center mt-2",
+               style={"backgroundColor": "#F5F3FF", "padding": "6px 10px", "borderRadius": "6px", "border": "1px solid #DDD6FE"}))
+        
+        if familia in ('Equipamento', 'Implemento', 'Maquina', 'Empilhadeira', 'Equipamentos Pesados', 'Maquinas'):
+            flags.append(html.Div([
+                html.I(className="bi bi-gear-wide-connected me-2", style={"color": "#F97316"}),
+                html.Span(f"Ativo classificado como {familia} (não veículo)", style={"fontSize": "0.78rem"}),
+            ], className="d-flex align-items-center mt-2",
+               style={"backgroundColor": "#FFF7ED", "padding": "6px 10px", "borderRadius": "6px", "border": "1px solid #FDBA74"}))
+
+        left_panel = html.Div([
+            header_info,
+            valor_display,
+            composition_bar,
+            composition_legend,
+            *flags,
+        ], style={"flex": "0 0 340px", "paddingRight": "20px", "borderRight": "1px solid #F1F5F9"})
+        
+        # ═══════════════════════════════════════════════
+        # PAINEL DIREITO: Tabela de Itens Individuais
+        # ═══════════════════════════════════════════════
+        
+        if not items_df.empty:
+            items_header = html.Thead(html.Tr([
+                html.Th("#", style={"width": "30px"}),
+                html.Th("Peça / Serviço"),
+                html.Th("Tipo", style={"width": "100px"}),
+                html.Th("Valor Total", className="text-end", style={"width": "110px"}),
+                html.Th("MO", className="text-end", style={"width": "95px"}),
+                html.Th("Peça", className="text-end", style={"width": "95px"}),
+                html.Th("Class.", className="text-center", style={"width": "60px"}),
+            ], style={"fontSize": "0.72rem", "color": "#94A3B8", "textTransform": "uppercase", "letterSpacing": "0.03em"}))
+            
+            items_rows = []
+            for idx, item in items_df.iterrows():
+                v_total = float(item['valor_total'] or 0)
+                v_mo = float(item['valor_mo'] or 0)
+                v_peca = float(item['valor_peca'] or 0)
+                desc = str(item['descricao_peca'] or 'N/A')
+                tipo = str(item['tipo_mo'] or '')
+                
+                # Classificação visual: se MO > 0 e Peça = 0, badge vermelho "MO"
+                # Se Peça > 0 e MO = 0, badge azul "Peça"
+                # Se ambos > 0, badge roxo "Misto"
+                # Se ambos = 0, badge cinza "?"
+                if v_mo > 0 and v_peca == 0:
+                    class_badge = html.Span("MO", className="badge", style={
+                        "backgroundColor": "rgba(226,6,19,0.1)", "color": "#C10510",
+                        "fontSize": "0.68rem", "fontWeight": "600"})
+                elif v_peca > 0 and v_mo == 0:
+                    class_badge = html.Span("Peça", className="badge", style={
+                        "backgroundColor": "rgba(59,130,246,0.1)", "color": "#2563EB",
+                        "fontSize": "0.68rem", "fontWeight": "600"})
+                elif v_mo > 0 and v_peca > 0:
+                    class_badge = html.Span("Misto", className="badge", style={
+                        "backgroundColor": "rgba(139,92,246,0.1)", "color": "#7C3AED",
+                        "fontSize": "0.68rem", "fontWeight": "600"})
+                else:
+                    class_badge = html.Span("—", className="badge", style={
+                        "backgroundColor": "rgba(148,163,184,0.1)", "color": "#94A3B8",
+                        "fontSize": "0.68rem"})
+                
+                items_rows.append(html.Tr([
+                    html.Td(str(idx + 1), style={"fontSize": "0.72rem", "color": "#94A3B8"}),
+                    html.Td(
+                        html.Div([
+                            html.Div(desc, style={"fontWeight": "500", "fontSize": "0.8rem", "color": "#1E293B"}),
+                        ]),
+                    ),
+                    html.Td(tipo, style={"fontSize": "0.75rem", "color": "#64748B"}),
+                    html.Td(_format_brl(v_total), className="text-end fw-semibold", style={"fontSize": "0.8rem", "color": "#1E293B"}),
+                    html.Td(
+                        _format_brl(v_mo) if v_mo > 0 else "—",
+                        className="text-end", style={"fontSize": "0.78rem", "color": bar_mo_color if v_mo > 0 else "#CBD5E1"}
+                    ),
+                    html.Td(
+                        _format_brl(v_peca) if v_peca > 0 else "—",
+                        className="text-end", style={"fontSize": "0.78rem", "color": "#2563EB" if v_peca > 0 else "#CBD5E1"}
+                    ),
+                    html.Td(class_badge, className="text-center"),
+                ], style={"borderBottom": "1px solid #F8FAFC"}))
+            
+            items_table = html.Div(
+                dbc.Table(
+                    [items_header, html.Tbody(items_rows)],
+                    hover=True, bordered=False, size="sm", className="mb-0"
+                ),
+                style={"maxHeight": "400px", "overflowY": "auto"}
+            )
+            
+            # Legenda didática
+            legend = html.Div([
+                html.Div("Como ler esta tabela:", style={
+                    "fontSize": "0.7rem", "fontWeight": "700", "color": "#94A3B8",
+                    "textTransform": "uppercase", "letterSpacing": "0.04em", "marginBottom": "4px"
+                }),
+                html.Div([
+                    html.Span("MO", className="badge me-1", style={
+                        "backgroundColor": "rgba(226,6,19,0.1)", "color": "#C10510", "fontSize": "0.65rem"}),
+                    html.Span("= Valor lançado como Mão de Obra", style={"fontSize": "0.72rem", "color": "#64748B"}),
+                ], className="d-flex align-items-center"),
+                html.Div([
+                    html.Span("Peça", className="badge me-1", style={
+                        "backgroundColor": "rgba(59,130,246,0.1)", "color": "#2563EB", "fontSize": "0.65rem"}),
+                    html.Span("= Valor de peça/componente", style={"fontSize": "0.72rem", "color": "#64748B"}),
+                ], className="d-flex align-items-center mt-1"),
+                html.Div([
+                    html.Span("Misto", className="badge me-1", style={
+                        "backgroundColor": "rgba(139,92,246,0.1)", "color": "#7C3AED", "fontSize": "0.65rem"}),
+                    html.Span("= Item com MO + Peça separados", style={"fontSize": "0.72rem", "color": "#64748B"}),
+                ], className="d-flex align-items-center mt-1"),
+            ], className="mt-3 pt-2", style={"borderTop": "1px solid #F1F5F9"})
+        else:
+            items_table = html.Div("Sem itens detalhados.", className="text-muted text-center py-5")
+            legend = html.Div()
+        
+        right_panel = html.Div([
+            html.Div([
+                html.I(className="bi bi-list-ul me-2", style={"color": "#94A3B8"}),
+                html.Span("Itens da Ordem de Serviço", style={
+                    "fontSize": "0.82rem", "fontWeight": "700", "color": "#1E293B"
+                }),
+                html.Span(f"  ({qtd_itens})", style={"fontSize": "0.78rem", "color": "#94A3B8", "marginLeft": "4px"}),
+            ], className="mb-2"),
+            items_table,
+            legend,
+        ], style={"flex": "1", "paddingLeft": "20px", "minWidth": "0"})
+        
+        # Layout horizontal: resumo à esquerda, itens à direita
+        body = html.Div([left_panel, right_panel], 
+                        className="d-flex", style={"gap": "0"})
+        
+        return True, body

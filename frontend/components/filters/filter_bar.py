@@ -18,7 +18,9 @@ def render_filter_bar():
         html.Div([
             # Título da barra
             html.Div([
-                html.I(className="bi bi-sliders me-2"),
+                html.Span([
+                    html.I(className="bi bi-sliders2")
+                ], className="filter-bar-icon"),
                 html.Span("Filtros", className="filter-bar-title")
             ], className="filter-bar-label"),
             
@@ -26,7 +28,10 @@ def render_filter_bar():
             html.Div([
                 # 1. Período (Mês)
                 html.Div([
-                    html.Label("Período", className="filter-inline-label"),
+                    html.Label([
+                        html.I(className="bi bi-calendar-event me-1 text-muted"),
+                        "Período"
+                    ], className="filter-inline-label"),
                     dcc.Dropdown(
                         id="global-filter-periodo",
                         placeholder="Todos os meses",
@@ -37,7 +42,10 @@ def render_filter_bar():
                 
                 # 2. Cliente
                 html.Div([
-                    html.Label("Cliente", className="filter-inline-label"),
+                    html.Label([
+                        html.I(className="bi bi-building me-1 text-muted"),
+                        "Cliente"
+                    ], className="filter-inline-label"),
                     dcc.Dropdown(
                         id="global-filter-cliente",
                         placeholder="Todos",
@@ -47,14 +55,40 @@ def render_filter_bar():
                     )
                 ], className="filter-inline-group"),
                 
-                # 3. Tipo de Manutenção (Toggle visual)
+                # 3. Tipo de Manutenção (Toggle Premium)
                 html.Div([
-                    html.Label("Tipo", className="filter-inline-label"),
-                    dbc.ButtonGroup([
-                        dbc.Button("Todas", id="filter-tipo-todas", color="danger", outline=False, size="sm", className="active"),
-                        dbc.Button("Corretiva", id="filter-tipo-corretiva", color="secondary", outline=True, size="sm"),
-                        dbc.Button("Preventiva", id="filter-tipo-preventiva", color="secondary", outline=True, size="sm"),
-                    ], className="filter-toggle-group")
+                    html.Label([
+                        html.I(className="bi bi-tools me-1 text-muted"),
+                        "Tipo de OS"
+                    ], className="filter-inline-label mx-1"),
+                    html.Div([
+                        html.Div([
+                            html.I(className="bi bi-layers"),
+                            html.Span("Todas")
+                        ], 
+                        id="filter-tipo-todas",
+                        className="premium-toggle-btn active",
+                        n_clicks=0
+                        ),
+                        
+                        html.Div([
+                            html.I(className="bi bi-wrench-adjustable"),
+                            html.Span("Corretiva")
+                        ], 
+                        id="filter-tipo-corretiva",
+                        className="premium-toggle-btn",
+                        n_clicks=0
+                        ),
+                        
+                        html.Div([
+                            html.I(className="bi bi-shield-check"),
+                            html.Span("Preventiva")
+                        ], 
+                        id="filter-tipo-preventiva",
+                        className="premium-toggle-btn",
+                        n_clicks=0
+                        ),
+                    ], className="premium-toggle-container")
                 ], className="filter-inline-group filter-inline-group--toggle"),
                 
             ], className="filter-bar-fields"),
@@ -64,16 +98,12 @@ def render_filter_bar():
                 dbc.Button([
                     html.I(className="bi bi-check2-circle me-2"),
                     "Aplicar Filtros"
-                ], id="btn-apply-global-filters", color="danger", className="rounded-pill px-4 fw-bold shadow-sm me-2"),
+                ], id="btn-apply-global-filters", className="btn-filter-apply me-2"),
                 
                 dbc.Button([
                     html.I(className="bi bi-eraser-fill")
-                ], id="btn-clear-global-filters", color="light", outline=False, className="rounded-circle shadow-sm me-2 text-muted", style={"width": "38px", "height": "38px", "padding": "0"}),
+                ], id="btn-clear-global-filters", title="Limpar Filtros", className="btn-filter-clear me-2"),
                 
-                dbc.Button([
-                    html.I(className="bi bi-file-earmark-excel-fill me-2"),
-                    "Exportar"
-                ], id="btn-export-global", color="success", outline=True, className="rounded-pill px-3 shadow-none border-0"),
             ], className="filter-bar-actions"),
             
         ], className="filter-bar-inner"),
@@ -84,7 +114,5 @@ def render_filter_bar():
         # Store para tipo de manutenção selecionado
         dcc.Store(id="filter-tipo-store", data="TODAS"),
         
-        # Download component
-        dcc.Download(id="download-filtered-data"),
         
     ], className="filter-bar", id="global-filter-bar")

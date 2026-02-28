@@ -50,13 +50,74 @@ def render_farol_table_container() -> html.Div:
                         ),
                     ], className="premium-toggle-container"),
                     
+                    # Botão info (?) com Popover explicativo
+                    html.Div([
+                        dbc.Button(
+                            html.I(className="bi bi-info-circle", style={"fontSize": "0.85rem"}),
+                            id="btn-info-oportunidades",
+                            color="link",
+                            className="p-0 ms-2",
+                            style={"color": "#94A3B8", "textDecoration": "none", "lineHeight": "1"}
+                        ),
+                        dbc.Popover([
+                            dbc.PopoverHeader([
+                                html.I(className="bi bi-lightbulb-fill text-warning me-2"),
+                                "Lógica de Oportunidades"
+                            ]),
+                            dbc.PopoverBody([
+                                html.P("O modo Oportunidades filtra itens que atendem a DOIS critérios:", 
+                                       className="small mb-2 fw-semibold"),
+                                
+                                # Critério 1
+                                html.Div([
+                                    html.Span("1", className="badge bg-danger me-2", 
+                                             style={"width": "20px", "height": "20px", "borderRadius": "50%", "fontSize": "0.7rem", "lineHeight": "20px", "padding": "0"}),
+                                    html.Span("MDO de aprovação automática", className="small fw-semibold")
+                                ], className="d-flex align-items-center mb-1"),
+                                html.Div([
+                                    html.Span("Alinhamento, Balanceamento, Lavagem, Lubrificação, Polir, Rodízio Pneus, Honorário, Camber",
+                                             className="small text-muted", style={"fontSize": "0.72rem", "lineHeight": "1.3"})
+                                ], className="ms-4 mb-2"),
+                                
+                                # Critério 2
+                                html.Div([
+                                    html.Span("2", className="badge bg-danger me-2",
+                                             style={"width": "20px", "height": "20px", "borderRadius": "50%", "fontSize": "0.7rem", "lineHeight": "20px", "padding": "0"}),
+                                    html.Span("Valor P70 ≤ R$ 1.500", className="small fw-semibold")
+                                ], className="d-flex align-items-center mb-1"),
+                                html.Div([
+                                    html.Span("Percentil 70 dos valores aprovados não ultrapassa R$ 1.500",
+                                             className="small text-muted", style={"fontSize": "0.72rem"})
+                                ], className="ms-4 mb-2"),
+                                
+                                # Critério 3
+                                html.Div([
+                                    html.Span("3", className="badge bg-danger me-2",
+                                             style={"width": "20px", "height": "20px", "borderRadius": "50%", "fontSize": "0.7rem", "lineHeight": "20px", "padding": "0"}),
+                                    html.Span("OS com até 2 itens", className="small fw-semibold")
+                                ], className="d-flex align-items-center mb-1"),
+                                html.Div([
+                                    html.Span("Apenas ordens de serviço simples (≤ 2 itens) são consideradas",
+                                             className="small text-muted", style={"fontSize": "0.72rem"})
+                                ], className="ms-4 mb-2"),
+                                
+                                html.Hr(className="my-2"),
+                                html.Div([
+                                    html.I(className="bi bi-bullseye me-1", style={"color": "#E20613", "fontSize": "0.75rem"}),
+                                    html.Span("Objetivo: serviços padronizáveis onde a TGM pode negociar preços melhores.",
+                                             className="small text-muted fst-italic", style={"fontSize": "0.72rem"})
+                                ], className="d-flex align-items-start")
+                            ])
+                        ], target="btn-info-oportunidades", trigger="click", placement="bottom"),
+                    ]),
+                    
                     # Tooltips
                     dbc.Tooltip("Todas as combinações Peça + MO", target="toggle-view-geral", placement="top"),
-                    dbc.Tooltip("Ordens com valor até R$ 1.500 (P70)", target="toggle-view-oportunidades", placement="top"),
+                    dbc.Tooltip("MDO pré-definida + P70 ≤ R$ 1.500 + OS ≤ 2 itens", target="toggle-view-oportunidades", placement="top"),
                     
                     # Store para guardar estado do toggle
                     dcc.Store(id="farol-view-mode-store", data="geral"),
-                ], className="d-flex justify-content-center w-100"),
+                ], className="d-flex justify-content-center align-items-center w-100"),
             ], width=4, className="d-flex justify-content-center align-items-center"),
             
             # Coluna 3: Ações e Info (Alinhado à direita)
@@ -212,8 +273,12 @@ def render_farol_table_content(dados):
         elif cor == "amarelo":
             icon = html.I(className="bi bi-exclamation-triangle-fill text-warning", style={"fontSize": "1.1rem"})
             row_border_color = "3px solid #f59e0b"
+        elif cor == "vermelho":
             icon = html.I(className="bi bi-x-circle-fill text-danger", style={"fontSize": "1.1rem"})
-            row_border_color = "3px solid #E20613" # Edenred Red
+            row_border_color = "3px solid #E20613"  # Edenred Red
+        else:
+            icon = html.I(className="bi bi-dash-circle text-muted", style={"fontSize": "1.1rem"})
+            row_border_color = "3px solid #94a3b8"
             
         # Parse Key for Display (Handle "Key | Client")
         raw_key = item.get("chave", "")

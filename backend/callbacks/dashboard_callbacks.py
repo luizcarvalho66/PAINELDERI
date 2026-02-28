@@ -27,7 +27,8 @@ def register_dashboard_callbacks(app):
     @app.callback(
         [Output("onboarding-container", "children"),
          Output("dashboard-charts-container", "style"),
-         Output("filter-bar-container", "style")],
+         Output("filter-bar-container", "style"),
+         Output("granularity-header", "style")],
         Input("processing-complete-store", "data"),
         prevent_initial_call=True
     )
@@ -36,6 +37,7 @@ def register_dashboard_callbacks(app):
             # Show onboarding, hide charts and filters
             charts_style = {"display": "none"}
             filters_style = {"display": "none"}
+            granularity_style = {"display": "none"}
             onboarding_content = html.Div([
                 # Empty State — Onboarding com botão de Sync
                 html.Div([
@@ -80,10 +82,10 @@ def register_dashboard_callbacks(app):
                 ], className="empty-state-container text-center",
                    style={"padding": "80px 20px"})
             ], className="p-4")
-            return onboarding_content, charts_style, filters_style
+            return onboarding_content, charts_style, filters_style, granularity_style
         else:
             # Show charts and filters, hide onboarding
-            return None, {"display": "block"}, {"display": "block"}
+            return None, {"display": "block"}, {"display": "block"}, {"display": "block"}
 
     @app.callback(
         Output("dashboard-charts-container", "children"),
@@ -281,78 +283,16 @@ def register_dashboard_callbacks(app):
 
             # 2. MAIN CONTENT AREA (Stacked Charts)
             html.Div([
-                # Row 1: Main Overview Chart (Full Width)
+                # Row 1: Main Overview Chart (Full Width) - Container agora é o Card criado em dashboard.py
                 dbc.Row([
                     dbc.Col([
-                        html.Div([
-                            html.H3("Visão Geral", className="mb-0", style={**section_title_style, "marginBottom": "0px"}),
-                            # Toggle de Granularidade (Estilo Modern Toggle/Pill)
-                            html.Div([
-                                dbc.Button(
-                                    "Mensal", id="btn-gran-mensal",
-                                    size="sm",
-                                    className="px-4 py-1",
-                                    style={
-                                        "backgroundColor": "#FFFFFF" if granularidade == 'mensal' else "transparent",
-                                        "color": "#E20613" if granularidade == 'mensal' else "#64748b",
-                                        "fontWeight": "600" if granularidade == 'mensal' else "500",
-                                        "border": "none",
-                                        "borderRadius": "50rem",
-                                        "boxShadow": "0 2px 8px rgba(0,0,0,0.05)" if granularidade == 'mensal' else "none",
-                                        "transition": "all 0.3s ease-in-out",
-                                        "fontSize": "0.85rem",
-                                    },
-                                    n_clicks=0
-                                ),
-                                dbc.Button(
-                                    "Quinzenal", id="btn-gran-quinzenal",
-                                    size="sm",
-                                    className="px-4 py-1 mx-1",
-                                    style={
-                                        "backgroundColor": "#FFFFFF" if granularidade == 'quinzenal' else "transparent",
-                                        "color": "#E20613" if granularidade == 'quinzenal' else "#64748b",
-                                        "fontWeight": "600" if granularidade == 'quinzenal' else "500",
-                                        "border": "none",
-                                        "borderRadius": "50rem",
-                                        "boxShadow": "0 2px 8px rgba(0,0,0,0.05)" if granularidade == 'quinzenal' else "none",
-                                        "transition": "all 0.3s ease-in-out",
-                                        "fontSize": "0.85rem",
-                                    },
-                                    n_clicks=0
-                                ),
-                                dbc.Button(
-                                    "Semanal", id="btn-gran-semanal",
-                                    size="sm",
-                                    className="px-4 py-1",
-                                    style={
-                                        "backgroundColor": "#FFFFFF" if granularidade == 'semanal' else "transparent",
-                                        "color": "#E20613" if granularidade == 'semanal' else "#64748b",
-                                        "fontWeight": "600" if granularidade == 'semanal' else "500",
-                                        "border": "none",
-                                        "borderRadius": "50rem",
-                                        "boxShadow": "0 2px 8px rgba(0,0,0,0.05)" if granularidade == 'semanal' else "none",
-                                        "transition": "all 0.3s ease-in-out",
-                                        "fontSize": "0.85rem",
-                                    },
-                                    n_clicks=0
-                                ),
-                            ], className="d-flex align-items-center p-1 rounded-pill", style={
-                                "backgroundColor": "#f8fafc", 
-                                "boxShadow": "inset 0 1px 3px rgba(0,0,0,0.06)",
-                                "border": "1px solid #e2e8f0"
-                            })
-                        ], className="d-flex justify-content-between align-items-center mb-4"),
-                        dbc.Card([
-                            dbc.CardBody([
-                                dcc.Graph(
-                                    figure=fig_geral, 
-                                    config={'displayModeBar': False},
-                                    style={"height": "400px"} 
-                                ),
-                            ], className="p-4") 
-                        ], className="shadow-sm border-0 rounded-4")
-                    ], width=12),
-                ], className="mb-4"),
+                        dcc.Graph(
+                            figure=fig_geral, 
+                            config={'displayModeBar': False},
+                            style={"height": "400px"} 
+                        ),
+                    ], width=12, className="p-4"),
+                ], className="mb-2"),
 
                 # Row 2: Comparative Chart (Full Width or Split if needed in future)
                 dbc.Row([
@@ -370,9 +310,14 @@ def register_dashboard_callbacks(app):
             
         ], className="animate__animated animate__fadeIn", style={"padding": "24px", "background": "#F8FAFC", "minHeight": "100vh"})
 
-    # Callback: Toggle de Granularidade (pill buttons → store)
+    # Callback: Toggle de Granularidade (premium-toggle → store + visual)
     @app.callback(
-        Output("chart-granularity-store", "data"),
+        [
+            Output("chart-granularity-store", "data"),
+            Output("btn-gran-mensal", "className"),
+            Output("btn-gran-quinzenal", "className"),
+            Output("btn-gran-semanal", "className"),
+        ],
         [
             Input("btn-gran-mensal", "n_clicks"),
             Input("btn-gran-quinzenal", "n_clicks"),
@@ -383,7 +328,7 @@ def register_dashboard_callbacks(app):
     def update_granularity(n_mensal, n_quinzenal, n_semanal):
         triggered = ctx.triggered_id
         if triggered == "btn-gran-quinzenal":
-            return "quinzenal"
+            return "quinzenal", "premium-toggle-btn", "premium-toggle-btn active", "premium-toggle-btn"
         elif triggered == "btn-gran-semanal":
-            return "semanal"
-        return "mensal"
+            return "semanal", "premium-toggle-btn", "premium-toggle-btn", "premium-toggle-btn active"
+        return "mensal", "premium-toggle-btn active", "premium-toggle-btn", "premium-toggle-btn"
