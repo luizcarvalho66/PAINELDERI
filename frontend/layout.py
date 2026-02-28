@@ -18,6 +18,26 @@ content = html.Div([
     html.Div(render_dashboard(), id="page-dashboard", style={"display": "block"}),
     html.Div(render_farol_section(), id="page-farol", style={"display": "none"}),
     html.Div(render_reports_section(), id="page-reports", style={"display": "none"}),
+    html.Div(
+        html.Div([
+            html.Div([
+                html.I(className="bi bi-cone-striped", style={
+                    "fontSize": "4rem", "color": "#f59e0b",
+                    "filter": "drop-shadow(0 4px 12px rgba(245, 158, 11, 0.3))"
+                }),
+                html.H3("Seção em Construção", style={
+                    "fontFamily": "DIN, sans-serif", "fontWeight": "700",
+                    "color": "#1e293b", "marginTop": "1.5rem", "marginBottom": "0.5rem"
+                }),
+                html.P("Esta funcionalidade está sendo desenvolvida e estará disponível em breve.",
+                       style={"color": "#94A3B8", "fontSize": "0.95rem", "maxWidth": "400px"}),
+            ], className="text-center", style={
+                "display": "flex", "flexDirection": "column", "alignItems": "center",
+                "justifyContent": "center", "minHeight": "60vh"
+            })
+        ], className="p-4", style={"backgroundColor": "#f8fafc", "minHeight": "calc(100vh - 60px)"}),
+        id="page-config", style={"display": "none"}
+    ),
 ], id="page-content")
 
 def get_layout():

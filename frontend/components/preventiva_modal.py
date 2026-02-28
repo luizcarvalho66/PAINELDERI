@@ -71,20 +71,52 @@ def render_preventiva_help_modal():
                 dbc.Col([
                     html.Div("COMO IDENTIFICAMOS?", className="macos-section-title"),
                     
-                    html.P("Nosso algoritmo analisa as descrições de serviços e peças procurando pelos seguintes termos-chave:", 
+                    html.P("Identificamos fugas pela presença simultânea de peças e serviços típicos de revisão preventiva em OS classificadas como corretiva:", 
                            className="text-muted small mb-3"),
                     
-                    # Grid de Palavras-Chave
+                    # Critério 1: Peças
+                    html.Div("PEÇAS DE REVISÃO", style={
+                        "fontSize": "0.68rem", "fontWeight": "700", "color": "#94A3B8",
+                        "textTransform": "uppercase", "letterSpacing": "0.04em", "marginBottom": "6px"
+                    }),
                     html.Div([
                         dbc.Row([
-                            dbc.Col(html.Span("REVISÃO", className="badge bg-light text-dark border w-100 p-2"), width=4, className="mb-2"),
-                            dbc.Col(html.Span("PREVENTIVA", className="badge bg-light text-dark border w-100 p-2"), width=4, className="mb-2"),
-                            dbc.Col(html.Span("CHECK-UP", className="badge bg-light text-dark border w-100 p-2"), width=4, className="mb-2"),
-                            dbc.Col(html.Span("LUBRIFICAÇÃO", className="badge bg-light text-dark border w-100 p-2"), width=6, className="mb-2"),
-                            dbc.Col(html.Span("INSPEÇÃO", className="badge bg-light text-dark border w-100 p-2"), width=6, className="mb-2"),
+                            dbc.Col(html.Span("ÓLEO MOTOR", className="badge bg-light text-dark border w-100 p-2"), width=6, className="mb-2"),
+                            dbc.Col(html.Span("FILTRO DE ÓLEO", className="badge bg-light text-dark border w-100 p-2"), width=6, className="mb-2"),
                         ], className="text-center font-monospace small")
                     ]),
                     
+                    html.Div("+", className="text-center text-muted fw-bold my-2", style={"fontSize": "1.2rem"}),
+                    
+                    # Critério 2: MO
+                    html.Div("MÃO DE OBRA", style={
+                        "fontSize": "0.68rem", "fontWeight": "700", "color": "#94A3B8",
+                        "textTransform": "uppercase", "letterSpacing": "0.04em", "marginBottom": "6px"
+                    }),
+                    html.Div([
+                        dbc.Row([
+                            dbc.Col(html.Span("SUBSTITUIR", className="badge bg-light text-dark border w-100 p-2"), width=4, className="mb-2"),
+                            dbc.Col(html.Span("FORNECIMENTO PEÇAS", className="badge bg-light text-dark border w-100 p-2"), width=4, className="mb-2"),
+                            dbc.Col(html.Span("SUBST. S/ REV CUBO", className="badge bg-light text-dark border w-100 p-2"), width=4, className="mb-2"),
+                            dbc.Col(html.Span("SUBST. C/ REV CUBO", className="badge bg-light text-dark border w-100 p-2"), width=4, className="mb-2"),
+                            dbc.Col(html.Span("REV PREVENTIVA", className="badge bg-danger bg-opacity-10 text-danger border w-100 p-2"), width=4, className="mb-2"),
+                        ], className="text-center font-monospace small")
+                    ]),
+                    
+                    # Nota sobre lógica combinatória
+                    html.Div([
+                        html.Div([
+                            html.I(className="bi bi-info-circle-fill me-2", style={"color": "#3B82F6"}),
+                            html.Div([
+                                html.Span("Lógica: ", style={"fontWeight": "700", "fontSize": "0.78rem"}),
+                                html.Span("(Peça ", style={"fontSize": "0.78rem"}),
+                                html.Span("AND", className="badge bg-secondary bg-opacity-25 text-dark", style={"fontSize": "0.65rem"}),
+                                html.Span(" MO) ", style={"fontSize": "0.78rem"}),
+                                html.Span("OR", className="badge bg-danger bg-opacity-25 text-danger", style={"fontSize": "0.65rem"}),
+                                html.Span(" Rev Preventiva", style={"fontSize": "0.78rem"}),
+                            ]),
+                        ], className="d-flex align-items-center"),
+                    ], style={"backgroundColor": "#EFF6FF", "padding": "8px 12px", "borderRadius": "8px", "border": "1px solid #BFDBFE"}, className="mt-2"),
                     html.Div("KPIs DO DASHBOARD", className="macos-section-title mt-4"),
                     
                     html.Div([
@@ -154,21 +186,21 @@ def render_ranking_help_modal():
                     html.Div([
                         html.Div([
                             html.I(className="bi bi-funnel-fill text-secondary me-2"),
-                            html.Strong("1. Filtragem", className="text-dark")
+                            html.Strong("1. Detecção de Fugas", className="text-dark")
                         ], className="mb-1"),
-                        html.P("Selecionamos todas as OSs que caíram na regra de Fuga (termos como REVISÃO, etc).", className="text-muted small mb-3"),
+                        html.P("Identificamos OS corretivas que possuem peças e serviços típicos de preventiva (óleo motor, filtro, substituição, rev preventiva).", className="text-muted small mb-3"),
 
                         html.Div([
                             html.I(className="bi bi-layers-fill text-secondary me-2"),
                             html.Strong("2. Agrupamento", className="text-dark")
                         ], className="mb-1"),
-                        html.P("Agrupamos por Estabelecimento, Aprovador ou 1ª Alçada (conforme aba selecionada).", className="text-muted small mb-3"),
+                        html.P("Agrupamos as fugas por Estabelecimento, Aprovador ou 1ª Alçada (conforme aba selecionada).", className="text-muted small mb-3"),
 
                         html.Div([
                             html.I(className="bi bi-sort-numeric-down-alt text-secondary me-2"),
                             html.Strong("3. Ordenação", className="text-dark")
                         ], className="mb-1"),
-                        html.P("Ordenamos pelo volume TOTAL de fugas (decrescente). O % exibido é apenas informativo.", className="text-muted small")
+                        html.P("Ordenamos pelo volume de fugas (decrescente). O percentual mostra a proporção de fugas sobre o total de corretivas daquela entidade.", className="text-muted small")
                     ], className="macos-card"),
                     
                 ], width=12, lg=7, className="ps-4"),

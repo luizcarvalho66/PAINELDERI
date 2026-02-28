@@ -426,7 +426,8 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
         b.CreatedDate as data_criacao_os,
         b.DateApproval_OS as data_aprovacao_os,
         
-        COALESCE(app.FullNameApproval, 'SISTEMA') as nome_aprovador,
+        COALESCE(app.NameApproval, 'Não Informado') as nome_aprovador,
+        COALESCE(app.FullNameApproval, 'Não Informado') as nome_aprovador_completo,
         
         COALESCE(cast(ml.LaborName as string), 'SEM MO') as tipo_mo,
         try_cast(b.Mileage as double) as hodometro,
@@ -445,6 +446,7 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
         ON b.Sk_MaintenanceLabor = ml.Sk_MaintenanceLabor
     LEFT JOIN hive_metastore.gold.dim_maintenanceapproval app
         ON b.IdUserApproval = app.IdUserApproval
+        AND app.FlLastRecord = 1
     """
 
 

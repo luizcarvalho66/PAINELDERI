@@ -6,7 +6,8 @@ def register_navigation_callbacks(app):
     @app.callback(
         [Output("page-dashboard", "style"),
          Output("page-farol", "style"),
-         Output("page-reports", "style")],
+         Output("page-reports", "style"),
+         Output("page-config", "style")],
         [Input("url", "pathname")],
         prevent_initial_call=True
     )
@@ -19,9 +20,11 @@ def register_navigation_callbacks(app):
         hide = {"display": "none"}
 
         if pathname == "/farol":
-            return hide, show, hide
+            return hide, show, hide, hide
         elif pathname == "/relatorios":
-            return hide, hide, show
+            return hide, hide, show, hide
+        elif pathname == "/config":
+            return hide, hide, hide, show
         
         # Default: dashboard (pathname == "/" ou qualquer outro)
-        return show, hide, hide
+        return show, hide, hide, hide

@@ -1,6 +1,7 @@
 import dash_bootstrap_components as dbc
 from dash import html, dcc
 from frontend.components.preventiva_modal import render_preventiva_help_modal, render_ranking_help_modal
+from datetime import date, timedelta
 
 def render_preventiva_section(initial_data=None):
     """
@@ -11,6 +12,9 @@ def render_preventiva_section(initial_data=None):
             - figure: plotly figure para o chart
             - accordion: componente Accordion já montado
     """
+    today = date.today()
+    thirty_days_ago = today - timedelta(days=30)
+    
     return html.Div([
         # ROW 1: Main Chart (Left 8) + KPIs Stacked (Right 4)
         dbc.Row([
@@ -19,15 +23,31 @@ def render_preventiva_section(initial_data=None):
                 dbc.Card([
                     dbc.CardBody([
                         html.Div([
-                            html.H5("Evolução de Fugas (Ano, Trimestre, Mês)", className="fw-bold mb-0 text-dark font-ubuntu"),
-                            dbc.Button(
-                                html.I(className="bi bi-question-circle-fill"),
-                                id="btn-help-prev-chart",
-                                color="link",
-                                className="text-muted p-0 ms-2",
-                                style={"fontSize": "1rem"}
-                            )
-                        ], className="d-flex align-items-center mb-4"),
+                            html.Div([
+                                html.H5("Evolução de Fugas (Ano, Trimestre, Mês)", className="fw-bold mb-0 text-dark font-ubuntu"),
+                                dbc.Button(
+                                    html.I(className="bi bi-question-circle-fill"),
+                                    id="btn-help-prev-chart",
+                                    color="link",
+                                    className="text-muted p-0 ms-2",
+                                    style={"fontSize": "1rem"}
+                                )
+                            ], className="d-flex align-items-center"),
+                            # Date Picker Range — estilo premium "botão pílula"
+                            html.Div([
+                                html.I(className="bi bi-calendar3 text-muted me-2", style={"fontSize": "0.85rem"}),
+                                dcc.DatePickerRange(
+                                    id="prev-date-picker",
+                                    start_date=thirty_days_ago,
+                                    end_date=today,
+                                    display_format="DD/MM/YY",
+                                    start_date_placeholder_text="Início",
+                                    end_date_placeholder_text="Fim",
+                                    className="prev-date-range-premium",
+                                    style={"transform": "scale(0.85)", "transformOrigin": "right center", "fontSize": "0.78rem"}
+                                ),
+                            ], className="d-flex align-items-center bg-white border rounded-pill px-3 py-1 shadow-sm"),
+                        ], className="d-flex align-items-center justify-content-between mb-4", style={"position": "relative", "zIndex": 1050}),
                         dcc.Graph(
                             id="prev-chart-evolution",
                             figure=initial_data.get('figure', {}) if initial_data else {},
@@ -127,7 +147,42 @@ def render_preventiva_section(initial_data=None):
             ], width=4, className="d-flex flex-column justify-content-between"),
         ], className="mb-4"),
 
-        # ROW 2: Rankings (Left 4) + Detailed Table (Right 8)
+        # Header extra removido. O DatePicker e o Toggle foram movidos para os cards específicos.
+        # Store para tipo de ativo selecionado (veiculos/equipamentos)
+        dcc.Store(id="prev-tipo-ativo-store", data="VEICULOS"),
+
+        # Menu de Contexto (DatePicker + Exportação) - Aplica-se ao Ranking e Tabela
+        dbc.Row([
+            dbc.Col([
+                html.Div([
+                    # Label / Título do filtro de contexto
+                    html.Div([
+                        html.I(className="bi bi-funnel-fill me-2 text-danger"),
+                        html.Span("Filtros de Período para Detalhamento e Top Ofensores", className="fw-bold text-dark font-ubuntu mb-0", style={"fontSize": "0.95rem"}),
+                    ], className="d-flex align-items-center"),
+                    
+                    # DatePicker e Botão Exportar
+                    html.Div([
+                        html.Div([
+                            html.I(className="bi bi-calendar3 text-muted me-2", style={"fontSize": "0.9rem"}),
+                            dcc.DatePickerRange(
+                                id="prev-detail-date-range",
+                                start_date=(date.today() - timedelta(days=30)).isoformat(),
+                                end_date=date.today().isoformat(),
+                                display_format="DD/MM/YYYY",
+                                start_date_placeholder_text="Início",
+                                end_date_placeholder_text="Fim",
+                                className="prev-date-range-premium",
+                                style={"transform": "scale(0.9)", "transformOrigin": "right center"},
+                                persistence=True,
+                                persistence_type="session",
+                            ),
+                        ], className="d-flex align-items-center bg-white border rounded-pill px-3 py-1 shadow-sm"),
+                    ], className="d-flex align-items-center")
+                ], className="d-flex justify-content-between align-items-center w-100 mb-3 bg-white p-3 border shadow-sm", style={"borderRadius": "16px", "position": "relative", "zIndex": 1050})
+            ], width=12)
+        ], style={"position": "relative", "zIndex": 1050}),
+
         dbc.Row([
              # RANKINGS COLUMN
             dbc.Col([
@@ -154,10 +209,52 @@ def render_preventiva_section(initial_data=None):
                 dbc.Card([
                     dbc.CardBody([
                         dbc.Row([
-                            dbc.Col(html.H5("Detalhamento de Fugas", className="fw-bold text-dark font-ubuntu"), width=6),
+                            # Título e Help (Esquerda)
                             dbc.Col([
-                                dbc.Button("Exportar CSV", id="btn-export-preventiva", color="success", size="sm", className="float-end ms-2"),
-                            ], width=6)
+                                html.Div([
+                                    html.H5("Detalhamento de Fugas", className="fw-bold text-dark font-ubuntu mb-0"),
+                                    dbc.Button(
+                                        html.I(className="bi bi-question-circle-fill"),
+                                        id="btn-help-prev-table",
+                                        color="link",
+                                        className="text-muted p-0 ms-2",
+                                        style={"fontSize": "1rem"}
+                                    ),
+                                    dbc.Tooltip(
+                                        "Clique para entender os critérios de detecção de fugas",
+                                        target="btn-help-prev-table",
+                                        placement="top"
+                                    ),
+                                ], className="d-flex align-items-center"),
+                            ], width=4),
+                            
+                            # Toggle Premium (Centro)
+                            dbc.Col([
+                                html.Div([
+                                    html.Div([
+                                        html.Div([
+                                            html.I(className="bi bi-truck"),
+                                            html.Span("Veículos")
+                                        ], 
+                                        id="prev-toggle-veiculos",
+                                        className="premium-toggle-btn active",
+                                        n_clicks=0
+                                        ),
+                                        
+                                        html.Div([
+                                            html.I(className="bi bi-gear"),
+                                            html.Span("Equipamentos")
+                                        ], 
+                                        id="prev-toggle-equipamentos",
+                                        className="premium-toggle-btn",
+                                        n_clicks=0
+                                        ),
+                                    ], className="premium-toggle-container"),
+                                ], className="d-flex justify-content-center w-100"),
+                            ], width=4, className="d-flex justify-content-center"),
+
+                            # Espaço vazio à direita removido, pois o DatePicker foi movido para fora.
+                            dbc.Col([], width=4),
                         ], className="mb-3 align-items-center"),
 
                         html.P(
@@ -179,5 +276,18 @@ def render_preventiva_section(initial_data=None):
         
         # Modais de Ajuda
         render_preventiva_help_modal(),
-        render_ranking_help_modal()
+        render_ranking_help_modal(),
+        
+        # Mini Modal — Breakdown de Valor
+        dcc.Store(id="prev-valor-detail-store", data={}),
+        dbc.Modal([
+            dbc.ModalHeader([
+                html.Div([
+                    html.I(className="bi bi-receipt-cutoff me-2", style={"color": "#E20613", "fontSize": "1.2rem"}),
+                    html.Span("Composição do Valor", style={"fontWeight": "700", "fontSize": "1rem"}),
+                ], className="d-flex align-items-center"),
+            ], close_button=True, className="border-0 pb-0"),
+            dbc.ModalBody(id="prev-valor-modal-body", className="pt-2"),
+        ], id="prev-valor-modal", is_open=False, centered=True, size="xl",
+           className="prev-valor-modal")
     ])

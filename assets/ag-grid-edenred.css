@@ -283,3 +283,140 @@
 .prev-detail-subtable tr:last-child td {
     border-bottom: none;
 }
+
+/* ==========================================================================
+   DATE PICKER — Compacto para header do chart
+   ========================================================================== */
+
+.prev-date-picker-compact .DateInput {
+    width: 80px !important;
+    background: transparent;
+}
+
+.prev-date-picker-compact .DateInput_input {
+    font-size: 0.75rem !important;
+    padding: 4px 6px !important;
+    color: #334155;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.3;
+}
+
+.prev-date-picker-compact .DateInput_input__focused {
+    border-color: #E20613;
+    box-shadow: 0 0 0 2px rgba(226, 6, 19, 0.1);
+    outline: none;
+}
+
+.prev-date-picker-compact .DateRangePickerInput {
+    background: transparent;
+    border: none;
+}
+
+.prev-date-picker-compact .DateRangePickerInput_arrow {
+    color: #94A3B8;
+    padding: 0 4px;
+    font-size: 0.7rem;
+}
+
+.prev-date-picker-compact .CalendarDay__selected {
+    background: #E20613 !important;
+    border-color: #C10510 !important;
+}
+
+.prev-date-picker-compact .CalendarDay__selected_span {
+    background: rgba(226, 6, 19, 0.15) !important;
+    border-color: rgba(226, 6, 19, 0.2) !important;
+    color: #C10510 !important;
+}
+
+.prev-date-picker-compact .CalendarDay__hovered_span {
+    background: rgba(226, 6, 19, 0.08) !important;
+    border-color: rgba(226, 6, 19, 0.15) !important;
+    color: #334155 !important;
+}
+
+/* ==========================================================================
+   VALOR MODAL — Mini modal de breakdown de valor
+   ========================================================================== */
+
+.prev-valor-modal .modal-content {
+    border-radius: 14px;
+    border: none;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+.prev-valor-modal .modal-header {
+    padding: 16px 20px 8px;
+}
+
+.prev-valor-modal .modal-body {
+    padding: 12px 20px 20px;
+}
+
+.prev-valor-modal .btn-close {
+    opacity: 0.4;
+}
+
+.prev-valor-modal .btn-close:hover {
+    opacity: 1;
+}
+
+/* Badge "Detalhes" — botão atrativo para abrir modal */
+.prev-detail-badge {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(226, 6, 19, 0.08);
+    color: #C10510;
+    border: 1px solid rgba(226, 6, 19, 0.15);
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    line-height: 1.4;
+    letter-spacing: 0.02em;
+}
+
+.prev-detail-badge:hover {
+    background: #E20613;
+    color: white;
+    border-color: #E20613;
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(226, 6, 19, 0.25);
+}
+
+.prev-detail-badge:active {
+    transform: scale(0.98);
+}
+
+/* DatePickerRange compacto para detalhamento */
+.prev-date-range-compact .DateInput {
+    width: 95px;
+}
+
+.prev-date-range-compact .DateInput_input {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #E2E8F0;
+    color: #334155;
+    font-weight: 500;
+}
+
+.prev-date-range-compact .DateRangePickerInput {
+    border: none;
+    background: transparent;
+}
+
+.prev-date-range-compact .DateRangePickerInput_arrow_svg {
+    width: 14px;
+    height: 14px;
+    fill: #94A3B8;
+}
+

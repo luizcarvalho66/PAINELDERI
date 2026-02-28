@@ -43,8 +43,38 @@ def render_dashboard():
                 # Container for Onboarding (Steps)
                 html.Div(id="onboarding-container"),
                 
-                # Container for Charts (RI Geral + Comparativo APENAS)
-                html.Div(id="dashboard-charts-container")
+                # Card Unificado Visão Geral (Header + Charts Container)
+                dbc.Card([
+                    # Cabeçalho do Card (Estático)
+                    dbc.CardHeader([
+                        html.Div([
+                            html.H3("Visão Geral", className="mb-0", style={
+                                "fontFamily": "Ubuntu", "color": "#1e293b", "fontWeight": "600",
+                                "borderLeft": "4px solid #E20613", "paddingLeft": "12px"
+                            }),
+                            # Toggle de Granularidade (premium-toggle estático)
+                            html.Div([
+                                html.Div([
+                                    html.I(className="bi bi-calendar-month"),
+                                    html.Span("Mensal")
+                                ], id="btn-gran-mensal", className="premium-toggle-btn active", n_clicks=0),
+                                html.Div([
+                                    html.I(className="bi bi-calendar-week"),
+                                    html.Span("Quinzenal")
+                                ], id="btn-gran-quinzenal", className="premium-toggle-btn", n_clicks=0),
+                                html.Div([
+                                    html.I(className="bi bi-calendar-day"),
+                                    html.Span("Semanal")
+                                ], id="btn-gran-semanal", className="premium-toggle-btn", n_clicks=0),
+                            ], className="premium-toggle-container")
+                        ], className="d-flex justify-content-between align-items-center")
+                    ], id="granularity-header", className="bg-transparent border-0 pt-4 px-4 pb-0", style={"display": "none"}),
+                    
+                    # Corpo do Card (Dinâmico - Gráficos injetados aqui)
+                    dbc.CardBody([
+                        html.Div(id="dashboard-charts-container")
+                    ], className="p-0")
+                ], className="shadow-sm border-0 rounded-4 mb-4"),
             ]
         ),
         
