@@ -33,16 +33,14 @@
                 opacity: 0;
                 transition: opacity 0.15s ease, transform 0.15s ease;
                 transform: translateY(4px);
-                background: rgba(15, 23, 42, 0.95);
-                backdrop-filter: blur(12px);
-                -webkit-backdrop-filter: blur(12px);
-                border: 1px solid rgba(226, 6, 19, 0.3);
+                background: #ffffff;
+                border: 1px solid rgba(0, 0, 0, 0.08);
                 border-radius: 12px;
                 padding: 14px 18px;
                 font-family: 'Ubuntu', sans-serif;
                 font-size: 13px;
-                color: #f8fafc;
-                box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px rgba(226,6,19,0.1);
+                color: #1e293b;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(226, 6, 19, 0.05);
                 max-width: 360px;
                 line-height: 1.5;
             `;
@@ -89,36 +87,39 @@
         const riGeral   = customdata[9];
 
         return `
-            <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.1)">
-                <span style="font-weight:700;font-size:14px;color:#fff">${periodo}</span>
-                ${parcial ? `<span style="color:#f59e0b;font-size:11px;margin-left:6px">${parcial}</span>` : ''}
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-                <span style="width:8px;height:8px;border-radius:50%;background:#E20613;display:inline-block"></span>
-                <span style="color:#94a3b8">RI Geral</span>
-                <span style="font-weight:700;color:#fff;margin-left:auto">${formatPercent(riGeral)}</span>
-            </div>
-            <div style="display:flex;gap:16px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08)">
-                <div>
-                    <div style="color:#64748b;font-size:11px">Corretiva</div>
-                    <div style="font-weight:600;color:#E20613">${formatPercent(riCorr)}</div>
-                </div>
-                <div>
-                    <div style="color:#64748b;font-size:11px">Preventiva</div>
-                    <div style="font-weight:600;color:#94a3b8">${formatPercent(riPrev)}</div>
+            <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(0,0,0,0.06)">
+                <div style="display:flex;align-items:center;gap:6px">
+                    <i class="bi bi-calendar2-range" style="color:#64748b;font-size:14px"></i>
+                    <span style="font-weight:700;font-size:14px;color:#1e293b">${periodo}</span>
+                    ${parcial ? `<span style="color:#f59e0b;font-size:11px;margin-left:auto;background:rgba(245,158,11,0.1);padding:2px 6px;border-radius:4px">${parcial}</span>` : ''}
                 </div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:12px">
-                <div><span style="color:#64748b">Vol. Solicitado</span></div>
-                <div style="text-align:right;font-weight:600">${volText}</div>
-                <div><span style="color:#64748b">Economia</span></div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;background:rgba(226,6,19,0.04);padding:6px 10px;border-radius:8px">
+                <i class="bi bi-graph-up-arrow" style="color:#E20613;font-size:14px"></i>
+                <span style="color:#475569;font-weight:600">RI Geral</span>
+                <span style="font-weight:800;color:#E20613;margin-left:auto;font-size:15px">${formatPercent(riGeral)}</span>
+            </div>
+            <div style="display:flex;gap:16px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(0,0,0,0.06)">
+                <div style="flex:1">
+                    <div style="color:#64748b;font-size:11px;margin-bottom:2px">Corretiva</div>
+                    <div style="font-weight:700;color:#1e293b">${formatPercent(riCorr)}</div>
+                </div>
+                <div style="flex:1">
+                    <div style="color:#64748b;font-size:11px;margin-bottom:2px">Preventiva</div>
+                    <div style="font-weight:700;color:#64748b">${formatPercent(riPrev)}</div>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-size:12px;align-items:center">
+                <div style="color:#64748b">Vol. Solicitado</div>
+                <div style="text-align:right;font-weight:600;color:#1e293b">${volText}</div>
+                <div style="color:#64748b">Economia</div>
                 <div style="text-align:right;font-weight:600;color:#10b981">${economia}</div>
-                <div><span style="color:#64748b">OS Total</span></div>
-                <div style="text-align:right;font-weight:600">${formatNumber(osTotal)}</div>
-                <div><span style="color:#64748b">OS Corretiva</span></div>
-                <div style="text-align:right">${formatNumber(osCorr)}</div>
-                <div><span style="color:#64748b">OS Preventiva</span></div>
-                <div style="text-align:right">${formatNumber(osPrev)}</div>
+                <div style="color:#64748b;margin-top:4px">OS Total</div>
+                <div style="text-align:right;font-weight:600;color:#1e293b;margin-top:4px">${formatNumber(osTotal)}</div>
+                <div style="color:#64748b">OS Corretiva</div>
+                <div style="text-align:right;color:#475569">${formatNumber(osCorr)}</div>
+                <div style="color:#64748b">OS Preventiva</div>
+                <div style="text-align:right;color:#475569">${formatNumber(osPrev)}</div>
             </div>
         `;
     }
@@ -137,16 +138,20 @@
         const dotColor = isCorretiva ? '#E20613' : '#94a3b8';
 
         return `
-            <div style="margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.1)">
-                <span style="font-weight:700;font-size:14px;color:#fff">${periodo}</span>
+            <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(0,0,0,0.06)">
+                <div style="display:flex;align-items:center;gap:6px">
+                    <i class="bi bi-calendar2-range" style="color:#64748b;font-size:14px"></i>
+                    <span style="font-weight:700;font-size:14px;color:#1e293b">${periodo}</span>
+                </div>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
                 <span style="width:8px;height:8px;border-radius:50%;background:${dotColor};display:inline-block"></span>
-                <span style="color:#94a3b8">${traceName}</span>
-                <span style="font-weight:700;color:#fff;margin-left:auto">${formatPercent(yValue)}</span>
+                <span style="color:#475569;font-weight:600">${traceName}</span>
+                <span style="font-weight:800;color:${dotColor};margin-left:auto;font-size:15px">${formatPercent(yValue)}</span>
             </div>
-            <div style="font-size:12px;color:#64748b">
-                OS: <span style="color:#f8fafc;font-weight:600">${formatNumber(osCount)}</span>
+            <div style="font-size:12px;color:#64748b;display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding-top:6px;border-top:1px dashed rgba(0,0,0,0.05)">
+                <span>Volume de OS:</span>
+                <span style="color:#1e293b;font-weight:600">${formatNumber(osCount)}</span>
             </div>
         `;
     }
