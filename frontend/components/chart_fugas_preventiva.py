@@ -67,13 +67,8 @@ def create_fugas_evolution_chart(data):
             color=SLATE_DARK, 
             weight='bold'
         ),
-        # Fixed Tooltip: Explicit font color to ensure visibility
-        hovertemplate=(
-            "<b>%{x}</b><br>"
-            "<span style='color: #64748b'>Taxa de Fuga:</span> "
-            "<b>%{y:.2f}%</b>"
-            "<extra></extra>"
-        )
+        customdata=list(zip(x_val, y_val)),
+        hoverinfo="none"
     ))
 
     # Calculate max Y for dynamic range padding (Prevent label clipping)
@@ -119,14 +114,6 @@ def create_fugas_evolution_chart(data):
         ),
 
         # Interaction
-        hovermode="x unified", # Standard "Edenred" interaction
-        hoverlabel=dict(
-            bgcolor="white",
-            bordercolor="rgba(0,0,0,0.1)",
-            font_family=FONT_FAMILY,
-            font_size=13,
-            font_color=SLATE_DARK # Critical for visibility
-        ),
         dragmode=False,
         showlegend=False
     )
