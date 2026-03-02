@@ -80,27 +80,73 @@ def get_layout():
         dcc.Interval(
             id="new-data-poll-interval",
             interval=3000,     # Verifica a cada 3 segundos
-            max_intervals=5,   # Máximo 15 segundos de polling
+            max_intervals=10,  # Máximo 30 segundos de polling (Databricks pode demorar)
             disabled=True,     # Inicia desabilitado
             n_intervals=0
         ),
 
+        # Modal de autenticação Databricks (aparece durante conexão OAuth)
+        dbc.Modal(
+            [
+                dbc.ModalHeader(
+                    dbc.ModalTitle(
+                        [
+                            html.I(className="bi bi-cloud-check me-2"),
+                            "Conectando ao Databricks"
+                        ],
+                    ),
+                    close_button=False,
+                    className="modal-header-databricks",
+                ),
+                dbc.ModalBody(
+                    html.Div([
+                        dbc.Spinner(
+                            color="danger",
+                            size="lg",
+                            spinner_style={"width": "2.5rem", "height": "2.5rem"},
+                        ),
+                        html.P("Verificando se há dados novos para sincronizar.",
+                            style={"color": "#475569", "fontSize": "0.9rem", "marginTop": "1.5rem", "marginBottom": "0.5rem"}),
+                        html.Div([
+                            html.I(className="bi bi-info-circle me-2", style={"color": "#94a3b8", "fontSize": "12px"}),
+                            html.Small("Se necessário, seu navegador abrirá para autenticar.",
+                                style={"color": "#94a3b8"}),
+                        ], className="d-flex align-items-center justify-content-center"),
+                    ], className="text-center", style={"padding": "2rem 1rem"}),
+                    className="modal-body-databricks",
+                ),
+                dbc.ModalFooter(
+                    html.Div(
+                        [
+                            html.I(className="bi bi-shield-lock-fill me-1"),
+                            html.Small("OAuth U2M • Autenticação segura via browser"),
+                        ],
+                        className="modal-footer-info",
+                    ),
+                    className="modal-footer-databricks",
+                ),
+            ],
+            id="modal-databricks-auth",
+            is_open=False,
+            centered=True,
+            backdrop="static",
+            keyboard=False,
+            size="sm",
+            className="modal-databricks-premium",
+        ),
+
+
         # Toast de alerta de novos dados (canto superior direito)
         dbc.Toast(
             [
-                html.Div([
-                    html.I(className="bi bi-cloud-arrow-down-fill me-2"),
-                    html.Span("Novos dados disponíveis no Databricks!", className="fw-bold"),
-                ], className="d-flex align-items-center mb-2"),
-                html.P(id="new-data-toast-body", className="mb-2 small"),
-                html.Small("Clique em 'Sincronizar' no menu lateral para atualizar.", className="text-muted"),
+                html.P(id="new-data-toast-body", className="mb-0 small"),
             ],
             id="sync-new-data-toast",
-            header="Atualização Disponível",
-            icon="warning",
+            header="Verificando Dados...",
+            icon="info",
             is_open=False,
             dismissable=True,
-            duration=15000,  # 15 segundos
+            duration=12000,  # 12 segundos
             style={
                 "position": "fixed",
                 "top": 20,
@@ -112,10 +158,10 @@ def get_layout():
             body_style={"background": "#fff"},
         ),
 
-        # Placeholder oculto: o btn-sync-empty-state é renderizado dinamicamente
-        # pelo callback toggle_dashboard_sections, mas o ID precisa existir no
-        # layout root para que o Dash não lance erro de ID inexistente.
+        # Placeholders ocultos: IDs precisam existir no layout root para que
+        # o Dash não lance erro de ID inexistente (são renderizados dinamicamente).
         html.Div(id="btn-sync-empty-state", style={"display": "none"}),
+        html.Div(id="btn-retry-databricks-check", style={"display": "none"}),
 
         render_sidebar(),
         content,

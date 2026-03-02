@@ -19,11 +19,22 @@ def render_farol_table_container() -> html.Div:
         dbc.Row([
             # Coluna 1: Título (Alinhado à esquerda)
             dbc.Col([
-                html.H5([
-                    html.I(className="bi bi-table me-2"),
-                    "Análise por Chave (Peça + Mão de Obra)"
-                ], className="mb-0 fw-bold"),
-            ], width=4, className="d-flex align-items-center"),
+                html.Div([
+                    html.Div(style={
+                        "width": "4px", "height": "28px",
+                        "background": "linear-gradient(180deg, #E20613, #FF4D5A)",
+                        "borderRadius": "2px", "marginRight": "12px"
+                    }),
+                    html.H5([
+                        html.I(className="bi bi-grid-3x3-gap-fill me-2", 
+                               style={"color": "#E20613", "fontSize": "1.1rem"}),
+                        "Análise por Chave",
+                        html.Small(" (Peça + MO)", 
+                                   className="text-muted fw-normal ms-1",
+                                   style={"fontSize": "0.75rem", "letterSpacing": "0.02em"})
+                    ], className="mb-0 fw-bold", style={"fontSize": "1.05rem", "color": "#1e293b"}),
+                ], className="d-flex align-items-center"),
+            ], width=3, className="d-flex align-items-center"),
             
             # Coluna 2: Toggle (Centralizado Absoluto)
             dbc.Col([
@@ -48,16 +59,15 @@ def render_farol_table_container() -> html.Div:
                         className="premium-toggle-btn",
                         n_clicks=0
                         ),
-                    ], className="premium-toggle-container"),
+                    ], className="premium-toggle-container premium-toggle-compact"),
                     
                     # Botão info (?) com Popover explicativo
                     html.Div([
                         dbc.Button(
-                            html.I(className="bi bi-info-circle", style={"fontSize": "0.85rem"}),
+                            html.I(className="bi bi-question-circle"),
                             id="btn-info-oportunidades",
                             color="link",
-                            className="p-0 ms-2",
-                            style={"color": "#94A3B8", "textDecoration": "none", "lineHeight": "1"}
+                            className="farol-help-icon ms-2",
                         ),
                         dbc.Popover([
                             dbc.PopoverHeader([
@@ -115,10 +125,21 @@ def render_farol_table_container() -> html.Div:
                     dbc.Tooltip("Todas as combinações Peça + MO", target="toggle-view-geral", placement="top"),
                     dbc.Tooltip("MDO pré-definida + P70 ≤ R$ 1.500 + OS ≤ 2 itens", target="toggle-view-oportunidades", placement="top"),
                     
+                    # Separador visual e Switch Detalhar por Cliente
+                    html.Div(className="farol-header-separator"),
+                    html.Div([
+                        dbc.Switch(
+                            id="farol-group-client-switch",
+                            label="Detalhar por Cliente",
+                            value=False,
+                            className="custom-switch custom-switch-inline mb-0"
+                        ),
+                    ], className="d-flex align-items-center"),
+                    
                     # Store para guardar estado do toggle
                     dcc.Store(id="farol-view-mode-store", data="geral"),
-                ], className="d-flex justify-content-center align-items-center w-100"),
-            ], width=4, className="d-flex justify-content-center align-items-center"),
+                ], className="d-flex justify-content-center align-items-center w-100 gap-1"),
+            ], width=6, className="d-flex justify-content-center align-items-center"),
             
             # Coluna 3: Ações e Info (Alinhado à direita)
             dbc.Col([
@@ -129,14 +150,13 @@ def render_farol_table_container() -> html.Div:
                         style={"cursor": "pointer"}
                     ),
                     dbc.Button(
-                        html.I(className="bi bi-question-circle-fill"),
+                        html.I(className="bi bi-question-circle"),
                         id="farol-help-btn",
                         color="link",
-                        className="p-0 text-decoration-none",
-                        style={"color": "#E20613", "fontSize": "1rem", "verticalAlign": "middle"}
+                        className="farol-help-icon ms-1",
                     ),
                 ], className="d-flex align-items-center justify-content-end w-100")
-            ], width=4, className="d-flex align-items-center"),
+            ], width=3, className="d-flex align-items-center"),
             
         ], className="mb-4 align-items-center"),
         
@@ -151,7 +171,7 @@ def render_farol_table_container() -> html.Div:
                     multi=True,
                     className="farol-filter-dropdown"
                 ),
-            ], md=3, className="mb-3"),
+            ], md=4, className="mb-3"),
             
             # Filtro Chave
             dbc.Col([
@@ -179,30 +199,34 @@ def render_farol_table_container() -> html.Div:
                     ],
                     className="farol-filter-dropdown"
                 ),
-            ], md=3, className="mb-3"),
-
-            # Switch Agrupar por Cliente
-            dbc.Col([
-                html.Label("Opções de Visualização", className="small text-muted mb-1"),
-                html.Div([
-                    dbc.Switch(
-                        id="farol-group-client-switch",
-                        label="Detalhar por Cliente",
-                        value=False,
-                        className="custom-switch"
-                    ),
-                ], className="d-flex align-items-center h-100 pt-1")
-            ], md=2, className="mb-3"),
+            ], md=4, className="mb-3"),
         ], className="g-2 mb-2"),
 
         # Container da tabela (populado pelo callback)
-        html.Div(
-            id="farol-table-container",
-            className="farol-table-wrapper",
-            style={
-                "minHeight": "200px",  # Evitar colapso
-                # Removido bordas manuais pois o CSS .farol-table-macos cuida disso
-            }
+        dcc.Loading(
+            id="farol-loading-overlay",
+            type="default",
+            custom_spinner=html.Div([
+                html.Img(
+                    src="/assets/edenred-minilogo.webp",
+                    className="farol-loading-logo"
+                ),
+                html.Div("Carregando dados...", className="farol-loading-text"),
+                html.Div(className="farol-loading-bar-track", children=[
+                    html.Div(className="farol-loading-bar-fill")
+                ])
+            ], className="farol-loading-container"),
+            children=html.Div(
+                id="farol-table-container",
+                className="farol-table-wrapper",
+                style={
+                    "minHeight": "200px",  # Evitar colapso
+                    # Removido bordas manuais pois o CSS .farol-table-macos cuida disso
+                }
+            ),
+            parent_className="farol-loading-parent",
+            overlay_style={"visibility": "visible", "backgroundColor": "#ffffff"},
+            color="#E20613"
         ),
         
         # Paginação
@@ -247,17 +271,17 @@ def render_farol_table_content(dados):
     Função chamada pelo callback para popular o html.Div(id='farol-table-container').
     """
     
-    # Header Icons & Labels
+    # Header Icons & Labels — Edenred Branded
     header = html.Thead(
         html.Tr([
             html.Th("", style={"width": "50px", "textAlign": "center"}),
-            html.Th([html.I(className="bi bi-key farol-header-icon"), "Chave"], style={"width": "25%"}),
-            html.Th([html.I(className="bi bi-cpu farol-header-icon"), "Auto"], className="text-center"),
-            html.Th([html.I(className="bi bi-person farol-header-icon"), "Humana"], className="text-center"),
-            html.Th([html.I(className="bi bi-graph-up farol-header-icon"), "P70"], className="text-end"),
-            html.Th([html.I(className="bi bi-list-ol farol-header-icon"), "OS"], className="text-center"),
-            html.Th([html.I(className="bi bi-speedometer2 farol-header-icon"), "Score"], className="text-center"),
-            html.Th([html.I(className="bi bi-chat-text farol-header-icon"), "Recomendação"], style={"width": "20%"}),
+            html.Th([html.I(className="bi bi-key-fill farol-header-icon"), "Chave"], style={"width": "25%"}),
+            html.Th([html.I(className="bi bi-cpu-fill farol-header-icon"), "Auto"], className="text-center"),
+            html.Th([html.I(className="bi bi-person-fill farol-header-icon"), "Humana"], className="text-center"),
+            html.Th([html.I(className="bi bi-graph-up-arrow farol-header-icon"), "P70"], className="text-end"),
+            html.Th([html.I(className="bi bi-hash farol-header-icon"), "OS"], className="text-center"),
+            html.Th([html.I(className="bi bi-speedometer farol-header-icon"), "Score"], className="text-center"),
+            html.Th([html.I(className="bi bi-lightbulb-fill farol-header-icon"), "Recomendação"], style={"width": "22%"}),
         ], className="farol-table-header-macos")
     )
     
@@ -266,19 +290,27 @@ def render_farol_table_content(dados):
         cor = item.get("farol_cor", "amarelo")
         score = item.get("farol_score", 0)
         
-        # Ícone de Status (Ponto colorido ou ícone minimalista)
+        # Ícone de Status + Borda lateral colorida
         if cor == "verde":
-            icon = html.I(className="bi bi-check-circle-fill text-success", style={"fontSize": "1.2rem"})
-            row_border_color = "3px solid #10b981"
+            icon = html.Div([
+                html.I(className="bi bi-check-circle-fill", style={"color": "#10b981", "fontSize": "1.15rem"})
+            ], style={"display": "flex", "alignItems": "center", "justifyContent": "center"})
+            row_style = {"borderLeft": "3px solid #10b981", "cursor": "pointer"}
         elif cor == "amarelo":
-            icon = html.I(className="bi bi-exclamation-triangle-fill text-warning", style={"fontSize": "1.1rem"})
-            row_border_color = "3px solid #f59e0b"
+            icon = html.Div([
+                html.I(className="bi bi-exclamation-triangle-fill", style={"color": "#f59e0b", "fontSize": "1.1rem"})
+            ], style={"display": "flex", "alignItems": "center", "justifyContent": "center"})
+            row_style = {"borderLeft": "3px solid #f59e0b", "cursor": "pointer"}
         elif cor == "vermelho":
-            icon = html.I(className="bi bi-x-circle-fill text-danger", style={"fontSize": "1.1rem"})
-            row_border_color = "3px solid #E20613"  # Edenred Red
+            icon = html.Div([
+                html.I(className="bi bi-x-circle-fill", style={"color": "#E20613", "fontSize": "1.1rem"})
+            ], style={"display": "flex", "alignItems": "center", "justifyContent": "center"})
+            row_style = {"borderLeft": "3px solid #E20613", "cursor": "pointer"}
         else:
-            icon = html.I(className="bi bi-dash-circle text-muted", style={"fontSize": "1.1rem"})
-            row_border_color = "3px solid #94a3b8"
+            icon = html.Div([
+                html.I(className="bi bi-dash-circle", style={"color": "#94a3b8", "fontSize": "1.1rem"})
+            ], style={"display": "flex", "alignItems": "center", "justifyContent": "center"})
+            row_style = {"borderLeft": "3px solid #94a3b8", "cursor": "pointer"}
             
         # Parse Key for Display (Handle "Key | Client")
         raw_key = item.get("chave", "")
@@ -306,9 +338,31 @@ def render_farol_table_content(dados):
         else:
             badge_class = "farol-badge-score low"
             
+        # Formatar recomendação com tag visual
+        sugestao = item.get("farol_sugestao", "")
+        if cor == "vermelho":
+            rec_tag = html.Span([
+                html.I(className="bi bi-exclamation-diamond-fill me-1", style={"fontSize": "0.7rem"}),
+                sugestao
+            ], className="farol-rec-tag farol-rec-urgente")
+        elif cor == "amarelo":
+            rec_tag = html.Span([
+                html.I(className="bi bi-eye-fill me-1", style={"fontSize": "0.7rem"}),
+                sugestao
+            ], className="farol-rec-tag farol-rec-atencao")
+        else:
+            rec_tag = html.Span([
+                html.I(className="bi bi-check2 me-1", style={"fontSize": "0.7rem"}),
+                sugestao
+            ], className="farol-rec-tag farol-rec-ok")
+        
+        # Formatação de OS com separador de milhar
+        qtd_os = item.get("qtd_os", 0)
+        qtd_os_fmt = f"{qtd_os:,}".replace(",", ".")
+        
         rows.append(
             html.Tr([
-                html.Td(icon, className="text-center"),
+                html.Td(icon, className="text-center", style={"width": "50px"}),
                 html.Td(key_content),
                 html.Td(
                     f"{item.get('pct_aprovacao', 0):.1f}%",
@@ -323,20 +377,15 @@ def render_farol_table_content(dados):
                     className="text-end farol-cell-money"
                 ),
                 html.Td(
-                    str(item.get("qtd_os", 0)),
-                    className="text-center font-weight-bold text-muted"
+                    qtd_os_fmt,
+                    className="text-center farol-cell-os"
                 ),
                 html.Td(
                     html.Span(f"{score:.0f}", className=badge_class),
                     className="text-center"
                 ),
-                html.Td(
-                    html.Span(
-                        item.get("farol_sugestao", ""),
-                        style={"fontSize": "0.8rem", "color": "#64748b"}
-                    )
-                ),
-            ], className="farol-table-row-macos", style={"cursor": "pointer"})
+                html.Td(rec_tag),
+            ], className="farol-table-row-macos", style=row_style)
         )
         
     body = html.Tbody(rows)

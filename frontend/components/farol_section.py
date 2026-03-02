@@ -107,29 +107,55 @@ def render_farol_section() -> html.Div:
         # SEÇÃO DE LOGS CORRETIVAS - Visão de Não Aprovações
         # =====================================================================
         html.Div([
-            # Header da seção
+            # Header da seção - Alinhado com branding Edenred
             dbc.Row([
                 dbc.Col([
-                    html.H5([
-                        html.I(className="bi bi-journal-text me-2", style={"color": "#E20613"}),
-                        "Logs de Não Aprovação"
-                    ], className="mb-0 fw-bold"),
-                    html.Small("Filtro por item e motivo da não aprovação das ordens", 
-                              className="text-muted")
-                ], width=6),
+                    html.Div([
+                        # Barra lateral vermelha (accent)
+                        html.Div(style={
+                            "width": "4px", "height": "28px",
+                            "background": "linear-gradient(180deg, #E20613, #FF4D5A)",
+                            "borderRadius": "2px", "marginRight": "12px"
+                        }),
+                        html.Div([
+                            html.H5([
+                                html.I(className="bi bi-journal-text me-2", 
+                                       style={"color": "#E20613", "fontSize": "1.1rem"}),
+                                "Logs de Intervenção Humana",
+                            ], className="mb-0 fw-bold", style={"fontSize": "1.05rem", "color": "#1e293b"}),
+                            html.Small(
+                                "Itens aprovados manualmente • Não passaram na automática", 
+                                className="text-muted",
+                                style={"fontSize": "0.78rem", "letterSpacing": "0.02em"}
+                            )
+                        ])
+                    ], className="d-flex align-items-center"),
+                ], width=8),
                 
-                # Toggle para expandir/colapsar
+                # Toggle para expandir/colapsar (estilo premium)
                 dbc.Col([
                     dbc.Button([
                         html.I(className="bi bi-chevron-down me-1", id="logs-toggle-icon"),
                         "Expandir"
-                    ], id="logs-toggle-btn", color="light", size="sm", className="float-end")
-                ], width=6, className="d-flex justify-content-end align-items-center"),
-            ], className="mb-3"),
+                    ], id="logs-toggle-btn", 
+                       className="btn btn-sm",
+                       style={
+                           "backgroundColor": "#f1f5f9",
+                           "color": "#64748b",
+                           "border": "1px solid #e2e8f0",
+                           "borderRadius": "8px",
+                           "fontFamily": "Ubuntu, sans-serif",
+                           "fontWeight": "600",
+                           "fontSize": "0.82rem",
+                           "padding": "6px 14px",
+                           "transition": "all 0.2s ease"
+                       })
+                ], width=4, className="d-flex justify-content-end align-items-center"),
+            ], className="mb-3 align-items-center"),
             
             # Conteúdo colapsável
             dbc.Collapse([
-                # Filtros
+                # Filtros com classe premium
                 dbc.Row([
                     dbc.Col([
                         html.Label("Filtrar por Peça", className="small text-muted mb-1"),
@@ -168,16 +194,32 @@ def render_farol_section() -> html.Div:
                     ], md=3, className="mb-2"),
                 ], className="g-2 mb-3"),
                 
-                # Container da tabela de logs
-                html.Div(
-                    id="logs-table-container",
-                    className="logs-table-wrapper",
-                    style={
-                        "maxHeight": "400px",
-                        "overflowY": "auto",
-                        "border": "1px solid #e9ecef",
-                        "borderRadius": "8px"
-                    }
+                # Container da tabela de logs com loading Edenred
+                dcc.Loading(
+                    id="logs-loading-overlay",
+                    type="default",
+                    custom_spinner=html.Div([
+                        html.Img(
+                            src="/assets/edenred-minilogo.webp",
+                            className="farol-loading-logo"
+                        ),
+                        html.Div("Carregando logs...", className="farol-loading-text"),
+                        html.Div(className="farol-loading-bar-track", children=[
+                            html.Div(className="farol-loading-bar-fill")
+                        ])
+                    ], className="farol-loading-container"),
+                    children=html.Div(
+                        id="logs-table-container",
+                        className="logs-table-wrapper",
+                        style={
+                            "maxHeight": "400px",
+                            "overflowY": "auto",
+                            "minHeight": "100px",
+                        }
+                    ),
+                    parent_className="farol-loading-parent",
+                    overlay_style={"visibility": "visible", "backgroundColor": "#ffffff"},
+                    color="#E20613"
                 ),
                 
                 # Paginação dos logs
@@ -193,13 +235,14 @@ def render_farol_section() -> html.Div:
                     ),
                     html.Small(
                         id="logs-count-info",
-                        className="text-muted d-block text-center mt-2"
+                        className="text-muted d-block text-center mt-2",
+                        style={"fontSize": "0.78rem", "fontFamily": "Ubuntu, sans-serif"}
                     )
                 ], className="d-flex flex-column align-items-center mt-3"),
                 
             ], id="logs-collapse", is_open=False),
             
-        ], className="logs-section p-4 bg-white rounded shadow-sm mt-4"),
+        ], className="farol-table-section p-4 bg-white rounded shadow-sm mt-4"),
         
         # =====================================================================
         # NOTA DE RODAPÉ

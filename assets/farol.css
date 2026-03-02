@@ -400,3 +400,359 @@
 .custom-switch:hover .form-check-label {
   color: #334155 !important;
 }
+
+/* ==========================================================================
+   FAROL REFACTORING - NEW CLASSES FOR HEADER
+   ========================================================================== */
+
+.farol-help-icon {
+  color: #64748B;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: color var(--transition-fast, 150ms ease);
+  padding: 0;
+  line-height: 1;
+  background: none;
+  border: none;
+  vertical-align: middle;
+}
+.farol-help-icon:hover {
+  color: var(--edenred-red, #E20613);
+}
+
+.premium-toggle-compact .premium-toggle-btn {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  border-radius: 6px;
+}
+.premium-toggle-compact {
+  border-radius: 10px;
+}
+
+.custom-switch-inline {
+  margin-top: 2px;
+}
+.custom-switch-inline .form-check-input {
+  width: 2.2em !important;
+  height: 1.25em !important;
+  margin-right: 0.5em !important;
+}
+.custom-switch-inline .form-check-label {
+  font-size: 0.8rem !important;
+  color: #64748b !important;
+  display: inline-block;
+  padding-top: 1px;
+}
+
+.farol-header-separator {
+  width: 1px;
+  height: 24px;
+  background: #cbd5e1;
+  margin: 0 16px;
+  align-self: center;
+}
+
+/* ==========================================================================
+   FAROL TABLE - Edenred Branded Enhancements
+   ========================================================================== */
+
+/* Header com gradiente sutil Edenred */
+.farol-table-header-macos {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 2px solid #e2e8f0;
+}
+
+/* Header Icons - Edenred Red ao default */
+.farol-header-icon {
+  font-size: 0.9rem;
+  color: #E20613;
+  margin-right: 6px;
+  vertical-align: middle;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.farol-table-header-macos th:hover .farol-header-icon {
+  opacity: 1;
+}
+
+/* Coluna OS formatada */
+.farol-cell-os {
+  font-family: "Ubuntu", sans-serif;
+  font-weight: 600;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* Rows com border-left colorida */
+.farol-table-row-macos {
+  transition: all 0.2s ease;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.farol-table-row-macos:hover {
+  background-color: rgba(226, 6, 19, 0.02);
+  transform: scale(1.001);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+/* ==========================================================================
+   RECOMMENDATION TAGS - Pill Tags por Status
+   ========================================================================== */
+
+.farol-rec-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+  font-family: "Ubuntu", sans-serif;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  line-height: 1.4;
+  max-width: 100%;
+}
+
+.farol-rec-urgente {
+  background: #FEF2F2;
+  color: #B91C1C;
+  border: 1px solid rgba(185, 28, 28, 0.15);
+}
+
+.farol-rec-atencao {
+  background: #FFFBEB;
+  color: #92400E;
+  border: 1px solid rgba(146, 64, 14, 0.15);
+}
+
+.farol-rec-ok {
+  background: #ECFDF5;
+  color: #065F46;
+  border: 1px solid rgba(6, 95, 70, 0.12);
+}
+
+/* ==========================================================================
+   LOADING ANIMATION - Edenred Branded Spinner
+   ========================================================================== */
+
+/* Parent Wrapper necessário para conter o overlay absolute */
+.farol-loading-parent {
+  position: relative;
+  min-height: 200px;
+  width: 100%;
+}
+
+/* Container centralizado que esconde a tabela com fundo branco */
+.farol-loading-container {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 16px;
+  animation: farolLoadingFadeIn 0.3s ease-out;
+  
+  /* Cobre totalmente o bloco subjacente */
+  background-color: #ffffff;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 100;
+  border-radius: 16px;
+}
+
+@keyframes farolLoadingFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Logo animada com pulse suave */
+.farol-loading-logo {
+  width: 56px;
+  height: 56px;
+  animation: farolLogoPulse 1.5s ease-in-out infinite alternate;
+  filter: drop-shadow(0 4px 12px rgba(226, 6, 19, 0.25));
+}
+
+@keyframes farolLogoPulse {
+  0%   { transform: scale(1); opacity: 0.85; }
+  100% { transform: scale(1.08); opacity: 1; }
+}
+
+/* Texto abaixo da logo */
+.farol-loading-text {
+  font-family: "Ubuntu", sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #64748b;
+  letter-spacing: 0.04em;
+}
+
+/* Barra de progresso animada (indeterminate) */
+.farol-loading-bar-track {
+  width: 120px;
+  height: 3px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.farol-loading-bar-fill {
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, #E20613, #FF4D5A);
+  border-radius: 4px;
+  animation: farolBarSlide 1.2s ease-in-out infinite;
+  position: absolute;
+}
+
+@keyframes farolBarSlide {
+  0%   { left: -40%; }
+  50%  { left: 100%; }
+  100% { left: -40%; }
+}
+
+/* ==========================================================================
+   DROPDOWNS (SELECTS) - Premium Edenred Style
+   ========================================================================== */
+
+/* Container Principal do Dropdown no farol */
+.farol-filter-dropdown .Select-control {
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  min-height: 42px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  transition: all 0.2s ease;
+  font-family: "Ubuntu", sans-serif;
+  font-size: 0.9rem;
+}
+
+/* Hover e Focus no Dropdown */
+.farol-filter-dropdown .is-focused > .Select-control {
+  box-shadow: 0 0 0 2px rgba(226, 6, 19, 0.15) !important;
+  border-color: #E20613 !important;
+}
+
+.farol-filter-dropdown .Select-control:hover {
+  border-color: #94a3b8;
+}
+
+/* Placeholder */
+.farol-filter-dropdown .Select-placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+  line-height: 40px;
+}
+
+/* Valor Selecionado */
+.farol-filter-dropdown .Select-value-label {
+  color: #1e293b !important;
+  font-weight: 500;
+}
+
+/* Lista Suspensa (Menu) */
+.farol-filter-dropdown .Select-menu-outer {
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  margin-top: 6px;
+  overflow: hidden;
+  z-index: 1050; /* Garantir que fica sobre tudo */
+}
+
+.farol-filter-dropdown .Select-menu {
+  background-color: #ffffff;
+  padding: 4px;
+}
+
+/* Itens da Lista Suspensa */
+.farol-filter-dropdown .Select-option {
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #475569;
+  font-family: "Ubuntu", sans-serif;
+  font-size: 0.9rem;
+  transition: all 0.15s ease;
+  margin-bottom: 2px;
+}
+
+/* Item Focado/Hover na Lista */
+.farol-filter-dropdown .Select-option.is-focused,
+.farol-filter-dropdown .Select-option:hover {
+  background-color: rgba(226, 6, 19, 0.05);
+  color: #E20613;
+  font-weight: 500;
+}
+
+/* Item Selecionado */
+.farol-filter-dropdown .Select-option.is-selected {
+  background-color: rgba(226, 6, 19, 0.1);
+  color: #E20613;
+  font-weight: 600;
+  position: relative;
+}
+
+/* Setup de Multi-Value (Tags Selecionadas) */
+.farol-filter-dropdown.Select--multi .Select-value {
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #334155;
+  font-family: "Ubuntu", sans-serif;
+  font-weight: 500;
+  margin-top: 5px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Botão de Fechar na Tag Multi */
+.farol-filter-dropdown.Select--multi .Select-value-icon {
+  background-color: transparent !important;
+  color: #94a3b8;
+  border-right: 1px solid #e2e8f0;
+  padding: 2px 6px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.farol-filter-dropdown.Select--multi .Select-value-icon:hover {
+  background-color: #fee2e2 !important;
+  color: #E20613;
+}
+
+/* Corrigir Seta do Dropdown */
+.farol-filter-dropdown .Select-arrow {
+  border-color: #94a3b8 transparent transparent;
+}
+.farol-filter-dropdown .is-focused .Select-arrow {
+  border-color: #E20613 transparent transparent;
+}
+
+/* ==========================================================================
+   LOGS TABLE WRAPPER - Scrollbar & Container Premium
+   ========================================================================== */
+
+.logs-table-wrapper {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Scrollbar Premium (WebKit) */
+.logs-table-wrapper::-webkit-scrollbar {
+  width: 6px;
+}
+.logs-table-wrapper::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 3px;
+}
+.logs-table-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.logs-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

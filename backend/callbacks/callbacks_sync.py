@@ -368,7 +368,7 @@ def register_sync_callbacks(app):
                 False,
                 [html.I(className="bi bi-arrow-repeat me-2"), "Sincronizar"],
                 True,
-                True,
+                datetime.now().isoformat(),  # Timestamp único → força re-render dos charts
                 progress_ui,
             )
         else:
@@ -401,35 +401,56 @@ def register_sync_callbacks(app):
         return is_open
 
     # =============================================
-    # CALLBACK 4: Check novos dados (startup) — NON-BLOCKING
+    # CALLBACK 4: Check novos dados (startup) — NON-BLOCKING + MODAL
     # =============================================
     _check_result = {"data": None, "done": False}
-    _CHECK_TIMEOUT_SECONDS = 15  # Timeout máximo para não bloquear o UI
 
     def _run_check_new_data():
-        """Executa check_new_data em thread separada para não bloquear o Dash."""
+        """Executa check_new_data em thread separada (conecta ao Databricks automaticamente)."""
         try:
+            print("[CHECK] Iniciando verificação de novos dados...", flush=True)
             result = check_new_data()
             _check_result["data"] = result
         except Exception as e:
-            print(f"[CHECK] Erro na thread: {e}", flush=True)
+            print(f"[CHECK][ERROR] Erro crítico na thread: {e}", flush=True)
             _check_result["data"] = {"has_new_data": False, "error": str(e)}
         finally:
             _check_result["done"] = True
 
     @app.callback(
-        Output("new-data-poll-interval", "disabled", allow_duplicate=True),
-        [Input("new-data-check-interval", "n_intervals")],
+        [
+            Output("new-data-poll-interval", "disabled", allow_duplicate=True),
+            Output("modal-databricks-auth", "is_open", allow_duplicate=True),
+        ],
+        [
+            Input("new-data-check-interval", "n_intervals"),
+            Input("btn-retry-databricks-check", "n_clicks"),
+        ],
         prevent_initial_call=True
     )
-    def check_new_data_on_startup(n_intervals):
-        """Dispara thread de verificação de novos dados (NÃO bloqueia).
+    def check_new_data_on_startup(n_intervals, retry_clicks):
+        """Dispara thread de verificação + abre modal de autenticação.
         
-        Apenas inicia a thread e ativa o polling interval.
-        O resultado é lido pelo callback poll_new_data_check.
+        Abre o modal "Conectando ao Databricks..." e inicia a thread que
+        faz a conexão OAuth U2M e a comparação de datas.
+        
+        Também é disparado pelo botão 'Reconectar' no toast de erro.
         """
-        if n_intervals == 0:
-            return True  # Mantém polling desabilitado
+        ctx = dash.callback_context
+        triggered_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else ''
+        
+        # No startup, pula o primeiro intervalo
+        if triggered_id == 'new-data-check-interval' and n_intervals == 0:
+            return True, False
+        
+        # Se é retry, limpa conexão cacheada para forçar novo OAuth
+        if triggered_id == 'btn-retry-databricks-check':
+            try:
+                from backend.services.databricks_sync import _clear_cached_connection
+                _clear_cached_connection()
+                print("[RETRY] Conexão cacheada limpa. Re-tentando OAuth...", flush=True)
+            except Exception as e:
+                print(f"[RETRY] Erro ao limpar cache de conexão: {e}", flush=True)
         
         # Reset e dispara thread
         _check_result["data"] = None
@@ -437,49 +458,143 @@ def register_sync_callbacks(app):
         
         check_thread = threading.Thread(target=_run_check_new_data, daemon=True)
         check_thread.start()
-        # NÃO faz thread.join() — retorna imediatamente
-        return False  # Ativa o polling interval
+        
+        return False, True  # Ativa polling + ABRE modal
 
     # =============================================
-    # CALLBACK 5: Polling não-bloqueante para check de novos dados
+    # CALLBACK 5: Polling — fecha modal + mostra toast com comparação
     # =============================================
     @app.callback(
         [
             Output("sync-new-data-toast", "is_open"),
             Output("new-data-toast-body", "children"),
             Output("new-data-poll-interval", "disabled"),
+            Output("sync-new-data-toast", "icon", allow_duplicate=True),
+            Output("sync-new-data-toast", "header", allow_duplicate=True),
+            Output("modal-databricks-auth", "is_open"),
         ],
         [Input("new-data-poll-interval", "n_intervals")],
         prevent_initial_call=True
     )
     def poll_new_data_check(n_intervals):
-        """Polling não-bloqueante para o resultado do check de novos dados.
+        """Polling não-bloqueante: fecha modal e mostra toast com comparação real.
         
-        Verifica a cada 3s se a thread de check terminou.
-        Quando terminar, mostra toast (se houver novos dados) e desativa polling.
-        Suporta resultado do fallback local (quando Databricks está inacessível).
+        Prioridades:
+        1. has_new_data → Databricks tem dados mais novos que o local
+        2. is_stale → dados locais defasados vs data atual do usuário
+        3. tudo OK → dados em dia
         """
         if _check_result.get("done"):
             result = _check_result.get("data", {})
-            if result and result.get("has_new_data"):
-                is_fallback = result.get("fallback", False)
-                local_date = result.get("local_max_date", "?")
-                
-                if is_fallback:
-                    # Fallback local: não temos a data remota, mas sabemos que está atrasado
-                    days_behind = result.get("days_behind", "?")
-                    msg = f"Dados locais com {days_behind} dias de atraso (último: {local_date}). Sincronize para atualizar."
-                else:
-                    # Check remoto normal
-                    remote_date = result.get("remote_max_date", "?")
-                    msg = f"Dados disponíveis até {remote_date} (local: até {local_date})."
-                
-                return True, msg, True  # Mostra toast + desativa polling
             
-            if result and not result.get("error"):
-                pass
+            # CASO 1: Erro de conexão — com botão de retry
+            if result and result.get("error"):
+                error_msg = str(result['error'])[:100]
+                msg = html.Div([
+                    html.Div([
+                        html.I(className="bi bi-wifi-off me-2"),
+                        html.Span(f"Não foi possível verificar: {error_msg}",
+                            style={"fontSize": "0.85rem"}),
+                    ], className="mb-2"),
+                    html.Div([
+                        dbc.Button(
+                            [html.I(className="bi bi-arrow-clockwise me-2"), "Reconectar"],
+                            id="btn-retry-databricks-check",
+                            color="danger",
+                            size="sm",
+                            className="me-2",
+                        ),
+                        html.Small("Tenta refazer a autenticação OAuth.",
+                            className="text-muted", style={"fontSize": "0.75rem"}),
+                    ], className="d-flex align-items-center"),
+                ])
+                return True, msg, True, "danger", "Erro na Verificação", False
             
-            return False, "", True  # Sem dados novos + desativa polling
+            remote_date = result.get("remote_max_date", "?")
+            local_date = result.get("local_max_date", "?")
+            local_count = result.get("local_count", 0)
+            days_behind = result.get("days_behind", 0)
+            today = result.get("today", "?")
+            has_new = result.get("has_new_data", False)
+            is_stale = result.get("is_stale", False)
+            pipeline_lag = result.get("pipeline_lag", False)
+            new_records = result.get("new_records_count", 0)
+            
+            # Formatar datas para DD/MM
+            def fmt(d):
+                if d and len(d) >= 10:
+                    return f"{d[8:10]}/{d[5:7]}"
+                return d or "?"
+            
+            # CASO 2: Databricks tem dados mais novos que o local → SINCRONIZAR
+            if has_new:
+                msg = html.Div([
+                    html.Div([
+                        html.I(className="bi bi-cloud-arrow-down-fill me-2"),
+                        html.Strong(f"{new_records:,} novos registros disponíveis!"),
+                    ], className="mb-2"),
+                    html.Div([
+                        html.Span("Databricks: ", style={"color": "#64748b"}),
+                        html.Strong(fmt(remote_date), style={"color": "#E20613"}),
+                        html.Span(" | Local: ", style={"color": "#64748b"}),
+                        html.Strong(fmt(local_date), style={"color": "#192038"}),
+                    ], className="mb-2"),
+                    html.Small("Clique em 'Sincronizar' para atualizar.",
+                        className="text-muted"),
+                ])
+                return True, msg, True, "warning", "Atualização Disponível", False
+            
+            # CASO 3: Dados defasados — local em dia com Databricks mas pipeline atrasado
+            if is_stale and pipeline_lag:
+                msg = html.Div([
+                    html.Div([
+                        html.I(className="bi bi-clock-history me-2"),
+                        html.Strong(f"Pipeline Databricks com {days_behind} dia(s) de atraso"),
+                    ], className="mb-2"),
+                    html.Div([
+                        html.Span("Hoje: ", style={"color": "#64748b"}),
+                        html.Strong(fmt(today), style={"color": "#E20613"}),
+                        html.Span(" | Último dado: ", style={"color": "#64748b"}),
+                        html.Strong(fmt(local_date), style={"color": "#f59e0b"}),
+                    ], className="mb-2"),
+                    html.Small(f"Base local sincronizada com Databricks ({fmt(remote_date)}). Aguardando atualização do pipeline.",
+                        className="text-muted"),
+                ])
+                return True, msg, True, "info", "Pipeline Databricks Atrasado", False
+            
+            # CASO 4: Dados defasados — local atrás do Databricks
+            if is_stale:
+                records_msg = f"{new_records:,} registros pendentes" if new_records > 0 else "0 registros pendentes"
+                msg = html.Div([
+                    html.Div([
+                        html.I(className="bi bi-calendar-x me-2"),
+                        html.Strong(f"Dados com {days_behind} dia(s) de atraso"),
+                    ], className="mb-2"),
+                    html.Div([
+                        html.Span("Hoje: ", style={"color": "#64748b"}),
+                        html.Strong(fmt(today), style={"color": "#E20613"}),
+                        html.Span(" | Último dado: ", style={"color": "#64748b"}),
+                        html.Strong(fmt(local_date), style={"color": "#f59e0b"}),
+                    ], className="mb-2"),
+                    html.Small(f"{records_msg} — Databricks até {fmt(remote_date)}.",
+                        className="text-muted"),
+                ])
+                return True, msg, True, "warning", "Dados Desatualizados", False
+            
+            # CASO 5: Tudo atualizado (sem defasagem significativa)
+            msg = html.Div([
+                html.Div([
+                    html.Span("Hoje: ", style={"color": "#64748b"}),
+                    html.Strong(fmt(today), style={"color": "#22c55e"}),
+                    html.Span(" | Dados até: ", style={"color": "#64748b"}),
+                    html.Strong(fmt(local_date), style={"color": "#22c55e"}),
+                ], className="mb-1"),
+                html.Small(f"{local_count:,} registros sincronizados. Base atualizada!",
+                    className="text-muted"),
+            ])
+            return True, msg, True, "success", "Dados Atualizados", False
         
         # Thread ainda rodando — retorna sem atualizar
-        return no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update, no_update, no_update
+
+
