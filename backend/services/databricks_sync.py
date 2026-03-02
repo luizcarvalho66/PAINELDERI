@@ -102,130 +102,123 @@ def get_sync_progress():
     return _sync_progress.copy()
 
 
-def _check_local_data_freshness():
-    """
-    Fallback heurístico: verifica se os dados locais estão defasados
-    comparando a data mais recente local com a data de hoje.
-    Não precisa de conexão com Databricks.
-    """
-    import datetime as dt
-    try:
-        conn_local = get_connection()
-        local_count = conn_local.execute("SELECT COUNT(*) FROM ri_corretiva_detalhamento").fetchone()[0]
-        row = conn_local.execute("SELECT MAX(data_transacao) FROM ri_corretiva_detalhamento").fetchone()
-        if row and row[0]:
-            local_max_date = str(row[0])[:10]  # YYYY-MM-DD
-            days_behind = (dt.date.today() - dt.date.fromisoformat(local_max_date)).days
-            # Se dados locais estão a mais de 7 dias do hoje, provavelmente há dados novos
-            if days_behind > 7:
-                print(f"⚠️ [CHECK-LOCAL] Dados locais com {days_behind} dias de atraso (último: {local_max_date}). Recomendado sincronizar.", flush=True)
-                return {
-                    "has_new_data": True,
-                    "remote_max_date": None,  # Desconhecido (sem acesso ao Databricks)
-                    "local_max_date": local_max_date,
-                    "local_count": local_count,
-                    "fallback": True,
-                    "days_behind": days_behind,
-                }
-            else:
-                print(f"✅ [CHECK-LOCAL] Dados locais recentes (último: {local_max_date}, {days_behind}d atrás).", flush=True)
-                return {"has_new_data": False, "local_max_date": local_max_date, "local_count": local_count, "fallback": True}
-        else:
-            # Sem dados locais = precisa sincronizar
-            return {"has_new_data": True, "remote_max_date": None, "local_max_date": None, "local_count": 0, "fallback": True}
-    except Exception:
-        return {"has_new_data": False, "error": "local_check_failed", "fallback": True}
-
-
-def _query_remote_max_date():
-    """Executa a query leve de MAX(date) no Databricks."""
-    conn_db = get_databricks_conn()
-    cursor = conn_db.cursor()
-    query = f"""
-    SELECT MAX(CAST(f.CreatedDate AS DATE)) as max_date
-    FROM hive_metastore.gold.fact_maintenanceitems fi
-    INNER JOIN hive_metastore.gold.fact_maintenanceitem f 
-        ON cast(fi.MaintenanceItemSourceCode as long) = f.IdMaintenanceItem
-    INNER JOIN hive_metastore.gold.dim_customer c
-        ON f.IdCustomer = c.IdCustomer
-    WHERE f.CreatedDate >= date_add(current_date(), -150)
-      AND try_cast(c.SourceNumber AS INT) IN ({", ".join([str(x) for x in TGM_CLIENT_IDS])})
-    """
-    cursor.execute(query)
-    row = cursor.fetchone()
-    remote_max_date = str(row[0])[:10] if row and row[0] else None
-    cursor.close()
-    return remote_max_date
-
-
 def check_new_data():
     """
-    Verificação LEVE: compara a DATA MAIS RECENTE remota vs local para detectar novos dados.
-    Não baixa dados — apenas faz MAX(date) no Databricks.
+    Verificação LEVE: compara dados locais vs Databricks vs data atual.
     
-    Estratégia de resiliência (3 camadas):
-    1. Tenta conectar ao Databricks normalmente
-    2. Se OAuth falhar (CSRF mismatch), limpa cache e retenta UMA vez
-    3. Se ainda falhar, usa fallback local (compara max_date local vs hoje)
+    Lógica de comparação:
+    - has_new_data: Databricks tem dados MAIS NOVOS que o local
+    - days_behind: quantos dias os dados locais estão defasados vs HOJE
+    - is_stale: dados locais estão defasados (> 1 dia atrás)
+    
+    Conecta ao Databricks automaticamente (OAuth U2M abre browser se necessário).
     """
-    # Passo 1: Obter data local (sempre funciona, sem rede)
-    local_count = 0
-    local_max_date = None
+    from datetime import datetime, date
+    
+    today = date.today()
+    today_str = today.strftime("%Y-%m-%d")
+    
     try:
-        conn_local = get_connection()
-        local_count = conn_local.execute("SELECT COUNT(*) FROM ri_corretiva_detalhamento").fetchone()[0]
+        # Data mais recente local
+        local_count = 0
+        local_max_date = None
         try:
-            row = conn_local.execute(
-                "SELECT MAX(data_transacao) FROM ri_corretiva_detalhamento"
-            ).fetchone()
-            if row and row[0]:
-                local_max_date = str(row[0])[:10]
+            conn_local = get_connection()
+            local_count = conn_local.execute("SELECT COUNT(*) FROM ri_corretiva_detalhamento").fetchone()[0]
+            try:
+                row = conn_local.execute(
+                    "SELECT MAX(data_transacao) FROM ri_corretiva_detalhamento"
+                ).fetchone()
+                if row and row[0]:
+                    local_max_date = str(row[0])[:10]  # YYYY-MM-DD
+            except:
+                pass
         except:
             pass
-    except:
-        pass
 
-    # Passo 2: Tentar obter data remota (com retry em caso de OAuth expirado)
-    remote_max_date = None
-    max_attempts = 2  # 1 tentativa normal + 1 retry após limpar cache
-    
-    for attempt in range(1, max_attempts + 1):
-        try:
-            remote_max_date = _query_remote_max_date()
-            break  # Sucesso — sai do loop
-        except Exception as e:
-            error_msg = str(e)
-            is_oauth_error = "mismatching_state" in error_msg.lower() or "MismatchingStateError" in type(e).__name__
-            
-            if is_oauth_error and attempt < max_attempts:
-                # Tentativa 1 falhou com OAuth — limpar cache e retentar
-                print(f"⚠️ [CHECK] OAuth CSRF mismatch (tentativa {attempt}/{max_attempts}). Limpando cache e retentando...", flush=True)
-                _close_cached_conn()
-                time.sleep(1)  # Pequeno delay antes do retry
-                continue
-            elif is_oauth_error:
-                # Retry também falhou — ir para fallback local
-                print("⚠️ [CHECK] OAuth falhou após retry. Usando verificação local.", flush=True)
-                _close_cached_conn()
-                return _check_local_data_freshness()
-            else:
-                # Erro não-OAuth (rede, timeout, etc) — fallback local
-                print(f"❌ [CHECK] Erro ao conectar ao Databricks: {e}. Usando verificação local.", flush=True)
-                return _check_local_data_freshness()
+        # Conectar ao Databricks (OAuth U2M — abre browser se necessário)
+        print("[CHECK] Conectando ao Databricks...", flush=True)
+        conn_db = get_databricks_conn()
+        cursor = conn_db.cursor()
+        
+        # Query 1: MAX date remota
+        query_max = f"""
+        SELECT MAX(CAST(f.CreatedDate AS DATE)) as max_date
+        FROM hive_metastore.gold.fact_maintenanceitems fi
+        INNER JOIN hive_metastore.gold.fact_maintenanceitem f 
+            ON cast(fi.MaintenanceItemSourceCode as long) = f.IdMaintenanceItem
+        INNER JOIN hive_metastore.gold.dim_customer c
+            ON f.IdCustomer = c.IdCustomer
+        WHERE f.CreatedDate >= date_add(current_date(), -150)
+          AND try_cast(c.SourceNumber AS INT) IN ({", ".join([str(x) for x in TGM_CLIENT_IDS])})
+        """
+        cursor.execute(query_max)
+        row = cursor.fetchone()
+        remote_max_date = str(row[0])[:10] if row and row[0] else None
+        cursor.close()
 
-    # Passo 3: Comparar remoto vs local
-    has_new = False
-    if remote_max_date and local_max_date:
-        has_new = remote_max_date > local_max_date
-    elif remote_max_date and not local_max_date:
-        has_new = True  # Banco vazio, tem dados remotos
+        # Query 2: COUNT de registros novos (após local_max_date)
+        new_records_count = 0
+        if local_max_date:
+            try:
+                cursor2 = conn_db.cursor()
+                query_count = f"""
+                SELECT COUNT(*) as new_count
+                FROM hive_metastore.gold.fact_maintenanceitems fi
+                INNER JOIN hive_metastore.gold.fact_maintenanceitem f 
+                    ON cast(fi.MaintenanceItemSourceCode as long) = f.IdMaintenanceItem
+                INNER JOIN hive_metastore.gold.dim_customer c
+                    ON f.IdCustomer = c.IdCustomer
+                WHERE f.CreatedDate > '{local_max_date}'
+                  AND f.CreatedDate >= date_add(current_date(), -150)
+                  AND try_cast(c.SourceNumber AS INT) IN ({", ".join([str(x) for x in TGM_CLIENT_IDS])})
+                """
+                cursor2.execute(query_count)
+                row2 = cursor2.fetchone()
+                new_records_count = row2[0] if row2 and row2[0] else 0
+                cursor2.close()
+            except Exception as e:
+                print(f"[CHECK] Erro no COUNT de novos: {e}", flush=True)
 
-    return {
-        "has_new_data": has_new,
-        "remote_max_date": remote_max_date,
-        "local_max_date": local_max_date,
-        "local_count": local_count,
-    }
+        # === Lógica de comparação ===
+        # 1. Databricks tem dados mais novos que o local?
+        has_new = False
+        if remote_max_date and local_max_date:
+            has_new = remote_max_date > local_max_date
+        elif remote_max_date and not local_max_date:
+            has_new = True  # Banco vazio, tem dados remotos
+
+        # 2. Dados locais estão defasados vs HOJE
+        days_behind = 0
+        is_stale = False
+        if local_max_date:
+            local_date_obj = datetime.strptime(local_max_date, "%Y-%m-%d").date()
+            days_behind = (today - local_date_obj).days
+            is_stale = days_behind > 1  # Mais de 1 dia atrás = defasado
+
+        # 3. Pipeline lag: local em dia com Databricks, mas Databricks está atrás
+        # Diferencia "precisa sincronizar" de "pipeline Databricks atrasado"
+        pipeline_lag = False
+        if is_stale and not has_new and remote_max_date and local_max_date:
+            # Local == Remote, mas ambos atrás de hoje → culpa do pipeline
+            pipeline_lag = remote_max_date <= local_max_date
+
+        print(f"[CHECK] Hoje: {today_str} | Databricks: {remote_max_date} | Local: {local_max_date} | Defasagem: {days_behind}d | Pipeline lag: {pipeline_lag} | Novos registros: {new_records_count:,}", flush=True)
+
+        return {
+            "has_new_data": has_new,
+            "is_stale": is_stale,
+            "pipeline_lag": pipeline_lag,
+            "days_behind": days_behind,
+            "today": today_str,
+            "remote_max_date": remote_max_date,
+            "local_max_date": local_max_date,
+            "local_count": local_count,
+            "new_records_count": new_records_count,
+        }
+    except Exception as e:
+        print(f"[CHECK][ERROR] Erro ao verificar novos dados: {e}", flush=True)
+        return {"has_new_data": False, "error": str(e)}
 
 
 # Cache de conexão (evita múltiplos U2M)
@@ -243,6 +236,9 @@ def _close_cached_conn():
             pass
     _cached_conn = None
     _conn_created_at = None
+
+# Alias público para uso no callback de retry OAuth
+_clear_cached_connection = _close_cached_conn
 
 def get_databricks_conn():
     """
@@ -489,11 +485,13 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
         b.CreatedDate as data_criacao_os,
         b.DateApproval_OS as data_aprovacao_os,
         
-        COALESCE(app.FullNameApproval, 'SISTEMA') as nome_aprovador,
+        COALESCE(app.NameApproval, 'Não Informado') as nome_aprovador,
+        COALESCE(app.FullNameApproval, 'Não Informado') as nome_aprovador_completo,
         
         COALESCE(cast(ml.LaborName as string), 'SEM MO') as tipo_mo,
         try_cast(b.Mileage as double) as hodometro,
-        COALESCE(b.ReasonCancellation, 'Aprovacao Manual') as mensagem_log
+        COALESCE(sah.ApprovalHistoryName, b.ReasonCancellation, 'Aprovação Automática') as mensagem_log,
+        COALESCE(sah.DetailName, '') as detalhe_regulacao
         
     FROM base b
     LEFT JOIN hive_metastore.gold.dim_vehicle v 
@@ -508,6 +506,10 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
         ON b.Sk_MaintenanceLabor = ml.Sk_MaintenanceLabor
     LEFT JOIN hive_metastore.gold.dim_maintenanceapproval app
         ON b.IdUserApproval = app.IdUserApproval
+        AND app.FlLastRecord = 1
+    LEFT JOIN hive_metastore.gold.dim_serviceordersapprovalhistory sah
+        ON b.MaintenanceId = sah.ServiceOrderId
+        AND sah.IsLastServiceOrderApproval = true
     """
 
 
@@ -616,7 +618,7 @@ def sync_all_data(days=150):
             sync_type = "FULL"
             query = _build_query(days=days)
             queries_to_run.append(("FULL LOAD", query))
-            queries_info_list.append(f"📦 Primeira sincronização — baixando últimos {days} dias")
+            queries_info_list.append(f"Primeira sincronização — baixando últimos {days} dias")
             _sync_progress["sync_mode"] = "Primeira Sincronização"
             _sync_progress["sync_description"] = f"Baixando todos os dados dos últimos {days} dias para construir a base local."
         else:
@@ -635,7 +637,7 @@ def sync_all_data(days=150):
                 gap_days = (min_date - expected_min).days
                 query_gap = _build_query(date_from=str(expected_min), date_to=str(min_date))
                 queries_to_run.append((f"GAP FILL ({gap_days}d)", query_gap))
-                queries_info_list.append(f"📅 Buscando dados históricos: {exp_str} até {min_str} ({gap_days} dias)")
+                queries_info_list.append(f"Buscando dados históricos: {exp_str} até {min_str} ({gap_days} dias)")
                 desc_parts.append(f"Recuperando {gap_days} dias de dados históricos faltantes")
             else:
                 desc_parts.append(f"Dados históricos desde {min_str} ✅")
@@ -644,7 +646,7 @@ def sync_all_data(days=150):
             watermark_str = str(max_date)
             query_new = _build_query(watermark=watermark_str)
             queries_to_run.append((f"INCREMENTAL (após {max_date})", query_new))
-            queries_info_list.append(f"🆕 Buscando novos dados a partir de {max_str}")
+            queries_info_list.append(f"Buscando novos dados a partir de {max_str}")
             desc_parts.append(f"busca de dados novos após {max_str}")
             
             _sync_progress["sync_description"] = " + ".join(desc_parts) + f". Base local: {local_count:,} registros."
@@ -866,8 +868,8 @@ def sync_all_data(days=150):
             run_full_pricing_pipeline()
             _update_step("pricing", "done", "Pipeline de pricing concluido")
         except Exception as e:
-            _update_step("pricing", "done", f"⚠️ {str(e)[:40]}")
-            print(f"⚠️  [SYNC] Pricing falhou: {e}")
+            _update_step("pricing", "done", f"Falhou: {str(e)[:40]}")
+            print(f"[SYNC][WARN] Pricing falhou: {e}")
 
         # STEP 7: Cache
         _update_step("cache", "running", "Invalidando cache...")
@@ -875,8 +877,8 @@ def sync_all_data(days=150):
             clear_cache()
             _update_step("cache", "done", "Cache atualizado")
         except Exception as e:
-            _update_step("cache", "done", f"⚠️ {str(e)[:40]}")
-            print(f"⚠️  [SYNC] Cache falhou: {e}")
+            _update_step("cache", "done", f"Falhou: {str(e)[:40]}")
+            print(f"[SYNC][WARN] Cache falhou: {e}")
 
         elapsed = time.time() - start_total
         results['success'] = True
