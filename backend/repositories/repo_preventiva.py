@@ -10,39 +10,36 @@ from backend.repositories.repo_base import get_connection, safe_memoize
 # Suprimir warning repetitivo do pandas sobre SQLAlchemy (DuckDB funciona perfeitamente com pd.read_sql)
 warnings.filterwarnings("ignore", message=".*pandas only supports SQLAlchemy.*", category=UserWarning)
 
-# ============================================================
-# CRITÉRIO DE FUGA DE PREVENTIVA (Atualizado 2026-02-27)
-# Metodologia alinhada com SAP BO
-# ============================================================
-# Uma OS CORRETIVA é "fuga" se contém peças/serviços típicos de
-# manutenção preventiva. A detecção usa 2 critérios combinados:
+# CRITÉRIO DE FUGA DE PREVENTIVA (Atualizado 2026-03-02)
+# Nova regra: OS é fuga se tem ÓLEO **E** FILTRO (ambos na mesma OS)
+# A detecção usa verificação no NÍVEL DA OS (não por item individual):
 #
-# CRITÉRIO 1: Peça de revisão → regex na coluna descricao_peca
-# CRITÉRIO 2: MO de substituição → match exato na coluna tipo_mo
-# CRITÉRIO 3: Rev preventiva → match parcial no tipo_mo
+# CRITÉRIO 1: OS contém item com ÓLEO (motor/galão 20L) - regex
+# CRITÉRIO 2: OS contém item com FILTRO DE ÓLEO - regex  
+# CRITÉRIO 3: Tipo MO = fornecimento OU substituição
+# CRITÉRIO 4: Rev preventiva → match parcial no tipo_mo (independente)
 #
-# OS é fuga se (CRITÉRIO 1 AND CRITÉRIO 2) OR CRITÉRIO 3
+# OS é fuga se (CRITÉRIO 1 AND CRITÉRIO 2 AND CRITÉRIO 3) OR CRITÉRIO 4
 
-# --- CRITÉRIO 1: Peças típicas de revisão preventiva ---
-# Buscamos na coluna descricao_peca (NamePart do Databricks)
-PECAS_FUGA = [
-    'OLEO MOTOR',       # Variações: OLEO DE MOTOR, OLEO LUBRIFICANTE MOTOR
-    'FILTRO DE OLEO',   # Variações: FILTRO OLEO, FILTRO DE ÓLEO
-]
-# Regex consolidado para peças (case-insensitive)
-_PECA_FUGA_REGEX = r'(OLEO\s*(DE\s*)?MOTOR|FILTRO\s*(DE\s*)?OLEO)'
+# --- CRITÉRIO 1: Peças de ÓLEO (motor + galão 20L) ---
+_PECA_OLEO_REGEX = r'OLEO\s*(DE\s*)?MOTOR(\s*GALAO\s*20L)?'
 
-# --- CRITÉRIO 2: MO de substituição/fornecimento ---
+# --- CRITÉRIO 2: Peças de FILTRO DE ÓLEO ---
+_PECA_FILTRO_REGEX = r'FILTRO\s*(DE\s*)?OLEO'
+
+# --- CRITÉRIO 3: MO de substituição/fornecimento ---
 TIPOS_MO_FUGA = [
     'SUBSTITUIR',
     'FORNECIMENTO DE PECAS',
     'FORNECIMENTO PECAS',
     'SUBSTITUIR SEM REVISAO DE CUBO',
+    'SUBSTITUIR SEM REVISAO CUBO',
     'SUBSTITUIR COM REVISAO DE CUBO',
+    'SUBSTITUIR COM REVISAO CUBO',
 ]
 _MO_FUGA_IN_LIST = "'" + "', '".join(TIPOS_MO_FUGA) + "'"
 
-# --- CRITÉRIO 3: Tipo MO = Rev Preventiva (diretamente) ---
+# --- CRITÉRIO 4: Tipo MO = Rev Preventiva (diretamente) ---
 _MO_REV_PREVENTIVA_REGEX = r'REV(ISAO|ISÃO)?\s*PREVENTIVA'
 
 # --- LISTA DE OPORTUNIDADES DE RI (uso futuro: toggle no Farol) ---
@@ -92,24 +89,38 @@ def _get_asset_type_filter(tipo_ativo="VEICULOS"):
 def _apply_fuga_logic(query_base):
     """
     Injeta a lógica de filtro por Fuga de Preventiva na query SQL.
-    Metodologia SAP BO: (peça de revisão + MO substituição) OU rev preventiva.
+    Nova regra (2026-03-02): (óleo E filtro na mesma OS + MO subst/forn) OU rev preventiva.
     """
     where_clause = _get_fuga_conditions()
     return f"SELECT * FROM ({query_base}) WHERE ({where_clause})"
 
+def _get_fuga_os_subquery(table="ri_corretiva_detalhamento", extra_where=""):
+    """
+    Retorna subquery SQL que identifica OS com ÓLEO **E** FILTRO (ambos).
+    Usa INTERSECT para encontrar OS que contêm ambos os tipos de peça
+    com MO de fornecimento/substituição.
+    """
+    mo_cond = f"UPPER(COALESCE(tipo_mo, '')) IN ({_MO_FUGA_IN_LIST})"
+    oleo_cond = f"regexp_matches(UPPER(COALESCE(descricao_peca, '')), '{_PECA_OLEO_REGEX}', 'i')"
+    filtro_cond = f"regexp_matches(UPPER(COALESCE(descricao_peca, '')), '{_PECA_FILTRO_REGEX}', 'i')"
+    
+    return f"""(
+        SELECT numero_os FROM {table} WHERE {oleo_cond} AND {mo_cond} {extra_where}
+        INTERSECT
+        SELECT numero_os FROM {table} WHERE {filtro_cond} AND {mo_cond} {extra_where}
+    )"""
+
 def _get_fuga_conditions():
     """
-    Helper: Retorna a condição SQL para detecção de fugas.
+    Retorna condição SQL para detecção de fugas (usável em WHERE ou CASE WHEN).
     
-    Lógica: (peça de revisão AND MO de substituição) OR tipo_mo = rev preventiva
-    - Peça: descricao_peca contém OLEO MOTOR ou FILTRO DE OLEO
-    - MO: tipo_mo IN (SUBSTITUIR, FORNECIMENTO DE PECAS, etc.)
-    - OU: tipo_mo contém REV PREVENTIVA
+    Nova lógica (2026-03-02):
+    - OS com ÓLEO **E** FILTRO + MO fornecimento/substituição → numero_os IN subquery
+    - OU tipo_mo contém REV PREVENTIVA (independente)
     """
-    peca_cond = f"regexp_matches(UPPER(COALESCE(descricao_peca, '')), '{_PECA_FUGA_REGEX}', 'i')"
-    mo_cond = f"UPPER(COALESCE(tipo_mo, '')) IN ({_MO_FUGA_IN_LIST})"
     rev_prev_cond = f"regexp_matches(UPPER(COALESCE(tipo_mo, '')), '{_MO_REV_PREVENTIVA_REGEX}', 'i')"
-    return f"(({peca_cond} AND {mo_cond}) OR {rev_prev_cond})"
+    os_subquery = _get_fuga_os_subquery()
+    return f"(numero_os IN {os_subquery} OR {rev_prev_cond})"
 
 @safe_memoize(timeout=600)
 def get_fugas_data(filters=None, limit=100):
