@@ -162,10 +162,10 @@ class TestBuildQuery:
             assert col in query, f"Coluna {col} não encontrada na query"
 
     def test_query_has_client_filter(self):
-        """Query deve filtrar por TGM_CLIENT_IDS."""
+        """Query deve filtrar por TGM_CLIENT_IDS via dim_fuelcustomers."""
         from backend.services.databricks_sync import _build_query
         query = _build_query()
-        assert "try_cast(c.SourceNumber AS INT) IN" in query
+        assert "fc.CustomerSourceCode IN" in query
 
 
 # ============================================================

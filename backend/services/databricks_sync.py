@@ -407,7 +407,7 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
     return f"""
     WITH base AS (
         -- Subquery filtrada: aplica filtros de data + cliente ANTES dos JOINs dimensionais
-        SELECT /*+ BROADCAST(c) */
+        SELECT /*+ BROADCAST(fc) */
             fi.MaintenanceId,
             fi.MaintenanceItemSourceCode,
             fi.PartComplement,
@@ -416,62 +416,64 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
             fi.PartPriceApproved,
             fi.LaborPriceApproved,
             fi.Sk_MaintenanceLabor,
-            f.IdMaintenanceItem,
-            f.IdVehicle,
-            f.IdMerchant,
-            f.IdPart,
-            f.IdCustomer,
-            f.IdUserApproval,
-            f.CreatedDate,
-            f.EndDate,
-            f.DateApproval_OS,
-            f.DateCancellation_OS,
-            f.DateDisapproval_OS,
-            f.FlPreventiveMaintenance,
-            f.Mileage,
-            f.ReasonCancellation,
-            cast(f.IdCustomer as string) as codigo_cliente,
-            cast(c.SourceNumber as string) as codigo_tgm,
-            COALESCE(c.NameCustomer, CONCAT('Cliente ', cast(c.SourceNumber as string)), CONCAT('ID ', cast(f.IdCustomer as string))) as nome_cliente
+            fi.TransactionTimestamp,
+            fi.ApprovalTimestamp,
+            fi.CancellationTimestamp,
+            fi.DeclineTimestamp,
+            fi.ReviewTimestamp,
+            fi.IsPreventiveMaintenance,
+            fi.PartId,
+            fs.OrderServiceCode,
+            fs.VehicleSourceCode as IdVehicle,
+            fs.Sk_MaintenanceVehicle,
+            fs.Sk_MaintenanceMerchant,
+            fs.Sk_ServiceOrderApprover,
+            fs.Sk_ServiceOrderApprovalHistory,
+            fs.MileageNumber,
+            fs.MaintenanceTypeCode,
+            fs.ManagerReport,
+            cast(fc.CustomerSourceCode as string) as codigo_cliente,
+            cast(fc.CustomerSourceCode as string) as codigo_tgm,
+            COALESCE(fc.CustomerShortName, CONCAT('Cliente ', cast(fc.CustomerSourceCode as string))) as nome_cliente
         FROM hive_metastore.gold.fact_maintenanceitems fi
-        INNER JOIN hive_metastore.gold.fact_maintenanceitem f 
-            ON cast(fi.MaintenanceItemSourceCode as long) = f.IdMaintenanceItem
-        INNER JOIN hive_metastore.gold.dim_customer c
-            ON f.IdCustomer = c.IdCustomer
+        INNER JOIN hive_metastore.gold.fact_maintenanceservices fs
+            ON fi.Sk_MaintenanceServices = fs.Sk_MaintenanceServices
+        INNER JOIN hive_metastore.gold.dim_fuelcustomers fc
+            ON fs.Sk_FuelCustomer = fc.Sk_FuelCustomer
         WHERE {date_filter}
-          AND try_cast(c.SourceNumber AS INT) IN ({client_ids})
+          AND fc.CustomerSourceCode IN ({client_ids})
     )
     SELECT 
-        cast(b.MaintenanceId as string) as numero_os,
+        cast(b.OrderServiceCode as string) as numero_os,
         cast(b.MaintenanceItemSourceCode as string) as codigo_item,
         
         b.codigo_cliente,
         b.codigo_tgm,
-        cast(b.IdMerchant as string) as codigo_estabelecimento,
+        cast(b.Sk_MaintenanceMerchant as string) as codigo_estabelecimento,
         b.nome_cliente,
-        m.NameMerchant as nome_estabelecimento,
+        COALESCE(mm.MerchantShortenedName, mm.CorporateName, 'Não Informado') as nome_estabelecimento,
         
-        COALESCE(v.VehiclePlate, 'N/A') as placa,
-        COALESCE(v.NameVehicleManuFacturer, 'N/A') as fabricante,
+        COALESCE(mv.LicensePlate, v.VehiclePlate, 'N/A') as placa,
+        COALESCE(mv.VehicleManufacturer, v.NameVehicleManuFacturer, 'N/A') as fabricante,
         COALESCE(v.NameVehicleModel, 'N/A') as modelo_veiculo,
-        COALESCE(v.NameVehicleFamily, 'N/A') as familia_veiculo,
-        COALESCE(mv.InitialsState, m.InitialsState, 'N/A') as uf,
-        COALESCE(mv.NameCity, m.NameCity, 'N/A') as cidade,
-        COALESCE(v.ds_chassis, 'N/A') as chassi,
-        COALESCE(cast(v.nr_year as string), 'N/A') as ano_veiculo,
+        COALESCE(mv.VehicleFamilyName, v.NameVehicleFamily, 'N/A') as familia_veiculo,
+        COALESCE(mv.InitialsState, mm.StateName, 'N/A') as uf,
+        COALESCE(mv.NameCity, mm.CityName, 'N/A') as cidade,
+        'N/A' as chassi,
+        COALESCE(cast(mv.VehicleYear as string), 'N/A') as ano_veiculo,
         
         p.NamePart as descricao_peca,
         COALESCE(b.PartComplement, 'GENERICA') as complemento_peca,
         
         CASE 
-            WHEN UPPER(COALESCE(b.FlPreventiveMaintenance, '')) = 'S' THEN 'PREVENTIVA'
+            WHEN b.IsPreventiveMaintenance = true THEN 'PREVENTIVA'
             ELSE 'CORRETIVA'
         END as tipo_manutencao,
         
         CASE 
-            WHEN b.DateCancellation_OS IS NOT NULL THEN 'CANCELADA'
-            WHEN b.DateApproval_OS IS NOT NULL THEN 'APROVADA'
-            WHEN b.DateDisapproval_OS IS NOT NULL THEN 'REPROVADA'
+            WHEN b.CancellationTimestamp IS NOT NULL THEN 'CANCELADA'
+            WHEN b.ApprovalTimestamp IS NOT NULL THEN 'APROVADA'
+            WHEN b.DeclineTimestamp IS NOT NULL THEN 'REPROVADA'
             ELSE 'PENDENTE'
         END as status_os,
         
@@ -480,35 +482,34 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
         try_cast(b.PartPriceApproved as double) as valor_peca,
         try_cast(COALESCE(b.LaborPriceApproved, (b.PriceApproved - b.PartPriceApproved), 0) as double) as valor_mo,
         
-        b.CreatedDate as data_transacao,
-        b.EndDate as data_atualizacao,
-        b.CreatedDate as data_criacao_os,
-        b.DateApproval_OS as data_aprovacao_os,
+        b.TransactionTimestamp as data_transacao,
+        b.ReviewTimestamp as data_atualizacao,
+        b.TransactionTimestamp as data_criacao_os,
+        b.ApprovalTimestamp as data_aprovacao_os,
         
-        COALESCE(app.NameApproval, 'Não Informado') as nome_aprovador,
-        COALESCE(app.FullNameApproval, 'Não Informado') as nome_aprovador_completo,
+        COALESCE(wu.WebUserName, 'Não Informado') as nome_aprovador,
+        COALESCE(wu.WebUserFullName, 'Não Informado') as nome_aprovador_completo,
         
         COALESCE(cast(ml.LaborName as string), 'SEM MO') as tipo_mo,
-        try_cast(b.Mileage as double) as hodometro,
-        COALESCE(sah.ApprovalHistoryName, b.ReasonCancellation, 'Aprovação Automática') as mensagem_log,
+        try_cast(b.MileageNumber as double) as hodometro,
+        COALESCE(sah.ApprovalHistoryName, b.ManagerReport, 'Aprovação Automática') as mensagem_log,
         COALESCE(sah.DetailName, '') as detalhe_regulacao
         
     FROM base b
     LEFT JOIN hive_metastore.gold.dim_vehicle v 
         ON b.IdVehicle = v.IdVehicle
     LEFT JOIN hive_metastore.gold.dim_maintenancevehicles mv
-        ON v.IdVehicle = mv.VehicleSourceCode
-    LEFT JOIN hive_metastore.gold.dim_merchant m
-        ON b.IdMerchant = m.IdMerchant
+        ON b.Sk_MaintenanceVehicle = mv.Sk_MaintenanceVehicle
+    LEFT JOIN hive_metastore.gold.dim_maintenancemerchants mm
+        ON b.Sk_MaintenanceMerchant = mm.Sk_MaintenanceMerchant
     LEFT JOIN hive_metastore.gold.dim_part p
-        ON b.IdPart = p.IdPart
+        ON b.PartId = p.IdPart
     LEFT JOIN hive_metastore.gold.dim_maintenancelabors ml
         ON b.Sk_MaintenanceLabor = ml.Sk_MaintenanceLabor
-    LEFT JOIN hive_metastore.gold.dim_maintenanceapproval app
-        ON b.IdUserApproval = app.IdUserApproval
-        AND app.FlLastRecord = 1
+    LEFT JOIN hive_metastore.gold.dim_webusers wu
+        ON b.Sk_ServiceOrderApprover = wu.Sk_WebUser
     LEFT JOIN hive_metastore.gold.dim_serviceordersapprovalhistory sah
-        ON b.MaintenanceId = sah.ServiceOrderId
+        ON b.Sk_ServiceOrderApprovalHistory = sah.Sk_ServiceOrderApprovalHistory
         AND sah.IsLastServiceOrderApproval = true
     """
 
