@@ -1,15 +1,23 @@
 # Lista de IDs de Clientes TGM para filtro no Databricks
 # Estes são SourceNumber (codigo_tgm) da dim_customer.
-# Atualizado em: 2026-02-27 — Lista correta fornecida pelo negócio (253 clientes)
+# Atualizado em: 2026-03-06 — Curadoria: removidos 33 órgãos públicos/estatais
 # IMPORTANTE: Após atualizar esta lista, forçar re-sync completo (FULL LOAD).
+#
+# Órgãos públicos removidos (ver .agent/agents/client-curator.md):
+#   PRF(187966), DNIT(240752), IBAMA(234456,234455), MJ(232129),
+#   ICMBio(234913,231048,231037,231051,231038,231052,231039,231055,231040),
+#   SENAPPEN(233980,233985,235548,235550,235552,230011),
+#   GOV MG(233898), SABESP(248071,248075), GEF(233896),
+#   FUNBIO(169618,214419,248659,248856,231749),
+#   Inst.Biosistêmico(235366), Equatorial(225243), TecBan(120356), CAAN(246577)
 
 TGM_CLIENT_IDS = [
     2278, 2572, 3005, 12511, 31837, 34081, 36295, 41266, 43444, 51979,
     53993, 54171, 60905, 94356, 95587, 96310, 96673, 100879, 100929, 101440,
-    105597, 110472, 111143, 113916, 120356, 122485, 122486, 122752, 129898, 142155,
+    105597, 110472, 111143, 113916, 122485, 122486, 122752, 129898, 142155,
     142630, 145745, 147928, 150796, 150797, 151564, 153469, 153479, 153481, 157347,
     157935, 158555, 159656, 160430, 161699, 163299, 165096, 165100, 165937, 167343,
-    169618, 170064, 172986, 173285, 173822, 174144, 176870, 177158, 179209, 179486,
+    170064, 172986, 173285, 173822, 174144, 176870, 177158, 179209, 179486,
     179490, 179499, 180724, 181007, 181419, 182170, 182803, 182856, 182857, 182858,
     182892, 183758, 184538, 185513, 185515, 186299, 187312, 187413, 187966, 188000,
     188001, 188125, 188278, 189573, 189587, 190486, 190799, 190924, 190963, 192036,
@@ -31,3 +39,49 @@ TGM_CLIENT_IDS = [
     251933, 253566, 254418, 254948, 255140, 255594, 256442, 256443, 256618, 257338,
     257340, 258410, 259536,
 ]
+
+# IDs de órgãos públicos/estatais excluídos (curadoria 2026-03-06)
+# Documentação completa: .agent/agents/client-curator.md
+EXCLUDED_PUBLIC_IDS = [
+    # === Órgãos Federais ===
+    187966,  # PRF - Polícia Rodoviária Federal
+    240752,  # DNIT RO
+    234456,  # IBAMA 1
+    234455,  # IBAMA 2
+    232129,  # Ministério da Justiça DF
+    # === ICMBio (9 contratos) ===
+    234913,  # ICMBio - Fundo Compensação Ambiental
+    231048,  # ICMBio - ACADEBIO
+    231037,  # ICMBio - Centros
+    231051,  # ICMBio - GR 1 Norte
+    231038,  # ICMBio - GR 2 Nordeste
+    231052,  # ICMBio - GR 3 Centro Oeste
+    231039,  # ICMBio - GR 4 Sudeste
+    231055,  # ICMBio - GR 5 Sul
+    231040,  # ICMBio - Sede
+    # === SENAPPEN (6 contratos) ===
+    233980,  # SENAPPEN - PFBRA
+    233985,  # SENAPPEN - PFCAT
+    235548,  # SENAPPEN - PFCG
+    235550,  # SENAPPEN - PFMOS
+    235552,  # SENAPPEN - PFPV
+    230011,  # SENAPPEN - Sede
+    # === Estatais / Governo ===
+    233898,  # GOV MG
+    248071,  # SABESP Equipamentos e Pesados
+    248075,  # SABESP Leves
+    233896,  # GEF MAR - Fundo gov. ambiental
+    # === Decisão do negócio (2026-03-06) ===
+    169618,  # FUNBIO ARPA
+    214419,  # FUNBIO COPAIBAS
+    248659,  # FUNBIO G7 Parques Nacionais
+    248856,  # FUNBIO RVS Santa Cruz
+    231749,  # TAJ Paraná - FUNBIO
+    235366,  # Instituto Biosistêmico
+    225243,  # Equatorial GO
+    120356,  # Tecnologia Bancária SA (TecBan)
+    246577,  # TGM CAAN
+]
+
+# Lista final filtrada (220 clientes privados)
+TGM_CLIENT_IDS = [id for id in TGM_CLIENT_IDS if id not in EXCLUDED_PUBLIC_IDS]

@@ -141,16 +141,17 @@ def check_new_data():
         conn_db = get_databricks_conn()
         cursor = conn_db.cursor()
         
-        # Query 1: MAX date remota
+        # Query 1: MAX date remota (FIX 2026-03-05: JOINs corretos fi+fs+fc)
+        client_ids = ", ".join([str(x) for x in TGM_CLIENT_IDS])
         query_max = f"""
-        SELECT MAX(CAST(f.CreatedDate AS DATE)) as max_date
+        SELECT MAX(CAST(fi.TransactionTimestamp AS DATE)) as max_date
         FROM hive_metastore.gold.fact_maintenanceitems fi
-        INNER JOIN hive_metastore.gold.fact_maintenanceitem f 
-            ON cast(fi.MaintenanceItemSourceCode as long) = f.IdMaintenanceItem
-        INNER JOIN hive_metastore.gold.dim_customer c
-            ON f.IdCustomer = c.IdCustomer
-        WHERE f.CreatedDate >= date_add(current_date(), -150)
-          AND try_cast(c.SourceNumber AS INT) IN ({", ".join([str(x) for x in TGM_CLIENT_IDS])})
+        INNER JOIN hive_metastore.gold.fact_maintenanceservices fs
+            ON fi.Sk_MaintenanceServices = fs.Sk_MaintenanceServices
+        INNER JOIN hive_metastore.gold.dim_fuelcustomers fc
+            ON fs.Sk_FuelCustomer = fc.Sk_FuelCustomer
+        WHERE fi.TransactionTimestamp >= date_add(current_date(), -150)
+          AND fc.CustomerSourceCode IN ({client_ids})
         """
         cursor.execute(query_max)
         row = cursor.fetchone()
@@ -165,13 +166,13 @@ def check_new_data():
                 query_count = f"""
                 SELECT COUNT(*) as new_count
                 FROM hive_metastore.gold.fact_maintenanceitems fi
-                INNER JOIN hive_metastore.gold.fact_maintenanceitem f 
-                    ON cast(fi.MaintenanceItemSourceCode as long) = f.IdMaintenanceItem
-                INNER JOIN hive_metastore.gold.dim_customer c
-                    ON f.IdCustomer = c.IdCustomer
-                WHERE f.CreatedDate > '{local_max_date}'
-                  AND f.CreatedDate >= date_add(current_date(), -150)
-                  AND try_cast(c.SourceNumber AS INT) IN ({", ".join([str(x) for x in TGM_CLIENT_IDS])})
+                INNER JOIN hive_metastore.gold.fact_maintenanceservices fs
+                    ON fi.Sk_MaintenanceServices = fs.Sk_MaintenanceServices
+                INNER JOIN hive_metastore.gold.dim_fuelcustomers fc
+                    ON fs.Sk_FuelCustomer = fc.Sk_FuelCustomer
+                WHERE fi.TransactionTimestamp > '{local_max_date}'
+                  AND fi.TransactionTimestamp >= date_add(current_date(), -150)
+                  AND fc.CustomerSourceCode IN ({client_ids})
                 """
                 cursor2.execute(query_count)
                 row2 = cursor2.fetchone()
@@ -393,14 +394,14 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
     - INCREMENTAL: watermark → busca dados mais recentes que watermark
     """
     if watermark:
-        # Incremental: apenas dados novos
-        date_filter = f"f.CreatedDate > '{watermark}'"
+        # Incremental: apenas dados novos (FIX 2026-03-05: fi.TransactionTimestamp)
+        date_filter = f"fi.TransactionTimestamp > '{watermark}'"
     elif date_from and date_to:
         # Gap fill: intervalo específico de datas faltantes
-        date_filter = f"f.CreatedDate >= '{date_from}' AND f.CreatedDate < '{date_to}'"
+        date_filter = f"fi.TransactionTimestamp >= '{date_from}' AND fi.TransactionTimestamp < '{date_to}'"
     else:
         # Full load: últimos {days} dias
-        date_filter = f"f.CreatedDate >= date_add(current_date(), -{days})"
+        date_filter = f"fi.TransactionTimestamp >= date_add(current_date(), -{days})"
     
     client_ids = ", ".join([str(x) for x in TGM_CLIENT_IDS])
     
@@ -417,10 +418,11 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
             fi.LaborPriceApproved,
             fi.Sk_MaintenanceLabor,
             fi.TransactionTimestamp,
-            fi.ApprovalTimestamp,
-            fi.CancellationTimestamp,
-            fi.DeclineTimestamp,
+            fi.WasPartApproved,
             fi.ReviewTimestamp,
+            fs.ApprovalTimestamp,
+            fs.CancellationTimestamp,
+            fs.DisapprovalTimestamp,
             fi.IsPreventiveMaintenance,
             fi.PartId,
             fs.OrderServiceCode,
@@ -442,6 +444,7 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
             ON fs.Sk_FuelCustomer = fc.Sk_FuelCustomer
         WHERE {date_filter}
           AND fc.CustomerSourceCode IN ({client_ids})
+          AND fi.CancellationTimestamp IS NULL
     )
     SELECT 
         cast(b.OrderServiceCode as string) as numero_os,
@@ -472,8 +475,8 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
         
         CASE 
             WHEN b.CancellationTimestamp IS NOT NULL THEN 'CANCELADA'
+            WHEN b.DisapprovalTimestamp IS NOT NULL THEN 'REPROVADA'
             WHEN b.ApprovalTimestamp IS NOT NULL THEN 'APROVADA'
-            WHEN b.DeclineTimestamp IS NOT NULL THEN 'REPROVADA'
             ELSE 'PENDENTE'
         END as status_os,
         
@@ -493,7 +496,8 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
         COALESCE(cast(ml.LaborName as string), 'SEM MO') as tipo_mo,
         try_cast(b.MileageNumber as double) as hodometro,
         COALESCE(sah.ApprovalHistoryName, b.ManagerReport, 'Aprovação Automática') as mensagem_log,
-        COALESCE(sah.DetailName, '') as detalhe_regulacao
+        COALESCE(sah.DetailName, '') as detalhe_regulacao,
+        COALESCE(b.WasPartApproved, false) as peca_aprovada
         
     FROM base b
     LEFT JOIN hive_metastore.gold.dim_vehicle v 
