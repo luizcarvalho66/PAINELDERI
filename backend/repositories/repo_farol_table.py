@@ -16,7 +16,7 @@ _OPORTUNIDADE_MO_IN = "'" + "', '".join(TIPOS_MO_OPORTUNIDADE_RI) + "'"
 
 # NOTA: Cache reativado após correções. Monitorar comportamento com filtros vazios.
 @safe_memoize(timeout=300)
-def get_farol_table_data(filters: dict = None, page: int = 1, page_size: int = 10, only_opportunities: bool = False, group_by_client: bool = False) -> list:
+def get_farol_table_data(filters: dict = None, page: int = 1, page_size: int = 10, only_opportunities: bool = False) -> list:
     """
     Retorna dados agregados por Peça + Tipo MO para a tabela do farol.
     Suporta paginação via OFFSET/LIMIT.
@@ -57,25 +57,18 @@ def get_farol_table_data(filters: dict = None, page: int = 1, page_size: int = 1
         
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         
-        # Filtro de oportunidades: tipo_mo pré-definido + OS com ≤ 2 itens
+        # Filtro de oportunidades: chaves com RI < 80% (onde ha espaco de melhoria)
+        # Ordenadas por impacto financeiro (volume x valor)
         opp_cte = ""
         source_table = "ri_corretiva_detalhamento"
+        opp_having = ""
+        opp_order = "a.qtd_os DESC"  # default: por volume
         if only_opportunities:
-            where_sql += f" AND UPPER(COALESCE(tipo_mo, '')) IN ({_OPORTUNIDADE_MO_IN})"
-            # CTE para filtrar apenas OS com ≤ 2 itens (regra de negócio)
-            opp_cte = """
-            os_elegiveis AS (
-                SELECT numero_os
-                FROM ri_corretiva_detalhamento
-                GROUP BY numero_os
-                HAVING COUNT(*) <= 2
-            ),
-            dados_filtrados AS (
-                SELECT c.*
-                FROM ri_corretiva_detalhamento c
-                INNER JOIN os_elegiveis oe ON c.numero_os = oe.numero_os
-            ),"""
-            source_table = "dados_filtrados"
+            # Filtrar chaves onde regulacao RI < 80% (Amarelo + Vermelho)
+            opp_having = """HAVING (SUM(CASE WHEN COALESCE(valor_aprovado, 0) < COALESCE(valor_total, 0) - 0.01 THEN 1 ELSE 0 END)::FLOAT 
+                           / NULLIF(COUNT(*), 0)) * 100 < 80"""
+            # Ordenar por impacto financeiro (OS x P70 = dinheiro em jogo)
+            opp_order = "(a.qtd_os * a.p70) DESC"
         
         # Verifica se tem filtro de prioridade -> Se sim, precisamos buscar TUDO para filtrar no Python
         filter_prioridade = filters.get("prioridade") if filters else None
@@ -87,15 +80,9 @@ def get_farol_table_data(filters: dict = None, page: int = 1, page_size: int = 1
         if use_sql_pagination:
              limit_clause = f"LIMIT {page_size} OFFSET {offset}"
         
-        # Decide Key Logic
-        if group_by_client:
-            # Group by Key AND Client
-            key_expr = "CONCAT(COALESCE(peca, 'SEM PEÇA'), ' + ', COALESCE(tipo_mo, 'SEM MO'), ' | ', COALESCE(nome_cliente, 'N/A'))"
-            group_by_expr = "COALESCE(peca, 'SEM PEÇA'), COALESCE(tipo_mo, 'SEM MO'), COALESCE(nome_cliente, 'N/A')"
-        else:
-            # Standard Grouping
-            key_expr = "CONCAT(COALESCE(peca, 'SEM PEÇA'), ' + ', COALESCE(tipo_mo, 'SEM MO'))"
-            group_by_expr = "COALESCE(peca, 'SEM PEÇA'), COALESCE(tipo_mo, 'SEM MO')"
+        # Standard Grouping (group_by_client removido — drill-down substitui)
+        key_expr = "CONCAT(COALESCE(peca, 'SEM PEÇA'), ' + ', COALESCE(tipo_mo, 'SEM MO'))"
+        group_by_expr = "COALESCE(peca, 'SEM PEÇA'), COALESCE(tipo_mo, 'SEM MO')"
 
         # Query base
         query = f"""
@@ -108,18 +95,18 @@ def get_farol_table_data(filters: dict = None, page: int = 1, page_size: int = 1
                 COUNT(DISTINCT numero_os) as qtd_os,
                 COUNT(*) as total_itens,
                 
-                -- Taxa de aprovação dos itens
-                SUM(CASE WHEN status_os = 'APROVADA' THEN 1 ELSE 0 END) as itens_aprovacao_auto,
+                -- Taxa de regulação RI: valor_aprovado < valor_total = RI negociou preço real
+                SUM(CASE WHEN COALESCE(valor_aprovado, 0) < COALESCE(valor_total, 0) - 0.01 THEN 1 ELSE 0 END) as itens_aprovacao_auto,
                 
-                -- ITENS NÃO APROVADOS: Reprovados, Cancelados ou Pendentes
-                SUM(CASE WHEN status_os != 'APROVADA' OR status_os IS NULL THEN 1 ELSE 0 END) as itens_aprovacao_humana,
+                -- SEM REGULAÇÃO: preço original mantido (valor_aprovado >= valor_total)
+                SUM(CASE WHEN COALESCE(valor_aprovado, 0) >= COALESCE(valor_total, 0) - 0.01 THEN 1 ELSE 0 END) as itens_aprovacao_humana,
                 
                 PERCENTILE_CONT(0.70) WITHIN GROUP (ORDER BY COALESCE(valor_aprovado, 0)) as p70,
                 AVG(COALESCE(valor_aprovado, 0)) as valor_medio
             FROM {source_table} c
             WHERE {where_sql}
             GROUP BY {group_by_expr}
-            {"HAVING PERCENTILE_CONT(0.70) WITHIN GROUP (ORDER BY COALESCE(valor_aprovado, 0)) <= 1500" if only_opportunities else ""}
+            {opp_having}
         ),
         -- Benchmark via Pricing Engine (P70 do valor total por tipo_mo)
         benchmark_total AS (
@@ -162,7 +149,7 @@ def get_farol_table_data(filters: dict = None, page: int = 1, page_size: int = 1
             true as has_ref_peca
         FROM agg_chave a
         LEFT JOIN benchmark_total bt ON a.tipo_mo = bt.tipo_mo
-        ORDER BY a.qtd_os DESC -- Ordenação Inicial (depois reordenamos por Score)
+        ORDER BY {opp_order}
         {limit_clause}
         """
         
@@ -217,14 +204,14 @@ def get_farol_table_data(filters: dict = None, page: int = 1, page_size: int = 1
 
 
 @safe_memoize(timeout=300)
-def get_farol_total_count(filters: dict = None, only_opportunities: bool = False, group_by_client: bool = False) -> int:
+def get_farol_total_count(filters: dict = None, only_opportunities: bool = False) -> int:
     """
     Retorna o total de chaves (Peça + MO) agregadas para calcular paginação.
     
     Args:
         filters: Dicionário de filtros
         only_opportunities: Se True, conta apenas chaves com P70 <= R$ 1.500
-        group_by_client: Se True, agrupa também por cliente
+
     
     Returns:
         Total de chaves únicas
@@ -237,7 +224,7 @@ def get_farol_total_count(filters: dict = None, only_opportunities: bool = False
     try:
         cursor = conn.cursor()
         
-        where_clauses = ["COALESCE(data_transacao, data_aprovacao_os) IS NOT NULL"]
+        where_clauses = ["COALESCE(data_transacao, data_aprovacao_os) IS NOT NULL", "status_os != 'CANCELADA'"]
         
         if filters:
             if filters.get("clientes"):
@@ -254,30 +241,13 @@ def get_farol_total_count(filters: dict = None, only_opportunities: bool = False
         opp_cte = ""
         source_table = "ri_corretiva_detalhamento"
         if only_opportunities:
-            where_sql += f" AND UPPER(COALESCE(tipo_mo, '')) IN ({_OPORTUNIDADE_MO_IN})"
-            having_clause = "HAVING PERCENTILE_CONT(0.70) WITHIN GROUP (ORDER BY COALESCE(valor_aprovado, 0)) <= 1500"
-            # CTE para filtrar apenas OS com ≤ 2 itens (regra de negócio)
-            opp_cte = """
-            os_elegiveis AS (
-                SELECT numero_os
-                FROM ri_corretiva_detalhamento
-                GROUP BY numero_os
-                HAVING COUNT(*) <= 2
-            ),
-            dados_filtrados AS (
-                SELECT c.*
-                FROM ri_corretiva_detalhamento c
-                INNER JOIN os_elegiveis oe ON c.numero_os = oe.numero_os
-            ),"""
-            source_table = "dados_filtrados"
+            # Contar chaves com regulacao RI < 80% (Amarelo + Vermelho)
+            having_clause = """HAVING (SUM(CASE WHEN COALESCE(valor_aprovado, 0) < COALESCE(valor_total, 0) - 0.01 THEN 1 ELSE 0 END)::FLOAT 
+                              / NULLIF(COUNT(*), 0)) * 100 < 80"""
         
-        # Decide Grouping Logic
-        if group_by_client:
-            group_by_expr = "COALESCE(peca, 'SEM PEÇA'), COALESCE(tipo_mo, 'SEM MO'), COALESCE(nome_cliente, 'N/A')"
-            key_expr = "CONCAT(COALESCE(peca, 'SEM PEÇA'), ' + ', COALESCE(tipo_mo, 'SEM MO'), ' | ', COALESCE(nome_cliente, 'N/A'))"
-        else:
-            group_by_expr = "COALESCE(peca, 'SEM PEÇA'), COALESCE(tipo_mo, 'SEM MO')"
-            key_expr = "CONCAT(COALESCE(peca, 'SEM PEÇA'), ' + ', COALESCE(tipo_mo, 'SEM MO'))"
+        # Standard Grouping (group_by_client removido — drill-down substitui)
+        group_by_expr = "COALESCE(peca, 'SEM PEÇA'), COALESCE(tipo_mo, 'SEM MO')"
+        key_expr = "CONCAT(COALESCE(peca, 'SEM PEÇA'), ' + ', COALESCE(tipo_mo, 'SEM MO'))"
 
         query = f"""
         SELECT COUNT(*) as total FROM (
@@ -330,7 +300,7 @@ def get_farol_stats_full(filters: dict = None) -> dict:
         
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         
-        # Query usando a MESMA lógica da tabela (baseada em nome_aprovador)
+        # Query usando peca_aprovada (peca_aprovada=FALSE = RI negociou = BOM)
         query = f"""
         WITH 
         agg_chave AS (
@@ -341,8 +311,8 @@ def get_farol_stats_full(filters: dict = None) -> dict:
                 COUNT(DISTINCT numero_os) as qtd_os,
                 COUNT(*) as total_itens,
                 
-                -- CRITÉRIO CORRETO: Itens com status_os APROVADA
-                SUM(CASE WHEN status_os = 'APROVADA' THEN 1 ELSE 0 END) as itens_aprovacao_auto,
+                -- Taxa de regulação RI: valor_aprovado < valor_total = RI negociou preço real
+                SUM(CASE WHEN COALESCE(valor_aprovado, 0) < COALESCE(valor_total, 0) - 0.01 THEN 1 ELSE 0 END) as itens_aprovacao_auto,
                 
                 PERCENTILE_CONT(0.70) WITHIN GROUP (ORDER BY COALESCE(valor_aprovado, 0)) as p70,
                 AVG(COALESCE(valor_aprovado, 0)) as valor_medio
@@ -474,13 +444,18 @@ def get_farol_stats_with_trend() -> dict:
     try:
         cursor = conn.cursor()
         
-        # 1. Descobrir os 2 meses mais recentes com dados
+        # 1. Descobrir os meses com dados (excluindo mês corrente = parcial)
+        from datetime import date as _date
+        import pandas as pd
+        today = _date.today()
+        current_month_start = pd.Timestamp(today.year, today.month, 1)
+        
         months_query = """
         SELECT DISTINCT date_trunc('month', data_transacao) as mes
         FROM ri_corretiva_detalhamento
         WHERE data_transacao IS NOT NULL
         ORDER BY mes DESC
-        LIMIT 2
+        LIMIT 5
         """
         df_months = cursor.execute(months_query).fetchdf()
         cursor.close()
@@ -488,32 +463,39 @@ def get_farol_stats_with_trend() -> dict:
         if df_months.empty:
             return {k: {"value": 0, "trend": 0.0, "direction": "neutral"} for k in ["verde", "amarelo", "vermelho", "total"]}
         
-        # Stats do mês mais recente (ou de todos os dados como totais)
+        # Normalizar timezone para comparação
+        df_months['mes'] = pd.to_datetime(df_months['mes']).dt.tz_localize(None)
+        
+        # Filtrar meses COMPLETOS (excluir mês corrente que é parcial)
+        meses_completos = df_months[df_months['mes'] < current_month_start]
+        
+        # Stats totais (todos os meses — valor exibido no card)
         current = get_farol_stats_full()
         
-        # 2. Se temos pelo menos 2 meses, calcular stats do mês anterior
+        # 2. Comparar os 2 últimos meses COMPLETOS para trend justo
         has_valid_previous = False
         previous = {}
+        current_month_stats = {}
         
-        if len(df_months) >= 2:
-            mes_anterior = df_months.iloc[1]['mes']
-            # Calcular stats apenas para o mês anterior
+        if len(meses_completos) >= 2:
+            mes_recente = meses_completos.iloc[0]['mes']
+            mes_anterior = meses_completos.iloc[1]['mes']
+            current_month_stats = _get_farol_stats_for_period(conn, mes_recente)
             previous = _get_farol_stats_for_period(conn, mes_anterior)
             if previous.get("total", 0) > 0:
                 has_valid_previous = True
+        elif len(meses_completos) == 1:
+            mes_recente = meses_completos.iloc[0]['mes']
+            current_month_stats = _get_farol_stats_for_period(conn, mes_recente)
         
-        # 3. Para current, calcular stats apenas do mês mais recente (para comparação justa)
-        mes_atual = df_months.iloc[0]['mes']
-        current_month_stats = _get_farol_stats_for_period(conn, mes_atual)
-        
-        # 4. Calcular deltas (mês atual vs mês anterior)
+        # 3. Calcular deltas (mês completo recente vs mês completo anterior)
         result = {}
         keys = ["verde", "amarelo", "vermelho", "total"]
         
         for k in keys:
-            # O VALUE exibido é o TOTAL (todos os meses), não apenas do mês atual
+            # O VALUE exibido é o TOTAL (todos os meses)
             total_val = current.get(k, 0)
-            # Mas o TREND compara mês atual vs mês anterior
+            # TREND compara os 2 últimos meses COMPLETOS (ignora mês parcial)
             curr_month_val = current_month_stats.get(k, 0)
             prev_val = previous.get(k, 0)
             
@@ -564,7 +546,8 @@ def _get_farol_stats_for_period(conn, mes_ref) -> dict:
                 COALESCE(tipo_mo, 'SEM MO') as tipo_mo,
                 COUNT(DISTINCT numero_os) as qtd_os,
                 COUNT(*) as total_itens,
-                SUM(CASE WHEN status_os = 'APROVADA' THEN 1 ELSE 0 END) as itens_aprovacao_auto,
+                -- Taxa de regulação RI: valor_aprovado < valor_total = RI negociou preço real
+                SUM(CASE WHEN COALESCE(valor_aprovado, 0) < COALESCE(valor_total, 0) - 0.01 THEN 1 ELSE 0 END) as itens_aprovacao_auto,
                 PERCENTILE_CONT(0.70) WITHIN GROUP (ORDER BY COALESCE(valor_aprovado, 0)) as p70,
                 AVG(COALESCE(valor_aprovado, 0)) as valor_medio
             FROM ri_corretiva_detalhamento
@@ -621,10 +604,17 @@ def _initialize_snapshot_if_missing():
 # =============================================================================
 
 @safe_memoize(timeout=180)
-def get_drill_down_chave(peca: str, tipo_mo: str, limit: int = 50) -> pd.DataFrame:
+def get_drill_down_chave(peca: str, tipo_mo: str, clientes: tuple = None, limit: int = 50) -> pd.DataFrame:
     """
     Retorna detalhes de OSs para uma chave específica (Peça + Tipo MO).
     Usado para drill-down na tabela do farol.
+    
+    Args:
+        clientes: tupla de nomes de clientes para filtrar (do farol-filter-cliente).
+                  Se None ou vazio, retorna todos os clientes.
+    
+    Inclui: numero_os, nome_cliente, valor_total, valor_aprovado,
+            data_transacao, aprovador, peca_aprovada (regulação RI)
     """
     conn = get_connection()
     
@@ -636,9 +626,20 @@ def get_drill_down_chave(peca: str, tipo_mo: str, limit: int = 50) -> pd.DataFra
         SELECT 
             numero_os,
             nome_cliente,
+            valor_total,
             valor_aprovado,
             data_transacao,
-            mensagem_log,
+            peca_aprovada,
+            -- Regra: se RI regulou (peca_aprovada=FALSE) → "Aprovação de RI"
+            -- nome_aprovador registra quem estava logado, não quem decidiu
+            CASE 
+                WHEN peca_aprovada = FALSE THEN 'Aprovação de RI'
+                WHEN nome_aprovador IS NULL 
+                  OR TRIM(nome_aprovador) = '' 
+                  OR UPPER(TRIM(nome_aprovador)) = 'NAO INFORMADO'
+                THEN 'Aprovação de RI'
+                ELSE nome_aprovador
+            END as aprovador,
             CASE 
                 WHEN UPPER(TRIM(tipo_mo)) IN (SELECT UPPER(TRIM(tipo_mo)) FROM ref_aprovacao_automatica)
                 THEN 'Automática'
@@ -646,6 +647,13 @@ def get_drill_down_chave(peca: str, tipo_mo: str, limit: int = 50) -> pd.DataFra
             END as tipo_aprovacao
         FROM ri_corretiva_detalhamento
         WHERE peca = '{peca}' AND tipo_mo = '{tipo_mo}'
+        """
+        # Filtrar por clientes se fornecido
+        if clientes:
+            placeholders = ", ".join([f"'{c}'" for c in clientes])
+            query += f" AND nome_cliente IN ({placeholders})"
+        
+        query += f"""
         ORDER BY data_transacao DESC
         LIMIT {limit}
         """

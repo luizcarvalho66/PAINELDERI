@@ -10,36 +10,39 @@ from backend.repositories.repo_base import get_connection, safe_memoize
 # Suprimir warning repetitivo do pandas sobre SQLAlchemy (DuckDB funciona perfeitamente com pd.read_sql)
 warnings.filterwarnings("ignore", message=".*pandas only supports SQLAlchemy.*", category=UserWarning)
 
-# CRITÉRIO DE FUGA DE PREVENTIVA (Atualizado 2026-03-02)
-# Nova regra: OS é fuga se tem ÓLEO **E** FILTRO (ambos na mesma OS)
-# A detecção usa verificação no NÍVEL DA OS (não por item individual):
+# ============================================================
+# CRITÉRIO DE FUGA DE PREVENTIVA (Atualizado 2026-02-27)
+# Metodologia alinhada com SAP BO
+# ============================================================
+# Uma OS CORRETIVA é "fuga" se contém peças/serviços típicos de
+# manutenção preventiva. A detecção usa 2 critérios combinados:
 #
-# CRITÉRIO 1: OS contém item com ÓLEO (motor/galão 20L) - regex
-# CRITÉRIO 2: OS contém item com FILTRO DE ÓLEO - regex  
-# CRITÉRIO 3: Tipo MO = fornecimento OU substituição
-# CRITÉRIO 4: Rev preventiva → match parcial no tipo_mo (independente)
+# CRITÉRIO 1: Peça de revisão → regex na coluna descricao_peca
+# CRITÉRIO 2: MO de substituição → match exato na coluna tipo_mo
+# CRITÉRIO 3: Rev preventiva → match parcial no tipo_mo
 #
-# OS é fuga se (CRITÉRIO 1 AND CRITÉRIO 2 AND CRITÉRIO 3) OR CRITÉRIO 4
+# OS é fuga se (CRITÉRIO 1 AND CRITÉRIO 2) OR CRITÉRIO 3
 
-# --- CRITÉRIO 1: Peças de ÓLEO (motor + galão 20L) ---
-_PECA_OLEO_REGEX = r'OLEO\s*(DE\s*)?MOTOR(\s*GALAO\s*20L)?'
+# --- CRITÉRIO 1: Peças típicas de revisão preventiva ---
+# Buscamos na coluna descricao_peca (NamePart do Databricks)
+PECAS_FUGA = [
+    'OLEO MOTOR',       # Variações: OLEO DE MOTOR, OLEO LUBRIFICANTE MOTOR
+    'FILTRO DE OLEO',   # Variações: FILTRO OLEO, FILTRO DE ÓLEO
+]
+# Regex consolidado para peças (case-insensitive)
+_PECA_FUGA_REGEX = r'(OLEO\s*(DE\s*)?MOTOR|FILTRO\s*(DE\s*)?OLEO)'
 
-# --- CRITÉRIO 2: Peças de FILTRO DE ÓLEO ---
-_PECA_FILTRO_REGEX = r'FILTRO\s*(DE\s*)?OLEO'
-
-# --- CRITÉRIO 3: MO de substituição/fornecimento ---
+# --- CRITÉRIO 2: MO de substituição/fornecimento ---
 TIPOS_MO_FUGA = [
     'SUBSTITUIR',
     'FORNECIMENTO DE PECAS',
     'FORNECIMENTO PECAS',
     'SUBSTITUIR SEM REVISAO DE CUBO',
-    'SUBSTITUIR SEM REVISAO CUBO',
     'SUBSTITUIR COM REVISAO DE CUBO',
-    'SUBSTITUIR COM REVISAO CUBO',
 ]
 _MO_FUGA_IN_LIST = "'" + "', '".join(TIPOS_MO_FUGA) + "'"
 
-# --- CRITÉRIO 4: Tipo MO = Rev Preventiva (diretamente) ---
+# --- CRITÉRIO 3: Tipo MO = Rev Preventiva (diretamente) ---
 _MO_REV_PREVENTIVA_REGEX = r'REV(ISAO|ISÃO)?\s*PREVENTIVA'
 
 # --- LISTA DE OPORTUNIDADES DE RI (uso futuro: toggle no Farol) ---
@@ -89,40 +92,26 @@ def _get_asset_type_filter(tipo_ativo="VEICULOS"):
 def _apply_fuga_logic(query_base):
     """
     Injeta a lógica de filtro por Fuga de Preventiva na query SQL.
-    Nova regra (2026-03-02): (óleo E filtro na mesma OS + MO subst/forn) OU rev preventiva.
+    Metodologia SAP BO: (peça de revisão + MO substituição) OU rev preventiva.
     """
     where_clause = _get_fuga_conditions()
     return f"SELECT * FROM ({query_base}) WHERE ({where_clause})"
 
-def _get_fuga_os_subquery(table="ri_corretiva_detalhamento", extra_where=""):
-    """
-    Retorna subquery SQL que identifica OS com ÓLEO **E** FILTRO (ambos).
-    Usa INTERSECT para encontrar OS que contêm ambos os tipos de peça
-    com MO de fornecimento/substituição.
-    """
-    mo_cond = f"UPPER(COALESCE(tipo_mo, '')) IN ({_MO_FUGA_IN_LIST})"
-    oleo_cond = f"regexp_matches(UPPER(COALESCE(descricao_peca, '')), '{_PECA_OLEO_REGEX}', 'i')"
-    filtro_cond = f"regexp_matches(UPPER(COALESCE(descricao_peca, '')), '{_PECA_FILTRO_REGEX}', 'i')"
-    
-    return f"""(
-        SELECT numero_os FROM {table} WHERE {oleo_cond} AND {mo_cond} {extra_where}
-        INTERSECT
-        SELECT numero_os FROM {table} WHERE {filtro_cond} AND {mo_cond} {extra_where}
-    )"""
-
 def _get_fuga_conditions():
     """
-    Retorna condição SQL para detecção de fugas (usável em WHERE ou CASE WHEN).
+    Helper: Retorna a condição SQL para detecção de fugas.
     
-    Nova lógica (2026-03-02):
-    - OS com ÓLEO **E** FILTRO + MO fornecimento/substituição → numero_os IN subquery
-    - OU tipo_mo contém REV PREVENTIVA (independente)
+    Lógica: (peça de revisão AND MO de substituição) OR tipo_mo = rev preventiva
+    - Peça: descricao_peca contém OLEO MOTOR ou FILTRO DE OLEO
+    - MO: tipo_mo IN (SUBSTITUIR, FORNECIMENTO DE PECAS, etc.)
+    - OU: tipo_mo contém REV PREVENTIVA
     """
+    peca_cond = f"regexp_matches(UPPER(COALESCE(descricao_peca, '')), '{_PECA_FUGA_REGEX}', 'i')"
+    mo_cond = f"UPPER(COALESCE(tipo_mo, '')) IN ({_MO_FUGA_IN_LIST})"
     rev_prev_cond = f"regexp_matches(UPPER(COALESCE(tipo_mo, '')), '{_MO_REV_PREVENTIVA_REGEX}', 'i')"
-    os_subquery = _get_fuga_os_subquery()
-    return f"(numero_os IN {os_subquery} OR {rev_prev_cond})"
+    return f"(({peca_cond} AND {mo_cond}) OR {rev_prev_cond})"
 
-@safe_memoize(timeout=600)
+@safe_memoize(timeout=120)
 def get_fugas_data(filters=None, limit=100):
     """
     Retorna a lista detalhada de Fugas de Preventiva.
@@ -201,7 +190,7 @@ def _has_column(conn, table, column):
         return False
 
 
-@safe_memoize(timeout=600)
+@safe_memoize(timeout=120)
 def get_fugas_grouped(filters=None, limit=200):
     """
     Retorna fugas agrupadas por codigo_tgm (SourceNumber).
@@ -220,8 +209,8 @@ def get_fugas_grouped(filters=None, limit=200):
         {group_col} as codigo_tgm,
         MIN(nome_cliente) as cliente_principal,
         COUNT(DISTINCT codigo_cliente) as qtd_clientes,
-        COUNT(*) as total_os,
-        SUM(valor_aprovado) as valor_total,
+        COUNT(CASE WHEN COALESCE(valor_aprovado, 0) > 0 THEN numero_os END) as total_os,
+        SUM(COALESCE(valor_aprovado, 0)) as valor_total,
         COUNT(DISTINCT numero_os) as total_os_distintas
     FROM ri_corretiva_detalhamento
     WHERE ({or_condition})
@@ -247,7 +236,7 @@ def get_fugas_grouped(filters=None, limit=200):
     
     try:
         df = pd.read_sql(query, conn, params=params)
-        df['valor_total'] = df['valor_total'].fillna(0).round(2)
+        df['valor_total'] = pd.to_numeric(df['valor_total'], errors='coerce').fillna(0).round(2)
         if not has_tgm:
             print("[WARN] get_fugas_grouped: coluna 'codigo_tgm' não encontrada, usando 'codigo_cliente' como fallback. Faça um FULL LOAD.")
         return df.to_dict('records')
@@ -256,7 +245,7 @@ def get_fugas_grouped(filters=None, limit=200):
         return []
 
 
-@safe_memoize(timeout=600)
+@safe_memoize(timeout=120)
 def get_fugas_grouped_with_detail(filters=None, limit=20, date_start=None, date_end=None, tipo_ativo="VEICULOS"):
     """
     Retorna fugas agrupadas por codigo_tgm COM dados de detalhe embutidos.
@@ -290,25 +279,32 @@ def get_fugas_grouped_with_detail(filters=None, limit=20, date_start=None, date_
             filter_sql += " AND uf IN (" + ",".join(["?"]*len(filters['uf'])) + ")"
             params.extend(filters['uf'])
     
-    # Date range: default últimos 3 meses (90 dias)
+    # Date range: default últimos 30 dias
     if not date_start or not date_end:
         from datetime import date as _date, timedelta as _td
         date_end = _date.today().isoformat()
-        date_start = (_date.today() - _td(days=90)).isoformat()
+        date_start = (_date.today() - _td(days=30)).isoformat()
     
     query_master = f"""
     SELECT 
-        {group_col} as codigo_tgm,
-        MIN(nome_cliente) as cliente_principal,
-        COUNT(DISTINCT codigo_cliente) as qtd_clientes,
-        COUNT(DISTINCT numero_os) as total_os,
-        SUM(COALESCE(valor_total, 0)) as valor_total
-    FROM ri_corretiva_detalhamento
-    WHERE ({fuga_cond})
-      AND CAST(data_transacao AS DATE) >= '{date_start}' AND CAST(data_transacao AS DATE) <= '{date_end}'
+        d.{group_col} as codigo_tgm,
+        MIN(d.nome_cliente) as cliente_principal,
+        COUNT(DISTINCT d.codigo_cliente) as qtd_clientes,
+        COUNT(DISTINCT d.numero_os) as total_os,
+        SUM(COALESCE(d.valor_aprovado, 0)) as valor_total
+    FROM ri_corretiva_detalhamento d
+    INNER JOIN (
+        SELECT DISTINCT numero_os
+        FROM ri_corretiva_detalhamento
+        WHERE ({fuga_cond})
+          AND CAST(data_transacao AS DATE) >= '{date_start}' AND CAST(data_transacao AS DATE) <= '{date_end}'
+          {asset_filter}
+          {filter_sql}
+    ) fuga_os ON d.numero_os = fuga_os.numero_os
+    WHERE CAST(d.data_transacao AS DATE) >= '{date_start}' AND CAST(d.data_transacao AS DATE) <= '{date_end}'
       {asset_filter}
-      {filter_sql}
-    GROUP BY {group_col} 
+      AND COALESCE(d.valor_aprovado, 0) > 0
+    GROUP BY d.{group_col} 
     ORDER BY valor_total DESC 
     LIMIT {limit}
     """
@@ -318,7 +314,7 @@ def get_fugas_grouped_with_detail(filters=None, limit=20, date_start=None, date_
         _t0 = _time.time()
         
         df_master = pd.read_sql(query_master, conn, params=params)
-        df_master['valor_total'] = df_master['valor_total'].fillna(0).round(2)
+        df_master['valor_total'] = pd.to_numeric(df_master['valor_total'], errors='coerce').fillna(0).round(2)
         pass  # master query done
         
         tgm_codes = df_master['codigo_tgm'].tolist()
@@ -331,27 +327,34 @@ def get_fugas_grouped_with_detail(filters=None, limit=20, date_start=None, date_
         query_detail = f"""
         SELECT * FROM (
             SELECT 
-                {group_col} as _tgm_key,
-                MAX(codigo_cliente) as codigo_cliente,
-                MAX(coalesce(nome_cliente, 'Cliente N/A')) as cliente,
-                numero_os,
-                MAX(nome_estabelecimento) as nome_ec,
-                MAX(tipo_mo) as tipo_mo,
-                MAX(descricao_peca) as descricao_peca,
-                MAX(nome_aprovador) as nome_aprovador,
-                MAX(data_transacao) as data_transacao,
-                COUNT(*) as qtd_itens,
-                SUM(COALESCE(valor_total, 0)) as valor_total_os,
-                SUM(COALESCE(valor_mo, 0)) as valor_mo_os,
-                SUM(COALESCE(valor_peca, 0)) as valor_peca_os,
-                ROW_NUMBER() OVER (PARTITION BY {group_col} ORDER BY SUM(COALESCE(valor_total, 0)) DESC) as rn
-            FROM ri_corretiva_detalhamento
-            WHERE {group_col} IN ({tgm_escaped})
-              AND ({fuga_cond})
-              AND CAST(data_transacao AS DATE) >= '{date_start}' AND CAST(data_transacao AS DATE) <= '{date_end}'
+                d.{group_col} as _tgm_key,
+                MAX(d.codigo_cliente) as codigo_cliente,
+                MAX(coalesce(d.nome_cliente, 'Cliente N/A')) as cliente,
+                d.numero_os,
+                MAX(d.nome_estabelecimento) as nome_ec,
+                MAX(d.tipo_mo) as tipo_mo,
+                MAX(d.descricao_peca) as descricao_peca,
+                MAX(d.nome_aprovador) as nome_aprovador,
+                MAX(d.data_transacao) as data_transacao,
+                COUNT(CASE WHEN COALESCE(d.valor_aprovado, 0) > 0 THEN 1 END) as qtd_itens,
+                SUM(COALESCE(d.valor_aprovado, 0)) as valor_total_os,
+                SUM(COALESCE(d.valor_mo, 0)) as valor_mo_os,
+                SUM(COALESCE(d.valor_peca, 0)) as valor_peca_os,
+                ROW_NUMBER() OVER (PARTITION BY d.{group_col} ORDER BY SUM(COALESCE(d.valor_aprovado, 0)) DESC) as rn
+            FROM ri_corretiva_detalhamento d
+            INNER JOIN (
+                SELECT DISTINCT numero_os
+                FROM ri_corretiva_detalhamento
+                WHERE ({fuga_cond})
+                  AND CAST(data_transacao AS DATE) >= '{date_start}' AND CAST(data_transacao AS DATE) <= '{date_end}'
+                  {asset_filter}
+                  {filter_sql}
+            ) fuga_os ON d.numero_os = fuga_os.numero_os
+            WHERE d.{group_col} IN ({tgm_escaped})
+              AND CAST(d.data_transacao AS DATE) >= '{date_start}' AND CAST(d.data_transacao AS DATE) <= '{date_end}'
               {asset_filter}
-              {filter_sql}
-            GROUP BY {group_col}, numero_os
+              AND COALESCE(d.valor_aprovado, 0) > 0
+            GROUP BY d.{group_col}, d.numero_os
         ) sub WHERE rn <= 10
         """
         
@@ -441,21 +444,21 @@ def get_fugas_detail_by_tgm(codigo_tgm, filters=None, limit=500):
         print(f"Erro no get_fugas_detail_by_tgm: {e}")
         return []
 
-@safe_memoize(timeout=600)
+@safe_memoize(timeout=120)
 def get_fugas_stats(filters=None, date_start=None, date_end=None, tipo_ativo="VEICULOS"):
     """
     Calcula KPIs: Total de OSs analisadas, Qtde Fugas, % Fuga
-    Conta por OS distinta. Default: últimos 3 meses (90 dias).
+    Conta por OS distinta. Default: últimos 30 dias.
     tipo_ativo: VEICULOS | EQUIPAMENTOS | TODOS
     """
     conn = get_connection()
     
-    # Date range: default últimos 3 meses (90 dias)
+    # Date range: default últimos 30 dias
     date_filter = ""
     if date_start and date_end:
         date_filter = f"AND CAST(data_transacao AS DATE) BETWEEN '{date_start}' AND '{date_end}'"
     else:
-        date_filter = "AND data_transacao >= CURRENT_DATE - INTERVAL 90 DAY"
+        date_filter = "AND data_transacao >= CURRENT_DATE - INTERVAL 30 DAY"
     
     fuga_conditions = _get_fuga_conditions()
     asset_filter = _get_asset_type_filter(tipo_ativo)
@@ -466,6 +469,7 @@ def get_fugas_stats(filters=None, date_start=None, date_end=None, tipo_ativo="VE
         COUNT(DISTINCT CASE WHEN {fuga_conditions} THEN numero_os END) as qtd_fugas
     FROM ri_corretiva_detalhamento
     WHERE data_transacao IS NOT NULL
+      AND status_os != 'CANCELADA'
       {date_filter}
       {asset_filter}
     """
@@ -510,32 +514,34 @@ def get_fugas_stats(filters=None, date_start=None, date_end=None, tipo_ativo="VE
         print(f"Erro CRÍTICO no get_fugas_stats: {e}")
         return {"total_os": 0, "qtd_fugas": 0, "pct_fuga": 0, "error": str(e)}
 
-@safe_memoize(timeout=600)
+@safe_memoize(timeout=120)
 def get_fugas_chart_data(filters=None, date_start=None, date_end=None, tipo_ativo="VEICULOS"):
     """
     Retorna % Fugas agrupado por Ano/Mes para o gráfico.
     Conta por OS distinta (não por item).
-    Default: últimos 3 meses (90 dias) se sem date range.
+    Default: últimos 30 dias se sem date range.
     tipo_ativo: VEICULOS | EQUIPAMENTOS | TODOS
     """
     conn = get_connection()
     or_condition = _get_fuga_conditions()
     asset_filter = _get_asset_type_filter(tipo_ativo)
 
-    # Date range: default últimos 3 meses (90 dias)
+    # Date range: default últimos 30 dias
     date_filter = ""
     if date_start and date_end:
         date_filter = f"AND CAST(data_transacao AS DATE) BETWEEN '{date_start}' AND '{date_end}'"
     else:
-        date_filter = "AND data_transacao >= CURRENT_DATE - INTERVAL 90 DAY"
+        date_filter = "AND data_transacao >= CURRENT_DATE - INTERVAL 30 DAY"
 
     query = f"""
     SELECT 
         strftime(data_transacao, '%Y-%m') as mes_ano,
         COUNT(DISTINCT numero_os) as total_mensal,
-        COUNT(DISTINCT CASE WHEN {or_condition} THEN numero_os END) as fugas_mensal
+        COUNT(DISTINCT CASE WHEN {or_condition} THEN numero_os END) as fugas_mensal,
+        COUNT(DISTINCT CAST(data_transacao AS DATE)) as dias_dados
     FROM ri_corretiva_detalhamento
     WHERE data_transacao IS NOT NULL
+      AND status_os != 'CANCELADA'
       {date_filter}
       {asset_filter}
     """
@@ -559,9 +565,16 @@ def get_fugas_chart_data(filters=None, date_start=None, date_end=None, tipo_ativ
     query += " GROUP BY 1 ORDER BY 1"
     
     try:
+        from datetime import date as _date
+        current_month = _date.today().strftime('%Y-%m')
+        
         df = pd.read_sql(query, conn, params=params)
-        df['pct_fuga'] = (df['fugas_mensal'] / df['total_mensal'] * 100).fillna(0).round(2)
-        return df.to_dict('list')
+        df['fugas_mensal'] = pd.to_numeric(df['fugas_mensal'], errors='coerce').fillna(0)
+        df['total_mensal'] = pd.to_numeric(df['total_mensal'], errors='coerce').fillna(0)
+        df['pct_fuga'] = (df['fugas_mensal'] / df['total_mensal'].replace(0, 1) * 100).fillna(0).round(2)
+        df['is_partial'] = df['mes_ano'] == current_month
+        result = df.to_dict('list')
+        return result
     except Exception as e:
         print(f"Erro no get_fugas_chart_data: {e}")
         return {}
@@ -569,7 +582,7 @@ def get_fugas_chart_data(filters=None, date_start=None, date_end=None, tipo_ativ
 def get_top_offenders(filters=None, entity='estabelecimento', limit=5, date_start=None, date_end=None, tipo_ativo="VEICULOS"):
     """
     Retorna top X entidades com maior volume/percentual de fugas.
-    Entity pode ser: 'nome_estabelecimento', 'nome_aprovador', 'nome_primeira_alcada'
+    Entity pode ser: 'estabelecimento', 'aprovador'
     tipo_ativo: VEICULOS | EQUIPAMENTOS | TODOS
     """
     conn = get_connection()
@@ -577,7 +590,6 @@ def get_top_offenders(filters=None, entity='estabelecimento', limit=5, date_star
     col_map = {
         'estabelecimento': 'nome_estabelecimento',
         'aprovador': 'nome_aprovador',
-        'alcada': 'nome_primeira_alcada'
     }
     col = col_map.get(entity, 'nome_estabelecimento')
 
@@ -621,7 +633,9 @@ def get_top_offenders(filters=None, entity='estabelecimento', limit=5, date_star
     
     try:
         df = pd.read_sql(query, conn, params=params)
-        df['pct_fuga'] = (df['qtd_fugas'] / df['total_os'] * 100).fillna(0).round(1)
+        df['qtd_fugas'] = pd.to_numeric(df['qtd_fugas'], errors='coerce').fillna(0)
+        df['total_os'] = pd.to_numeric(df['total_os'], errors='coerce').fillna(0)
+        df['pct_fuga'] = (df['qtd_fugas'] / df['total_os'].replace(0, 1) * 100).fillna(0).round(1)
         return df.to_dict('records')
     except Exception as e:
         print(f"Erro top offenders: {e}")

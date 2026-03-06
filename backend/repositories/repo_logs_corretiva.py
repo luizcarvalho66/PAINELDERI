@@ -11,7 +11,7 @@ import pandas as pd
 from backend.repositories.repo_base import get_connection, safe_memoize
 
 
-@safe_memoize(timeout=600)
+@safe_memoize(timeout=120)
 def get_logs_filter_options() -> dict:
     """
     Retorna opções ÚNICAS para todos os filtros da seção de logs.
@@ -151,14 +151,6 @@ def get_logs_nao_aprovacao(filters: dict = None, page: int = 1, page_size: int =
         # Calcular offset
         offset = (page - 1) * page_size
         
-        # Verificar se coluna detalhe_regulacao existe (graceful degradation pré-sync)
-        has_detalhe = False
-        try:
-            cols = [r[1] for r in conn.execute("PRAGMA table_info(ri_corretiva_detalhamento)").fetchall()]
-            has_detalhe = 'detalhe_regulacao' in cols
-        except:
-            pass
-        
         # Critério: Aprovação por HUMANO (não automática)
         where_clauses = [
             "nome_aprovador IS NOT NULL",
@@ -178,9 +170,6 @@ def get_logs_nao_aprovacao(filters: dict = None, page: int = 1, page_size: int =
         
         where_sql = " AND ".join(where_clauses)
         
-        # Campo detalhe_regulacao: incluir se existir, senão fallback
-        detalhe_col = "COALESCE(detalhe_regulacao, '') as detalhe_regulacao," if has_detalhe else "'' as detalhe_regulacao,"
-        
         query = f"""
         SELECT 
             numero_os,
@@ -190,7 +179,6 @@ def get_logs_nao_aprovacao(filters: dict = None, page: int = 1, page_size: int =
             valor_aprovado,
             nome_aprovador as responsavel_aprovacao,
             COALESCE(mensagem_log, 'Aprovação Manual') as motivo,
-            {detalhe_col}
             data_transacao
         FROM ri_corretiva_detalhamento
         WHERE {where_sql}
@@ -211,5 +199,4 @@ def get_logs_nao_aprovacao(filters: dict = None, page: int = 1, page_size: int =
         import traceback
         traceback.print_exc()
         return pd.DataFrame()
-
 
