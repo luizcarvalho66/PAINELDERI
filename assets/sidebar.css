@@ -97,6 +97,36 @@
   flex: 1;
   padding: 20px 12px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s ease;
+}
+
+.sidebar-navigation:hover {
+  scrollbar-color: rgba(226, 6, 19, 0.2) transparent;
+}
+
+/* Webkit (Chrome, Safari, Edge) */
+.sidebar-navigation::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-navigation::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-navigation::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.sidebar-navigation:hover::-webkit-scrollbar-thumb {
+  background: rgba(226, 6, 19, 0.18);
+}
+
+.sidebar-navigation::-webkit-scrollbar-thumb:hover {
+  background: rgba(226, 6, 19, 0.35);
 }
 
 .nav-section-label {

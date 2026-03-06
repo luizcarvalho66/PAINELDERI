@@ -661,23 +661,47 @@
   box-shadow: 0 10px 25px rgba(0,0,0,0.1);
   margin-top: 6px;
   overflow: hidden;
-  z-index: 1050; /* Garantir que fica sobre tudo */
+  z-index: 1050;
+  max-width: 100%;
 }
 
 .farol-filter-dropdown .Select-menu {
   background-color: #ffffff;
   padding: 4px;
+  max-height: 260px;
+  overflow-y: auto;
 }
 
-/* Itens da Lista Suspensa */
+/* Scrollbar premium no menu */
+.farol-filter-dropdown .Select-menu::-webkit-scrollbar {
+  width: 5px;
+}
+.farol-filter-dropdown .Select-menu::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 3px;
+}
+.farol-filter-dropdown .Select-menu::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.farol-filter-dropdown .Select-menu::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Itens da Lista Suspensa — texto truncado */
 .farol-filter-dropdown .Select-option {
   border-radius: 6px;
-  padding: 10px 12px;
+  padding: 8px 12px;
   color: #475569;
   font-family: "Ubuntu", sans-serif;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   transition: all 0.15s ease;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  line-height: 1.4;
 }
 
 /* Item Focado/Hover na Lista */
@@ -707,6 +731,15 @@
   margin-top: 5px;
   display: inline-flex;
   align-items: center;
+  max-width: 200px;
+}
+
+.farol-filter-dropdown.Select--multi .Select-value-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+  font-size: 0.8rem;
 }
 
 /* Botão de Fechar na Tag Multi */

@@ -74,39 +74,84 @@
     // BUILD TOOLTIP HTML (RI GERAL — dual-axis chart)
     // =========================================================================
     function buildRIGeralHTML(customdata) {
-        // customdata: [periodo, economia_text, os_total, os_corr, os_prev, ri_corr, ri_prev, parcial, vol_text, ri_geral]
+        // customdata layout:
+        //   [0] periodo, [1] economia_text (RI) ou so_count (SO),
+        //   [2] os_total, [3] os_corr, [4] os_prev,
+        //   [5] ri/so_corr%, [6] ri/so_prev%, [7] parcial,
+        //   [8] vol_text, [9] ri/so_geral%, [10] mode ("RI"|"SO")
         const periodo   = customdata[0] || '';
-        const economia  = customdata[1] || 'R$ 0';
+        const slot1     = customdata[1];         // economia (string) ou so_count (int)
         const osTotal   = customdata[2] || 0;
         const osCorr    = customdata[3] || 0;
         const osPrev    = customdata[4] || 0;
-        const riCorr    = customdata[5];
-        const riPrev    = customdata[6];
+        const pctCorr   = customdata[5];
+        const pctPrev   = customdata[6];
         const parcial   = customdata[7] || '';
         const volText   = customdata[8] || 'R$ 0';
-        const riGeral   = customdata[9];
+        const pctGeral  = customdata[9];
+        const mode      = customdata[10] || 'RI';
 
-        return `
+        // ── Header (compartilhado) ──
+        const headerHTML = `
             <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(0,0,0,0.06)">
                 <div style="display:flex;align-items:center;gap:6px">
                     <i class="bi bi-calendar2-range" style="color:#64748b;font-size:14px"></i>
                     <span style="font-weight:700;font-size:14px;color:#1e293b">${periodo}</span>
                     ${parcial ? `<span style="color:#f59e0b;font-size:11px;margin-left:auto;background:rgba(245,158,11,0.1);padding:2px 6px;border-radius:4px">${parcial}</span>` : ''}
                 </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;background:rgba(226,6,19,0.04);padding:6px 10px;border-radius:8px">
-                <i class="bi bi-graph-up-arrow" style="color:#E20613;font-size:14px"></i>
-                <span style="color:#475569;font-weight:600">RI Geral</span>
-                <span style="font-weight:800;color:#E20613;margin-left:auto;font-size:15px">${formatPercent(riGeral)}</span>
+            </div>`;
+
+        if (mode === 'SO') {
+            // ══════════════════════════════════════════════
+            //  TOOLTIP — SILENT ORDER
+            // ══════════════════════════════════════════════
+            const soCount = Number(slot1) || 0;
+            return `${headerHTML}
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;background:rgba(16,185,129,0.06);padding:6px 10px;border-radius:8px">
+                <i class="bi bi-shield-check" style="color:#10b981;font-size:14px"></i>
+                <span style="color:#475569;font-weight:600">Silent Order</span>
+                <span style="font-weight:800;color:#10b981;margin-left:auto;font-size:15px">${formatPercent(pctGeral)}</span>
             </div>
             <div style="display:flex;gap:16px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(0,0,0,0.06)">
                 <div style="flex:1">
                     <div style="color:#64748b;font-size:11px;margin-bottom:2px">Corretiva</div>
-                    <div style="font-weight:700;color:#1e293b">${formatPercent(riCorr)}</div>
+                    <div style="font-weight:700;color:#1e293b">${formatPercent(pctCorr)}</div>
                 </div>
                 <div style="flex:1">
                     <div style="color:#64748b;font-size:11px;margin-bottom:2px">Preventiva</div>
-                    <div style="font-weight:700;color:#64748b">${formatPercent(riPrev)}</div>
+                    <div style="font-weight:700;color:#64748b">${formatPercent(pctPrev)}</div>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-size:12px;align-items:center">
+                <div style="color:#64748b">OS Automáticas</div>
+                <div style="text-align:right;font-weight:700;color:#10b981">${formatNumber(soCount)}</div>
+                <div style="color:#64748b;margin-top:4px">OS Total</div>
+                <div style="text-align:right;font-weight:600;color:#1e293b;margin-top:4px">${formatNumber(osTotal)}</div>
+                <div style="color:#64748b">OS Corretiva</div>
+                <div style="text-align:right;color:#475569">${formatNumber(osCorr)}</div>
+                <div style="color:#64748b">OS Preventiva</div>
+                <div style="text-align:right;color:#475569">${formatNumber(osPrev)}</div>
+            </div>`;
+        }
+
+        // ══════════════════════════════════════════════
+        //  TOOLTIP — RI (SAVING PRICE) — original
+        // ══════════════════════════════════════════════
+        const economia = slot1 || 'R$ 0';
+        return `${headerHTML}
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;background:rgba(226,6,19,0.04);padding:6px 10px;border-radius:8px">
+                <i class="bi bi-graph-up-arrow" style="color:#E20613;font-size:14px"></i>
+                <span style="color:#475569;font-weight:600">RI Geral</span>
+                <span style="font-weight:800;color:#E20613;margin-left:auto;font-size:15px">${formatPercent(pctGeral)}</span>
+            </div>
+            <div style="display:flex;gap:16px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(0,0,0,0.06)">
+                <div style="flex:1">
+                    <div style="color:#64748b;font-size:11px;margin-bottom:2px">Corretiva</div>
+                    <div style="font-weight:700;color:#1e293b">${formatPercent(pctCorr)}</div>
+                </div>
+                <div style="flex:1">
+                    <div style="color:#64748b;font-size:11px;margin-bottom:2px">Preventiva</div>
+                    <div style="font-weight:700;color:#64748b">${formatPercent(pctPrev)}</div>
                 </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-size:12px;align-items:center">
@@ -185,8 +230,8 @@
     // =========================================================================
     function detectChartType(point) {
         const customdata = point.customdata || [];
-        // RI Geral has 10 items in customdata
-        if (customdata.length >= 9) return 'ri_geral';
+        // RI Geral has 11 items in customdata now
+        if (customdata.length >= 10) return 'ri_geral';
         // Fugas has 2 items but uses name '% Fuga', Comparativo has 2 items
         const traceName = point.data ? (point.data.name || '') : '';
         if (traceName.includes('Fuga')) return 'fugas';

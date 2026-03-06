@@ -134,7 +134,7 @@ mark_cache_initialized(cache_dir=None)  # SimpleCache não tem diretório
 
 if __name__ == "__main__":
     # Use environment variables for configuration
-    host = os.getenv("DASH_SERVER_ADDRESS", "127.0.0.1")
+    host = os.getenv("DASH_SERVER_ADDRESS", "0.0.0.0")
     port = int(os.getenv("DASH_SERVER_PORT", "8080"))
     
     # CRITICAL FIX: Default debug/reloader to FALSE for production stability.

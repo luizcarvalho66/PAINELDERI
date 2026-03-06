@@ -303,7 +303,6 @@ def register_preventiva_callbacks(app):
         entity_map = {
             "tab-estab": "estabelecimento",
             "tab-aprov": "aprovador",
-            "tab-alcada": "alcada"
         }
         entity = entity_map.get(active_tab, "estabelecimento")
         tipo = tipo_ativo or "VEICULOS"
@@ -387,7 +386,9 @@ def register_preventiva_callbacks(app):
             from backend.repositories.repo_base import get_connection
             conn = get_connection()
             
-            # Query agregada (resumo)
+            # Query agregada (resumo) — usa valor_aprovado (valor REAL aprovado)
+            # valor_total = solicitado pelo EC (ANTES da negociação RI)
+            # valor_aprovado = aprovado após negociação (valor REAL pago)
             row = conn.execute(f"""
                 SELECT 
                     numero_os, MAX(nome_cliente) as cliente,
@@ -395,29 +396,32 @@ def register_preventiva_callbacks(app):
                     MAX(familia_veiculo) as familia,
                     MAX(modelo_veiculo) as modelo,
                     MAX(placa) as placa,
-                    SUM(COALESCE(valor_total, 0)) as valor,
+                    SUM(COALESCE(valor_aprovado, 0)) as valor,
                     SUM(COALESCE(valor_mo, 0)) as valor_mo,
                     SUM(COALESCE(valor_peca, 0)) as valor_peca,
-                    COUNT(*) as qtd_itens
+                    COUNT(CASE WHEN COALESCE(valor_aprovado, 0) > 0 THEN 1 END) as qtd_itens,
+                    SUM(COALESCE(valor_total, 0)) as valor_solicitado
                 FROM ri_corretiva_detalhamento
                 WHERE numero_os = '{os_num}'
+                  AND COALESCE(valor_aprovado, 0) > 0
                 GROUP BY numero_os
             """).fetchone()
             if not row:
                 return False, no_update
             
-            # Query de itens individuais (o detalhe real)
+            # Query de itens individuais — valor_aprovado = valor real pago
             items_df = conn.execute(f"""
                 SELECT 
                     descricao_peca,
                     tipo_mo,
-                    COALESCE(valor_total, 0) as valor_total,
+                    COALESCE(valor_aprovado, 0) as valor_total,
                     COALESCE(valor_mo, 0) as valor_mo,
                     COALESCE(valor_peca, 0) as valor_peca,
-                    COALESCE(complemento_peca, '') as complemento
+                    COALESCE(complemento_peca, '') as complemento,
+                    COALESCE(valor_total, 0) as valor_solicitado
                 FROM ri_corretiva_detalhamento
-                WHERE numero_os = '{os_num}'
-                ORDER BY COALESCE(valor_total, 0) DESC
+                WHERE numero_os = '{os_num}' AND COALESCE(valor_aprovado, 0) > 0
+                ORDER BY COALESCE(valor_aprovado, 0) DESC
             """).fetchdf()
             
             valor = float(row[6] or 0)
@@ -433,6 +437,7 @@ def register_preventiva_callbacks(app):
             modelo = row[4] or 'N/A'
             placa = row[5] or 'N/A'
             qtd_itens = row[9] or 1
+            valor_solicitado = float(row[10] or 0)
         except Exception as e:
             print(f"Erro ao buscar dados OS {os_num}: {e}")
             return False, no_update

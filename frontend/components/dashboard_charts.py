@@ -61,7 +61,7 @@ AXIS_STYLE = dict(
     linecolor=GRID_COLOR
 )
 
-def create_ri_geral_chart(df: pd.DataFrame, granularidade: str = 'mensal') -> go.Figure:
+def create_ri_geral_chart(df: pd.DataFrame, granularidade: str = 'mensal', is_so_mode: bool = False) -> go.Figure:
     """
     Creates the main 'Evolução RI Geral' chart.
     Agora inclui um Eixo Duplo (Dual-Axis) com o Volume Solicitado em Barras ao fundo.
@@ -123,36 +123,60 @@ def create_ri_geral_chart(df: pd.DataFrame, granularidade: str = 'mensal') -> go
     
     # Texto de aviso para dados parciais
     parcial_text = ["(dados parciais)" if p else "" for p in parciais]
+    
+    # Cores das barras: parcial com opacidade menor
+    bar_colors = ['rgba(226, 6, 19, 0.08)' if p else BAR_COLOR for p in parciais]
+    
+    # X labels: adicionar indicação "(parcial)" no mês corrente
+    x_data_display = []
+    for i, x in enumerate(x_data):
+        if parciais.iloc[i] if hasattr(parciais, 'iloc') else (parciais[i] if i < len(parciais) else False):
+            x_data_display.append(f"{x}<br><span style='font-size:9px;color:#E20613'>(parcial)</span>")
+        else:
+            x_data_display.append(str(x))
 
     # Unificar CustomData para ambos os traços garantindo que o callback do dcc.Tooltip 
     # não quebre independente se o hover for na barra ou na linha
+    mode_label_list = ["SO" if is_so_mode else "RI"] * len(df)
+    
+    # Posição 1: Economia (RI) ou contagem de OS automáticas (SO)
+    if is_so_mode:
+        so_count_corr = df.get('so_count_corr', pd.Series([0]*len(df)))
+        so_count_prev = df.get('so_count_prev', pd.Series([0]*len(df)))
+        so_count_total = (so_count_corr + so_count_prev).astype(int)
+        slot1_data = so_count_total  # posição 1 = contagem real de OS automáticas
+    else:
+        slot1_data = econ_text       # posição 1 = economia formatada (R$ XM)
+    
     customdata_unificado = list(zip(
         periodo_text,                          # 0: Período
-        econ_text,                             # 1: Economia
+        slot1_data,                            # 1: Economia (RI) ou SO Count (SO)
         os_total,                              # 2: OS Totais
         os_corr,                               # 3: OS Corretiva
         os_prev,                               # 4: OS Preventiva
-        (df['ri_corretiva'] * 100).round(2),   # 5: RI Corretiva
-        (df['ri_preventiva'] * 100).round(2),  # 6: RI Preventiva
+        (df['ri_corretiva'] * 100).round(2),   # 5: RI/SO Corretiva %
+        (df['ri_preventiva'] * 100).round(2),  # 6: RI/SO Preventiva %
         parcial_text,                          # 7: Aviso Parcial
         vol_text,                              # 8: Vol. Solicitado
-        y_data.round(2)                        # 9: RI Geral (y_data original)
+        y_data.round(2),                       # 9: RI/SO Geral % (y_data)
+        mode_label_list,                       # 10: Modo (RI ou SO)
     ))
 
     # Trace 1: Barras de Volume Solicitado (Fundo / Eixo Secundário)
     fig.add_trace(go.Bar(
-        x=x_data,
+        x=x_data_display,
         y=vol_total,
         name='Volume Solicitado',
-        marker_color=BAR_COLOR,
-        marker_line_width=0,
+        marker_color=bar_colors,
+        marker_line_width=[1 if p else 0 for p in parciais],
+        marker_line_color=['rgba(226, 6, 19, 0.3)' if p else 'rgba(0,0,0,0)' for p in parciais],
         customdata=customdata_unificado,
         hoverinfo="none",
     ), secondary_y=True)
 
     # Trace 2: Linha de RI Geral (Frente / Eixo Principal)
     fig.add_trace(go.Scatter(
-        x=x_data, 
+        x=x_data_display, 
         y=y_data, 
         mode='lines+markers', 
         marker=dict(size=marker_sizes, color=EDENRED_RED, symbol='circle', opacity=marker_opacities), 
@@ -162,6 +186,23 @@ def create_ri_geral_chart(df: pd.DataFrame, granularidade: str = 'mensal') -> go
         customdata=customdata_unificado,
         hoverinfo="none",
     ), secondary_y=False)
+    
+    # Annotation para mês parcial
+    for i in range(len(df)):
+        is_partial = parciais.iloc[i] if hasattr(parciais, 'iloc') else (parciais[i] if i < len(parciais) else False)
+        if is_partial:
+            fig.add_annotation(
+                x=x_data_display[i],
+                y=float(y_data.iloc[i]) + (float(y_data.max()) * 0.12 if not y_data.empty else 5),
+                text="<b>PARCIAL</b>",
+                showarrow=False,
+                font=dict(family="Ubuntu, sans-serif", size=9, color="#E20613"),
+                bgcolor="rgba(226, 6, 19, 0.08)",
+                bordercolor="#E20613",
+                borderwidth=1,
+                borderpad=3,
+                opacity=0.9,
+            )
 
     # Merge AXIS_STYLE with specific yaxis overrides
     yaxis_config = AXIS_STYLE.copy()
@@ -175,7 +216,7 @@ def create_ri_geral_chart(df: pd.DataFrame, granularidade: str = 'mensal') -> go
     fig.update_layout(
         **BASE_LAYOUT,
         title=dict(text="<b>Evolução RI Geral</b> vs. Vol. Solicitado", font=dict(size=18, color=TEXT_DARK)),
-        xaxis=dict(**AXIS_STYLE), 
+        xaxis=dict(**AXIS_STYLE, type='category'), 
         yaxis=yaxis_config,
         yaxis2=dict(
             showgrid=True,
@@ -200,7 +241,7 @@ def create_ri_geral_chart(df: pd.DataFrame, granularidade: str = 'mensal') -> go
     return fig
 
 
-def create_comparative_chart(df: pd.DataFrame, granularidade: str = 'mensal') -> go.Figure:
+def create_comparative_chart(df: pd.DataFrame, granularidade: str = 'mensal', is_so_mode: bool = False) -> go.Figure:
     """
     Creates the 'Corretiva vs Preventiva' comparative chart.
     """
@@ -232,13 +273,27 @@ def create_comparative_chart(df: pd.DataFrame, granularidade: str = 'mensal') ->
         
     os_prev = df.get('qtd_prev', pd.Series([0]*len(df))).astype(int)
     os_corr = df.get('qtd_corr', pd.Series([0]*len(df))).astype(int)
+    
+    # Dados parciais
+    parciais = df.get('dados_parciais', pd.Series([False]*len(df)))
+    marker_sizes = [max(3, marker_size - 3) if p else marker_size for p in parciais]
+    marker_opacities = [0.4 if p else 1.0 for p in parciais]
+    
+    # X labels com indicação parcial
+    x_data_display = []
+    for i, x in enumerate(x_data):
+        is_p = parciais.iloc[i] if hasattr(parciais, 'iloc') else (parciais[i] if i < len(parciais) else False)
+        if is_p:
+            x_data_display.append(f"{x}<br><span style='font-size:9px;color:#E20613'>(parcial)</span>")
+        else:
+            x_data_display.append(str(x))
 
     # Trace 1: Preventiva
     fig.add_trace(go.Scatter(
-        x=x_data, 
+        x=x_data_display, 
         y=df['ri_preventiva'] * 100, 
         mode='lines+markers', 
-        marker=dict(size=marker_size, color=GREY_LINE, symbol='circle'), 
+        marker=dict(size=marker_sizes, color=GREY_LINE, symbol='circle', opacity=marker_opacities), 
         fill='tozeroy',
         fillcolor=GREY_AREA, 
         line=dict(color=GREY_LINE, width=3, shape='spline'), 
@@ -249,10 +304,10 @@ def create_comparative_chart(df: pd.DataFrame, granularidade: str = 'mensal') ->
 
     # Trace 2: Corretiva
     fig.add_trace(go.Scatter(
-        x=x_data, 
+        x=x_data_display, 
         y=df['ri_corretiva'] * 100, 
         mode='lines+markers', 
-        marker=dict(size=marker_size, color=EDENRED_RED, symbol='circle'),
+        marker=dict(size=marker_sizes, color=EDENRED_RED, symbol='circle', opacity=marker_opacities),
         line=dict(color=EDENRED_RED, width=3, shape='spline'), 
         name='Corretiva',
         customdata=list(zip(periodo_text, os_corr)),
@@ -262,7 +317,7 @@ def create_comparative_chart(df: pd.DataFrame, granularidade: str = 'mensal') ->
     fig.update_layout(
         **BASE_LAYOUT,
         title=dict(text="<b>Corretiva vs Preventiva</b>", font=dict(size=16, color=TEXT_DARK)),
-        xaxis=dict(**AXIS_STYLE), 
+        xaxis=dict(**AXIS_STYLE, type='category'), 
         yaxis=dict(
             **AXIS_STYLE, 
             ticksuffix="%", 

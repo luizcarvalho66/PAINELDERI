@@ -2,7 +2,7 @@
 Sidebar Component - Modern UX/UI Design
 Edenred Executive Branding
 """
-from dash import html
+from dash import html, dcc
 import dash_bootstrap_components as dbc
 
 
@@ -36,6 +36,8 @@ def render_sidebar():
     """Render the premium sidebar component."""
     return html.Aside(
         [
+            # Store para sinal de reload após reset
+            dcc.Store(id="reset-reload-signal", data=None),
             # Toggle Button — html.Div (NÃO html.Button) para evitar
             # que o Dash rastreie n_clicks e dispare round-trips ao servidor.
             # O clique é processado por assets/sidebar-toggle.js (JS puro).
@@ -170,10 +172,90 @@ def render_sidebar():
                                         className="btn-data-consumption mt-2 w-100",
                                         outline=True
                                     ),
+                                    # Botão Reset Completo (protegido por senha)
+                                    dbc.Button(
+                                        [
+                                            html.I(className="bi bi-trash3-fill me-2"),
+                                            "Reset Completo"
+                                        ],
+                                        id="btn-reset-db",
+                                        color="danger",
+                                        size="sm",
+                                        className="btn-reset-db mt-2 w-100",
+                                        outline=True,
+                                        style={"fontSize": "0.75rem", "opacity": "0.7"}
+                                    ),
                                 ],
                                 className="databricks-status-card mb-3"
                             ),
                             
+                            # ===== MODAL: Reset DB (protegido por senha) =====
+                            dbc.Modal(
+                                [
+                                    dbc.ModalHeader(
+                                        dbc.ModalTitle(
+                                            [
+                                                html.I(className="bi bi-exclamation-triangle-fill me-2 text-danger"),
+                                                "Reset Completo do Banco"
+                                            ],
+                                        ),
+                                        close_button=True,
+                                    ),
+                                    dbc.ModalBody(
+                                        [
+                                            html.Div(
+                                                [
+                                                    html.I(className="bi bi-shield-lock-fill text-danger", style={"fontSize": "2.5rem"}),
+                                                    html.H5("Ação Destrutiva", className="mt-3 mb-2 fw-bold text-danger"),
+                                                    html.P(
+                                                        "Isso irá excluir TODOS os dados locais (DuckDB + cache). "
+                                                        "Um novo sync completo será necessário após o reset.",
+                                                        className="text-muted small mb-3"
+                                                    ),
+                                                ],
+                                                className="text-center mb-3"
+                                            ),
+                                            dbc.InputGroup(
+                                                [
+                                                    dbc.InputGroupText(html.I(className="bi bi-key-fill")),
+                                                    dbc.Input(
+                                                        id="input-reset-password",
+                                                        type="password",
+                                                        placeholder="Digite a senha de administrador",
+                                                        className="form-control",
+                                                    ),
+                                                ],
+                                                className="mb-3",
+                                            ),
+                                            html.Div(id="reset-feedback", className="text-center"),
+                                        ],
+                                    ),
+                                    dbc.ModalFooter(
+                                        [
+                                            dbc.Button(
+                                                "Cancelar",
+                                                id="btn-reset-cancel",
+                                                color="secondary",
+                                                size="sm",
+                                            ),
+                                            dbc.Button(
+                                                [
+                                                    html.I(className="bi bi-trash3-fill me-2"),
+                                                    "Confirmar Reset"
+                                                ],
+                                                id="btn-reset-confirm",
+                                                color="danger",
+                                                size="sm",
+                                            ),
+                                        ]
+                                    ),
+                                ],
+                                id="modal-reset-db",
+                                is_open=False,
+                                centered=True,
+                                backdrop="static",
+                            ),
+
                             # ===== MODAL: Progresso do Sync =====
                             dbc.Modal(
                                 [

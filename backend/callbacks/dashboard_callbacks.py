@@ -98,10 +98,11 @@ def register_dashboard_callbacks(app):
             Input("processing-complete-store", "data"),
             Input("global-filters-applied-store", "data"),
             Input("chart-granularity-store", "data"),
+            Input("ri-mode-store", "data"),
         ],
         prevent_initial_call=True
     )
-    def update_dashboard_charts(is_processed, filters_state, granularidade):
+    def update_dashboard_charts(is_processed, filters_state, granularidade, ri_mode):
         if not is_processed:
             return html.Div(), html.Div()
         
@@ -111,7 +112,7 @@ def register_dashboard_callbacks(app):
             return no_update, no_update
         
         try:
-            return _build_dashboard_content(is_processed, filters_state, granularidade or 'mensal')
+            return _build_dashboard_content(is_processed, filters_state, granularidade or 'mensal', ri_mode or 'ri')
         except Exception as e:
             traceback.print_exc()
             error_div = html.Div([
@@ -122,7 +123,7 @@ def register_dashboard_callbacks(app):
             ], className="p-5 d-flex flex-column align-items-center justify-content-center h-100")
             return html.Div(), error_div
     
-    def _build_dashboard_content(is_processed, filters_state, granularidade='mensal'):
+    def _build_dashboard_content(is_processed, filters_state, granularidade='mensal', ri_mode='ri'):
         """Lógica interna do dashboard, separada para facilitar try/except."""
         import time as _time
         _t0 = _time.time()
@@ -166,8 +167,13 @@ def register_dashboard_callbacks(app):
         # x_label já gerado no repositório baseado na granularidade
         
         # --- CALCULATE METRICS FOR KPIs ---
-        # 1. Total Analisado
-        total_analisado = int((df['qtd_prev'] + df['qtd_corr']).sum())
+        # 1. Total Analisado — usa contagem UNION para evitar dupla contagem
+        # OS pode ter itens em AMBAS tabelas (corretiva + preventiva)
+        if 'total_os_distinct' in df.columns and df['total_os_distinct'].sum() > 0:
+            total_analisado = int(df['total_os_distinct'].sum())
+        else:
+            # Fallback: soma separada (pode contar OS duplicadas)
+            total_analisado = int((df['qtd_prev'] + df['qtd_corr']).sum())
         
         # 2. RI Geral
         ri_geral_avg = df['ri_geral'].mean() * 100
@@ -185,6 +191,18 @@ def register_dashboard_callbacks(app):
         
         avg_ri_prev = df['ri_preventiva'].mean() * 100
         avg_ri_corr = df['ri_corretiva'].mean() * 100
+        
+        # SO Metrics (quando modo = 'so')
+        avg_so_geral = df['so_geral'].mean() * 100 if 'so_geral' in df.columns else 0
+        avg_so_prev = df['so_preventiva'].mean() * 100 if 'so_preventiva' in df.columns else 0
+        avg_so_corr = df['so_corretiva'].mean() * 100 if 'so_corretiva' in df.columns else 0
+        
+        # Selecionar métricas conforme modo
+        is_so_mode = (ri_mode == 'so')
+        display_geral = avg_so_geral if is_so_mode else ri_geral_avg
+        display_prev = avg_so_prev if is_so_mode else avg_ri_prev
+        display_corr = avg_so_corr if is_so_mode else avg_ri_corr
+        mode_label = "SO" if is_so_mode else "RI"
         
         # 5. Cálculo de Tendências (comparando último vs penúltimo mês)
         trend_ri_geral = None
@@ -210,8 +228,25 @@ def register_dashboard_callbacks(app):
         
         
         # --- CHARTS GENERATION ---
-        fig_geral = create_ri_geral_chart(df, granularidade=granularidade)
-        fig_comp = create_comparative_chart(df, granularidade=granularidade)
+        # Se modo SO, trocar as colunas que os charts usam
+        if is_so_mode:
+            df_chart = df.copy()
+            df_chart['ri_geral'] = df_chart.get('so_geral', 0)
+            df_chart['ri_corretiva'] = df_chart.get('so_corretiva', 0)
+            df_chart['ri_preventiva'] = df_chart.get('so_preventiva', 0)
+        else:
+            df_chart = df
+        
+        fig_geral = create_ri_geral_chart(df_chart, granularidade=granularidade, is_so_mode=is_so_mode)
+        fig_comp = create_comparative_chart(df_chart, granularidade=granularidade, is_so_mode=is_so_mode)
+        
+        # Atualizar títulos conforme modo
+        if is_so_mode:
+            fig_geral.update_layout(title=dict(text="<b>Evolução Silent Order</b> vs. Vol. Solicitado"))
+            fig_comp.update_layout(title=dict(text="<b>SO Corretiva vs Preventiva</b>"))
+            # Trocar label do eixo Y
+            fig_geral.update_yaxes(title=dict(text="SO (%)"), secondary_y=False)
+            fig_comp.update_yaxes(title=dict(text="SO (%)"))
 
         section_title_style = {
             "fontFamily": "Ubuntu", 
@@ -254,18 +289,18 @@ def register_dashboard_callbacks(app):
 
                 # Group 2: Performance (RI) com Tendências
                 dbc.Col(render_kpi_card(
-                    "RI Geral", 
-                    f"{_fmt_br(ri_geral_avg, 1)}%", 
+                    f"{mode_label} Geral", 
+                    f"{_fmt_br(display_geral, 1)}%", 
                     "Média do período", 
-                    "bi-graph-up-arrow", 
+                    "bi-graph-up-arrow" if not is_so_mode else "bi-shield-check", 
                     "text-danger",
                     trend_value=trend_ri_geral,
                     trend_label="vs mês anterior"
                 ), width=12, sm=6, md=6, lg=4, xl=2),
 
                 dbc.Col(render_kpi_card(
-                    "RI Preventiva", 
-                    f"{_fmt_br(avg_ri_prev, 1)}%", 
+                    f"{mode_label} Preventiva", 
+                    f"{_fmt_br(display_prev, 1)}%", 
                     "Manutenção programada", 
                     "bi-shield-check", 
                     "text-success",
@@ -274,8 +309,8 @@ def register_dashboard_callbacks(app):
                 ), width=12, sm=6, md=6, lg=4, xl=2),
                 
                 dbc.Col(render_kpi_card(
-                    "RI Corretiva", 
-                    f"{_fmt_br(avg_ri_corr, 1)}%", 
+                    f"{mode_label} Corretiva", 
+                    f"{_fmt_br(display_corr, 1)}%", 
                     "Manutenção sob demanda", 
                     "bi-tools", 
                     "text-danger",
@@ -288,14 +323,83 @@ def register_dashboard_callbacks(app):
         
         # Charts section
         charts_section = html.Div([
-            # Chart 1: Evolução RI Geral
-            dcc.Graph(
-                id="fig-ri-geral",
-                figure=fig_geral, 
-                config={'displayModeBar': False},
-                style={"height": "400px"},
-                clear_on_unhover=True
-            ),
+            # Chart 1: Evolução RI Geral (com botão de ajuda [?])
+            html.Div([
+                # Botão [?] — posicionado no canto superior direito do chart
+                html.Button(
+                    html.I(className="bi bi-question-circle"),
+                    id="btn-help-ri-chart",
+                    className="btn btn-sm",
+                    style={
+                        "position": "absolute",
+                        "top": "8px",
+                        "right": "12px",
+                        "zIndex": "10",
+                        "background": "transparent",
+                        "border": "1px solid #e2e8f0",
+                        "borderRadius": "50%",
+                        "width": "28px",
+                        "height": "28px",
+                        "padding": "0",
+                        "display": "flex",
+                        "alignItems": "center",
+                        "justifyContent": "center",
+                        "color": "#94a3b8",
+                        "fontSize": "14px",
+                        "cursor": "pointer",
+                        "transition": "all 0.2s ease",
+                    },
+                ),
+                dbc.Popover(
+                    [
+                        dbc.PopoverHeader(
+                            html.Span([
+                                html.I(className="bi bi-info-circle-fill me-2", style={"color": "#E20613"}),
+                                "Sobre os Indicadores"
+                            ]),
+                            style={"fontFamily": "Ubuntu", "fontWeight": "600", "fontSize": "14px"}
+                        ),
+                        dbc.PopoverBody([
+                            html.P([
+                                html.Strong("RI Geral"), " é um ", html.Strong("percentual"), 
+                                " — a proporção de economia sobre o total solicitado."
+                            ], style={"fontSize": "13px", "marginBottom": "8px"}),
+                            html.Div([
+                                html.Span("📊 ", style={"fontSize": "14px"}),
+                                html.Span("Exemplo: ", style={"fontWeight": "600", "fontSize": "12px"}),
+                            ]),
+                            html.P(
+                                "Se em 5 dias o workshop cobrou R$ 100 e economizamos R$ 35, "
+                                "o RI = 35%. Em 30 dias, cobraria R$ 600 e economizaríamos R$ 210 — "
+                                "ainda 35%. O percentual não muda com mais dias.",
+                                style={"fontSize": "12px", "color": "#64748b", "marginBottom": "10px",
+                                       "borderLeft": "3px solid #E20613", "paddingLeft": "8px",
+                                       "backgroundColor": "rgba(226,6,19,0.03)", "padding": "8px",
+                                       "borderRadius": "4px"}
+                            ),
+                            html.P([
+                                html.I(className="bi bi-exclamation-triangle-fill me-1", style={"color": "#f59e0b", "fontSize": "11px"}),
+                                html.Span(
+                                    "Meses marcados como (parcial) têm menos dados. "
+                                    "O volume (R$, OS) será menor, mas o % de RI permanece representativo.",
+                                    style={"fontSize": "12px", "color": "#64748b"}
+                                ),
+                            ], style={"marginBottom": "0"}),
+                        ], style={"fontFamily": "Ubuntu, sans-serif"})
+                    ],
+                    target="btn-help-ri-chart",
+                    trigger="click",
+                    placement="left",
+                    style={"maxWidth": "340px"},
+                ),
+                dcc.Graph(
+                    id="fig-ri-geral",
+                    figure=fig_geral, 
+                    config={'displayModeBar': False},
+                    style={"height": "400px"},
+                    clear_on_unhover=True
+                ),
+            ], style={"position": "relative"}),
             
             # Chart 2: Comparativo Preventiva vs Corretiva
             html.Div([
@@ -339,4 +443,21 @@ def register_dashboard_callbacks(app):
             return "semanal", "premium-toggle-btn", "premium-toggle-btn", "premium-toggle-btn active"
         return "mensal", "premium-toggle-btn active", "premium-toggle-btn", "premium-toggle-btn"
 
-
+    # Callback: Toggle de Modo RI ↔ Silent Order
+    @app.callback(
+        [
+            Output("ri-mode-store", "data"),
+            Output("btn-mode-ri", "className"),
+            Output("btn-mode-so", "className"),
+        ],
+        [
+            Input("btn-mode-ri", "n_clicks"),
+            Input("btn-mode-so", "n_clicks"),
+        ],
+        prevent_initial_call=True
+    )
+    def toggle_ri_mode(n_ri, n_so):
+        triggered = ctx.triggered_id
+        if triggered == "btn-mode-so":
+            return "so", "premium-toggle-btn", "premium-toggle-btn active"
+        return "ri", "premium-toggle-btn active", "premium-toggle-btn"

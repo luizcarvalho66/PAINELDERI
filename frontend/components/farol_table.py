@@ -5,8 +5,9 @@ Farol Table - Componente de tabela interativa do farol
 Author: Luiz Eduardo Carvalho
 """
 
-from dash import html, dcc
+from dash import html, dcc, MATCH
 import dash_bootstrap_components as dbc
+import json
 
 
 def render_farol_table_container() -> html.Div:
@@ -64,10 +65,11 @@ def render_farol_table_container() -> html.Div:
                     # Botão info (?) com Popover explicativo
                     html.Div([
                         dbc.Button(
-                            html.I(className="bi bi-question-circle"),
+                            html.I(className="bi bi-question-circle-fill"),
                             id="btn-info-oportunidades",
                             color="link",
-                            className="farol-help-icon ms-2",
+                            className="text-muted p-0 ms-2",
+                            style={"fontSize": "1rem"}
                         ),
                         dbc.Popover([
                             dbc.PopoverHeader([
@@ -125,15 +127,11 @@ def render_farol_table_container() -> html.Div:
                     dbc.Tooltip("Todas as combinações Peça + MO", target="toggle-view-geral", placement="top"),
                     dbc.Tooltip("MDO pré-definida + P70 ≤ R$ 1.500 + OS ≤ 2 itens", target="toggle-view-oportunidades", placement="top"),
                     
-                    # Separador visual e Switch Detalhar por Cliente
+                    # Instrução interativa (substituiu switch "Detalhar por Cliente")
                     html.Div(className="farol-header-separator"),
                     html.Div([
-                        dbc.Switch(
-                            id="farol-group-client-switch",
-                            label="Detalhar por Cliente",
-                            value=False,
-                            className="custom-switch custom-switch-inline mb-0"
-                        ),
+                        html.I(className="bi bi-chevron-expand me-1", style={"fontSize": "0.75rem", "color": "#64748b"}),
+                        html.Small("Clique em uma chave para expandir", className="text-muted", style={"fontSize": "0.72rem"})
                     ], className="d-flex align-items-center"),
                     
                     # Store para guardar estado do toggle
@@ -146,14 +144,14 @@ def render_farol_table_container() -> html.Div:
                 html.Div([
                     html.Small(
                         "Como o farol funciona?",
-                        className="text-muted me-2",
-                        style={"cursor": "pointer"}
+                        className="text-muted fw-bold me-1",
                     ),
                     dbc.Button(
-                        html.I(className="bi bi-question-circle"),
+                        html.I(className="bi bi-question-circle-fill"),
                         id="farol-help-btn",
                         color="link",
-                        className="farol-help-icon ms-1",
+                        className="text-muted p-0 ms-1",
+                        style={"fontSize": "1rem"}
                     ),
                 ], className="d-flex align-items-center justify-content-end w-100")
             ], width=3, className="d-flex align-items-center"),
@@ -286,9 +284,14 @@ def render_farol_table_content(dados):
     )
     
     rows = []
-    for item in dados:
+    for idx, item in enumerate(dados):
         cor = item.get("farol_cor", "amarelo")
         score = item.get("farol_score", 0)
+        
+        # Extrair peca e tipo_mo para o drill-down
+        peca = item.get("peca", "SEM PEÇA")
+        tipo_mo_val = item.get("tipo_mo", "SEM MO")
+        row_id = json.dumps({"peca": peca, "tipo_mo": tipo_mo_val, "cor": cor})
         
         # Ícone de Status + Borda lateral colorida
         if cor == "verde":
@@ -312,23 +315,15 @@ def render_farol_table_content(dados):
             ], style={"display": "flex", "alignItems": "center", "justifyContent": "center"})
             row_style = {"borderLeft": "3px solid #94a3b8", "cursor": "pointer"}
             
-        # Parse Key for Display (Handle "Key | Client")
+        # Parse Key for Display
         raw_key = item.get("chave", "")
-        if " | " in raw_key:
-            parts = raw_key.split(" | ")
-            display_key = parts[0]
-            display_client = parts[1]
-            key_content = html.Div([
-                html.Span(display_key, className="farol-cell-chave"),
-                html.Br(),
-                html.Small(html.I(className="bi bi-building me-1"), className="text-muted"),
-                html.Small(display_client, className="text-muted fw-normal", style={"fontSize": "0.75rem"})
+        display_key = raw_key
+        key_content = html.Div([
+            html.Span(display_key, className="farol-cell-chave"),
+            html.Small([
+                html.I(className="bi bi-chevron-down ms-2", style={"fontSize": "0.65rem", "color": "#94a3b8", "transition": "transform 0.2s"}),
             ])
-        else:
-            display_key = raw_key
-            key_content = html.Div([
-                html.Span(display_key, className="farol-cell-chave")
-            ])
+        ])
             
         # Badge de Score
         if score >= 70:
@@ -360,8 +355,8 @@ def render_farol_table_content(dados):
         qtd_os = item.get("qtd_os", 0)
         qtd_os_fmt = f"{qtd_os:,}".replace(",", ".")
         
-        rows.append(
-            html.Tr([
+        # Row clicável com ID para pattern-matching
+        master_row = html.Tr([
                 html.Td(icon, className="text-center", style={"width": "50px"}),
                 html.Td(key_content),
                 html.Td(
@@ -385,8 +380,35 @@ def render_farol_table_content(dados):
                     className="text-center"
                 ),
                 html.Td(rec_tag),
-            ], className="farol-table-row-macos", style=row_style)
+            ], 
+            id={"type": "farol-row", "index": row_id},
+            className="farol-table-row-macos", 
+            style=row_style
         )
+        rows.append(master_row)
+        
+        # Collapse row para drill-down (ini oculta)
+        collapse_row = html.Tr([
+            html.Td(
+                dbc.Collapse(
+                    html.Div(
+                        [
+                            html.Div([
+                                html.I(className="bi bi-hourglass-split me-1 text-muted"),
+                                html.Small("Carregando detalhes...", className="text-muted")
+                            ], className="text-center py-3")
+                        ],
+                        id={"type": "farol-drill-content", "index": row_id}
+                    ),
+                    id={"type": "farol-drill-collapse", "index": row_id},
+                    is_open=False,
+                    className="drill-down-collapse"
+                ),
+                colSpan=8,
+                className="p-0 border-0"
+            )
+        ], className="drill-down-row-wrapper border-0")
+        rows.append(collapse_row)
         
     body = html.Tbody(rows)
     
@@ -397,6 +419,120 @@ def render_farol_table_content(dados):
         borderless=True, # Remove borders default do Bootstrap para usar os nossos
         responsive=True
     )
+
+
+def render_drill_down_content(df, cor_farol="amarelo"):
+    """
+    Renderiza a sub-tabela de drill-down com as OS individuais de uma chave.
+    Chamada pelo callback quando o usuário clica em uma row do farol.
+    """
+    if df is None or df.empty:
+        return html.Div(
+            html.Small("Nenhuma OS encontrada para esta chave.", className="text-muted"),
+            className="text-center py-4 px-3"
+        )
+    
+    # Header da sub-tabela
+    sub_header = html.Thead(
+        html.Tr([
+            html.Th("OS", style={"width": "100px"}),
+            html.Th("Cliente"),
+            html.Th("Solicitado", className="text-end"),
+            html.Th("Aprovado", className="text-end"),
+            html.Th("Data"),
+            html.Th("Aprovador"),
+            html.Th("RI", className="text-center"),
+        ], className="drill-down-header")
+    )
+    
+    sub_rows = []
+    for _, row in df.head(50).iterrows():
+        # Formatação de valores
+        val_total = row.get("valor_total", 0) or 0
+        val_aprovado = row.get("valor_aprovado", 0) or 0
+        val_total_fmt = f"R$ {val_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        val_aprov_fmt = f"R$ {val_aprovado:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        
+        # Strikethrough style no valor total (solicitado) se diferir do aprovado (com margem de cents)
+        val_total_class = "drill-down-cell-money-solicitado text-end"
+        if abs(val_total - val_aprovado) > 0.05:
+            val_total_class += " drill-down-valor-diff"
+        
+        # Data formatada
+        data_str = ""
+        if row.get("data_transacao") is not None:
+            try:
+                data_str = str(row["data_transacao"])[:10]
+            except Exception:
+                data_str = ""
+        
+        # Aprovador (já vem tratado do SQL: "Aprovação de RI" se nulo)
+        aprovador = str(row.get("aprovador", "")) if row.get("aprovador") else ""
+        is_ri = aprovador == "Aprovação de RI"
+        
+        if is_ri:
+            aprovador_element = html.Span([
+                html.I(className="bi bi-robot me-1"), 
+                aprovador
+            ], className="drill-down-aprovador-ri")
+        else:
+            aprovador_element = html.Span(aprovador, className="drill-down-aprovador-comum")
+        
+        # Flag RI (peca_aprovada = FALSE = RI negociou = BOM)
+        peca_aprovada = row.get("peca_aprovada", None)
+        if peca_aprovada == False:
+            ri_badge = html.Span([
+                html.I(className="bi bi-check-circle-fill me-1"), "Regulado"
+            ], className="drill-down-badge-regulado")
+        elif peca_aprovada == True:
+            ri_badge = html.Span([
+                html.I(className="bi bi-dash-circle me-1"), "Original"
+            ], className="drill-down-badge-original")
+        else:
+            ri_badge = html.Span("—", className="text-muted small")
+        
+        sub_rows.append(
+            html.Tr([
+                html.Td(str(row.get("numero_os", "")), className="drill-down-cell-os"),
+                html.Td(str(row.get("nome_cliente", ""))[:25], title=str(row.get("nome_cliente", "")), className="drill-down-cell-cliente"),
+                html.Td(val_total_fmt, className=val_total_class),
+                html.Td(val_aprov_fmt, className="drill-down-cell-money-aprovado text-end"),
+                html.Td(data_str, className="drill-down-cell-data"),
+                html.Td(aprovador_element),
+                html.Td(ri_badge, className="text-center"),
+            ], className="drill-down-row")
+        )
+    
+    sub_body = html.Tbody(sub_rows)
+    
+    total_rows = len(df)
+    footer_text = f"Mostrando {min(50, total_rows)} de {total_rows} OS" if total_rows > 50 else f"{total_rows} OS encontradas"
+    
+    # Determinar cor do indicador com base na cor da row pai (para ::before via text color)
+    color_map = {
+        "verde": "#10b981",    # success
+        "amarelo": "#f59e0b",  # warning
+        "vermelho": "#E20613", # danger
+        "cinza": "#94a3b8"     # muted
+    }
+    hex_color = color_map.get(cor_farol, color_map["cinza"])
+    
+    return html.Div([
+        html.Div([
+            dbc.Table(
+                [sub_header, sub_body],
+                className="mb-0 w-100",
+                hover=False,
+                borderless=True,
+                size="sm"
+            )
+        ], className="drill-down-table-wrapper"),
+        html.Div([
+            html.I(className="bi bi-list-ul me-2 text-muted"),
+            html.Span(footer_text, className="drill-down-footer-text")
+        ], className="drill-down-footer")
+    ], className="drill-down-panel", style={"color": hex_color})
+
 
 
 def render_logs_table_content(df):

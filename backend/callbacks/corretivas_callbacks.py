@@ -11,8 +11,9 @@ Este módulo registra os callbacks do Dash para:
 Author: Luiz Eduardo Carvalho
 """
 
-from dash import Input, Output, State, html, dcc, callback_context, no_update
+from dash import Input, Output, State, html, dcc, callback_context, no_update, MATCH, ALL
 import dash_bootstrap_components as dbc
+import json
 import plotly.graph_objects as go
 import plotly.express as px
 from backend.repositories import (
@@ -183,13 +184,11 @@ def register_corretivas_callbacks(app):
             Input("farol-filter-chave", "value"),
             Input("farol-filter-prioridade", "value"),
             # Toggle Visão Geral / Oportunidades
-            Input("farol-view-mode-store", "data"),
-            # Novo Toggle Agrupar por Cliente
-            Input("farol-group-client-switch", "value")
+            Input("farol-view-mode-store", "data")
         ],
         prevent_initial_call=False
     )
-    def update_farol_table(n_intervals, active_page, f_clientes, f_chaves, f_prioridade, view_mode, group_by_client):
+    def update_farol_table(n_intervals, active_page, f_clientes, f_chaves, f_prioridade, view_mode):
         """Atualiza a tabela principal do farol com paginação e filtros."""
         try:
             # Contexto para saber quem disparou
@@ -220,16 +219,14 @@ def register_corretivas_callbacks(app):
                 filters=filters, 
                 page=page, 
                 page_size=page_size,
-                only_opportunities=only_opportunities,
-                group_by_client=group_by_client
+                only_opportunities=only_opportunities
             )
             
             # Calcular total de páginas de forma dinâmica
             from backend.repositories.repo_farol_table import get_farol_total_count
             total_count = get_farol_total_count(
                 filters=filters, 
-                only_opportunities=only_opportunities, 
-                group_by_client=group_by_client
+                only_opportunities=only_opportunities
             )
             total_pages = max(1, (total_count + page_size - 1) // page_size)  # Ceiling division
             
@@ -261,6 +258,66 @@ def register_corretivas_callbacks(app):
     
     
     # _build_farol_table REMOVIDO PARA frontend/components/farol_table.py
+    
+    # =========================================================================
+    # CALLBACK: DRILL-DOWN — Expandir/Recolher detalhes de uma chave
+    # =========================================================================
+    @app.callback(
+        [
+            Output({"type": "farol-drill-collapse", "index": MATCH}, "is_open"),
+            Output({"type": "farol-drill-content", "index": MATCH}, "children"),
+        ],
+        [Input({"type": "farol-row", "index": MATCH}, "n_clicks")],
+        [
+            State({"type": "farol-drill-collapse", "index": MATCH}, "is_open"),
+            State("farol-filter-cliente", "value"),
+        ],
+        prevent_initial_call=True
+    )
+    def toggle_farol_drill_down(n_clicks, is_open, f_clientes):
+        """Expande/recolhe o drill-down de uma chave do farol."""
+        if not n_clicks:
+            return no_update, no_update
+            
+        new_state = not is_open
+        
+        if not new_state:
+            # Recolhendo — não precisa atualizar conteúdo
+            return False, no_update
+        
+        # Expandindo — carregar dados
+        try:
+            ctx = callback_context
+            triggered_id = ctx.triggered_id
+            # triggered_id é um dict: {"type": "farol-row", "index": "{\"peca\": ..., \"tipo_mo\": ...}"}
+            if isinstance(triggered_id, dict):
+                key_data = json.loads(triggered_id["index"])
+            else:
+                return no_update, no_update
+            
+            peca = key_data.get("peca", "")
+            tipo_mo = key_data.get("tipo_mo", "")
+            
+            from backend.repositories.repo_farol_table import get_drill_down_chave
+            from frontend.components.farol_table import render_drill_down_content
+            
+            # Converter lista de clientes para tuple (hashable para cache)
+            clientes_tuple = tuple(f_clientes) if f_clientes else None
+            
+            df = get_drill_down_chave(peca, tipo_mo, clientes=clientes_tuple)
+            cor_farol = key_data.get("cor", "amarelo")
+            content = render_drill_down_content(df, cor_farol=cor_farol)
+            
+            return True, content
+            
+        except Exception as e:
+            print(f"[FAROL DRILL-DOWN] Erro: {e}")
+            import traceback
+            traceback.print_exc()
+            return True, html.Div(
+                html.Small(f"Erro ao carregar detalhes: {str(e)}", className="text-danger"),
+                className="text-center py-3"
+            )
     
     # =========================================================================
     # CALLBACK: TOGGLE DA SEÇÃO DE LOGS
