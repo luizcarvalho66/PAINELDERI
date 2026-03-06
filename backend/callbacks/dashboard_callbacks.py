@@ -111,6 +111,21 @@ def register_dashboard_callbacks(app):
         if triggered_id == 'global-filters-applied-store' and not filters_state:
             return no_update, no_update
         
+        # Safety net: verificar se banco tem dados antes de processar
+        # Após reset, tabelas existem mas estão vazias → evita crash
+        try:
+            has_data = check_database_status()  # retorna bool
+            if not has_data:
+                empty_msg = html.Div([
+                    html.I(className="bi bi-database-slash text-muted mb-3", style={"fontSize": "2.5rem"}),
+                    html.H4("Base de dados vazia", className="text-center text-muted"),
+                    html.P("Sincronize os dados para visualizar o dashboard.", 
+                           className="text-center text-secondary small"),
+                ], className="p-5 d-flex flex-column align-items-center justify-content-center h-100")
+                return html.Div(), empty_msg
+        except Exception:
+            pass  # Se check falhar, tenta renderizar normalmente
+        
         try:
             return _build_dashboard_content(is_processed, filters_state, granularidade or 'mensal', ri_mode or 'ri')
         except Exception as e:
