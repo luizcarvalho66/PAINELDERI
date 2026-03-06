@@ -150,7 +150,7 @@ def check_new_data():
             ON fi.Sk_MaintenanceServices = fs.Sk_MaintenanceServices
         INNER JOIN hive_metastore.gold.dim_fuelcustomers fc
             ON fs.Sk_FuelCustomer = fc.Sk_FuelCustomer
-        WHERE fi.TransactionTimestamp >= date_add(current_date(), -150)
+        WHERE CAST(fi.TransactionTimestamp AS DATE) >= date_add(current_date(), -150)
           AND fc.CustomerSourceCode IN ({client_ids})
         """
         cursor.execute(query_max)
@@ -170,8 +170,8 @@ def check_new_data():
                     ON fi.Sk_MaintenanceServices = fs.Sk_MaintenanceServices
                 INNER JOIN hive_metastore.gold.dim_fuelcustomers fc
                     ON fs.Sk_FuelCustomer = fc.Sk_FuelCustomer
-                WHERE fi.TransactionTimestamp > '{local_max_date}'
-                  AND fi.TransactionTimestamp >= date_add(current_date(), -150)
+                WHERE CAST(fi.TransactionTimestamp AS DATE) > '{local_max_date}'
+                  AND CAST(fi.TransactionTimestamp AS DATE) >= date_add(current_date(), -150)
                   AND fc.CustomerSourceCode IN ({client_ids})
                 """
                 cursor2.execute(query_count)
@@ -394,14 +394,14 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
     - INCREMENTAL: watermark → busca dados mais recentes que watermark
     """
     if watermark:
-        # Incremental: apenas dados novos (FIX 2026-03-05: fi.TransactionTimestamp)
-        date_filter = f"fi.TransactionTimestamp > '{watermark}'"
+        # Incremental: apenas dados novos (FIX 2026-03-06: CAST AS DATE para match exato)
+        date_filter = f"CAST(fi.TransactionTimestamp AS DATE) > '{watermark}'"
     elif date_from and date_to:
         # Gap fill: intervalo específico de datas faltantes
-        date_filter = f"fi.TransactionTimestamp >= '{date_from}' AND fi.TransactionTimestamp < '{date_to}'"
+        date_filter = f"CAST(fi.TransactionTimestamp AS DATE) >= '{date_from}' AND CAST(fi.TransactionTimestamp AS DATE) < '{date_to}'"
     else:
         # Full load: últimos {days} dias
-        date_filter = f"fi.TransactionTimestamp >= date_add(current_date(), -{days})"
+        date_filter = f"CAST(fi.TransactionTimestamp AS DATE) >= date_add(current_date(), -{days})"
     
     client_ids = ", ".join([str(x) for x in TGM_CLIENT_IDS])
     
