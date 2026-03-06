@@ -51,6 +51,188 @@
     gap: 8px;
 }
 
+/* --- Apple/iOS Tabs (Segmented Control) --- */
+.apple-tabs {
+    background-color: rgba(241, 245, 249, 0.8) !important;
+    border-radius: 12px;
+    padding: 6px;
+    display: flex;
+    border: none !important;
+    margin-bottom: 24px;
+}
+
+.apple-tabs .nav-link {
+    border: none !important;
+    border-radius: 8px !important;
+    color: #64748b !important;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 8px 16px !important;
+    transition: all 0.2s ease;
+    margin-right: 4px;
+}
+
+.apple-tabs .nav-link:hover {
+    color: #334155 !important;
+    background-color: rgba(226, 232, 240, 0.5) !important;
+}
+
+.apple-tabs .nav-link.active {
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* --- Apple Glass Cards --- */
+.apple-glass-card {
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 16px;
+    padding: 24px 20px;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+
+.apple-glass-card:hover {  
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.08);
+}
+
+.apple-glass-card.success-tint {
+    background: rgba(16, 185, 129, 0.04);
+    border-color: rgba(16, 185, 129, 0.15);
+}
+
+.apple-glass-card.warning-tint {
+    background: rgba(245, 158, 11, 0.04);
+    border-color: rgba(245, 158, 11, 0.15);
+}
+
+.apple-glass-card.danger-tint {
+    background: rgba(226, 6, 19, 0.04);
+    border-color: rgba(226, 6, 19, 0.15);
+}
+
+.apple-glass-card.info-tint {
+    background: rgba(14, 165, 233, 0.04);
+    border-color: rgba(14, 165, 233, 0.15);
+}
+
+/* --- Apple Table/List --- */
+.apple-list {
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+
+.apple-list-item {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+}
+
+.apple-list-item:last-child {
+    border-bottom: none;
+}
+
+.apple-list-item-title {
+    font-weight: 700;
+    font-size: 0.85rem;
+    min-width: 90px;
+    display: inline-block;
+}
+
+.apple-list-item-desc {
+    color: #475569;
+    font-size: 0.85rem;
+}
+
+/* --- Apple Vertical Columns Representation --- */
+.apple-vertical-column {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+    transition: all 0.2s ease;
+}
+
+.apple-vertical-column:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.04);
+}
+
+.apple-column-header {
+    padding: 12px 0;
+    text-align: center;
+    font-weight: 800;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.apple-column-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-grow: 1;
+    background: #f8fafc;
+}
+
+.apple-column-body-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 16px;
+    background: #ffffff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.apple-column-body-desc {
+    font-size: 0.82rem;
+    color: #475569;
+    text-align: center;
+    line-height: 1.5;
+}
+
+/* Specific Header Colors */
+.col-header-auto { background-color: rgba(16, 185, 129, 0.1); color: #10b981; border-bottom-color: rgba(16, 185, 129, 0.2); }
+.col-header-humana { background-color: rgba(100, 116, 139, 0.1); color: #64748b; border-bottom-color: rgba(100, 116, 139, 0.2); }
+.col-header-p70 { background-color: rgba(226, 6, 19, 0.1); color: #E20613; border-bottom-color: rgba(226, 6, 19, 0.2); }
+.col-header-os { background-color: rgba(14, 165, 233, 0.1); color: #0ea5e9; border-bottom-color: rgba(14, 165, 233, 0.2); }
+.col-header-score { background-color: rgba(30, 41, 59, 0.1); color: #1e293b; border-bottom-color: rgba(30, 41, 59, 0.2); }
+
+/* Enhanced MacOS Modal Content */
+.macos-modal-content {
+    border-radius: 20px !important;
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.02) !important;
+    overflow: hidden;
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    background: rgba(250, 250, 250, 0.9) !important;
+}
+
+.macos-modal-header {
+    background: transparent !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+    padding: 24px 32px 20px !important;
+}
+
+.macos-modal-body {
+    padding: 0 32px 32px !important;
+}
+
 /* ==========================================================================
    MODAL DE SELEÇÃO DE CLIENTE TGM — Minimalist & Sophisticated
    ========================================================================== */

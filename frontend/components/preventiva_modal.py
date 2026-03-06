@@ -36,34 +36,34 @@ def render_preventiva_help_modal():
                     # Card de Definição
                     html.Div([
                         html.Div([
-                            html.I(className="bi bi-exclamation-triangle-fill", style={"color": "#E20613", "fontSize": "1.5rem"}),
+                            html.I(className="bi bi-exclamation-triangle-fill", style={"color": "#E20613", "fontSize": "1.8rem"}),
                             html.Div([
-                                html.Div("Fuga de Preventiva", style={"fontWeight": "700", "fontSize": "0.9rem", "color": "#E20613"}),
+                                html.Div("Fuga de Preventiva", style={"fontWeight": "700", "fontSize": "0.95rem", "color": "#1e293b"}),
                                 html.P(
                                     "Manutenção classificada como CORRETIVA, mas com características claras de PREVENTIVA.",
-                                    style={"fontSize": "0.85rem", "color": "#64748b", "marginBottom": "0"}
+                                    style={"fontSize": "0.85rem", "color": "#475569", "marginBottom": "0", "marginTop": "4px"}
                                 )
                             ], className="ms-3")
-                        ], className="d-flex align-items-start")
-                    ], className="macos-card", style={"borderLeft": "4px solid #E20613"}),
+                        ], className="d-flex align-items-center")
+                    ], className="apple-glass-card danger-tint"),
                     
                     html.Div("POR QUE ISSO É RUIM?", className="macos-section-title mt-4"),
                     
                     # Impactos
                     html.Div([
                         html.Div([
-                            html.I(className="bi bi-x-circle text-danger me-2"),
-                            html.Span("Distorce o SLA de Corretivas", className="text-secondary")
-                        ], className="mb-2"),
+                            html.Div(html.I(className="bi bi-x", style={"fontSize": "1.2rem", "color": "#E20613"}), style={"width": "24px", "display": "flex", "alignItems": "center"}),
+                            html.Span("Distorce o SLA da meta de Corretivas", style={"color": "#475569", "fontSize": "0.85rem"})
+                        ], className="d-flex align-items-center mb-2"),
                         html.Div([
-                            html.I(className="bi bi-x-circle text-danger me-2"),
-                            html.Span("Infla o custo médio de reparo", className="text-secondary")
-                        ], className="mb-2"),
+                            html.Div(html.I(className="bi bi-x", style={"fontSize": "1.2rem", "color": "#E20613"}), style={"width": "24px", "display": "flex", "alignItems": "center"}),
+                            html.Span("Infla o custo médio de reparo reportado", style={"color": "#475569", "fontSize": "0.85rem"})
+                        ], className="d-flex align-items-center mb-2"),
                         html.Div([
-                            html.I(className="bi bi-x-circle text-danger me-2"),
-                            html.Span("Perde histórico de revisão do veículo", className="text-secondary")
-                        ])
-                    ], className="macos-card bg-light"),
+                            html.Div(html.I(className="bi bi-x", style={"fontSize": "1.2rem", "color": "#E20613"}), style={"width": "24px", "display": "flex", "alignItems": "center"}),
+                            html.Span("Perde histórico preciso da revisão do veículo", style={"color": "#475569", "fontSize": "0.85rem"})
+                        ], className="d-flex align-items-center")
+                    ], className="apple-glass-card info-tint", style={"padding": "16px 20px"}),
                     
                 ], width=12, lg=5, className="border-end pe-4"),
                 
@@ -121,24 +121,24 @@ def render_preventiva_help_modal():
                     
                     html.Div([
                          html.Div([
-                            html.Strong("Taxa de Fuga (%)", className="text-dark"),
-                            html.P("Percentual de Corretivas que na verdade são Preventivas.", className="text-muted small mb-1"),
-                            html.Div(html.Span("Fórmula: (Fugas / Total Corretivas) * 100", className="badge bg-secondary bg-opacity-10 text-dark"))
+                            html.Strong("Taxa de Fuga (%)", className="text-dark d-block", style={"fontSize": "0.95rem"}),
+                            html.P("Percentual de Corretivas que na verdade são Preventivas.", className="text-muted small mb-2"),
+                            html.Div(html.Span("Fórmula: (Fugas / Total Corretivas) * 100", className="badge bg-secondary bg-opacity-10 text-dark", style={"fontSize": "0.75rem", "fontWeight": "normal", "padding": "6px 10px"}))
                         ], className="mb-3 pb-3 border-bottom"),
                         
                         html.Div([
-                            html.Strong("Top Ofensores", className="text-dark"),
-                            html.P("Rankings de Estabelecimentos, Aprovadores e Alçadas que mais aprovam fugas. Útil para ações educativas.", 
-                                   className="text-muted small")
+                            html.Strong("Top Ofensores", className="text-dark d-block", style={"fontSize": "0.95rem"}),
+                            html.P("Rankings de Estabelecimentos, Aprovadores e Alçadas que mais aprovam fugas. Útil para ações educativas diretas.", 
+                                   className="text-muted small mb-0")
                         ])
-                    ], className="macos-card")
+                    ], className="apple-glass-card success-tint")
                     
                 ], width=12, lg=7, className="ps-4"),
             ]),
             
         ], className="macos-modal-body"),
         
-    ], id="prev-help-modal", size="xl", is_open=False, centered=True, contentClassName="macos-modal-content")
+    ], id="prev-help-modal", size="xl", is_open=False, centered=True, class_name="macos-modal-content", fade=True)
 
 def render_ranking_help_modal():
     """
@@ -200,11 +200,11 @@ def render_ranking_help_modal():
                             html.I(className="bi bi-sort-numeric-down-alt text-secondary me-2"),
                             html.Strong("3. Ordenação", className="text-dark")
                         ], className="mb-1"),
-                        html.P("Ordenamos pelo volume de fugas (decrescente). O percentual mostra a proporção de fugas sobre o total de corretivas daquela entidade.", className="text-muted small")
-                    ], className="macos-card"),
+                        html.P("Ordenamos pelo volume de fugas (decrescente). O percentual mostra a proporção de fugas sobre o total de corretivas daquela entidade.", className="text-muted small mb-0")
+                    ], className="apple-glass-card success-tint"),
                     
                 ], width=12, lg=7, className="ps-4"),
             ])
         ], className="macos-modal-body"),
         
-    ], id="prev-ranking-help-modal", size="lg", is_open=False, centered=True, contentClassName="macos-modal-content")
+    ], id="prev-ranking-help-modal", size="lg", is_open=False, centered=True, class_name="macos-modal-content", fade=True)

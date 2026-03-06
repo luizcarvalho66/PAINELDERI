@@ -1,6 +1,6 @@
 /* ==========================================================================
    FILTER BAR STYLESHEET
-   Design Limpo e Executivo - Barra Horizontal Unificada
+   Design Profissional — Apple Glass, Edenred Branding
    ========================================================================== */
 
 /* ==========================================================================
@@ -8,34 +8,54 @@
    ========================================================================== */
 
 .filter-bar {
-    background: rgba(255, 255, 255, 0.85); /* Glassmorphism Premium */
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(226, 6, 19, 0.06);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border-radius: 24px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06), 0 2px 10px rgba(226, 6, 19, 0.04);
-    border: 1px solid rgba(226, 6, 19, 0.12); /* Borda sutil avermelhada */
-    margin-bottom: 24px;
+    border-radius: 16px;
+    box-shadow: 
+        0 1px 3px rgba(0, 0, 0, 0.04),
+        0 4px 16px rgba(0, 0, 0, 0.02);
+    margin: 0 0 24px 0;
+    width: 100%;
     padding: 14px 24px;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    z-index: 1050;
+    overflow: visible !important; /* CRITICAL: permite dropdown visível */
+}
+
+.filter-bar:hover {
+    box-shadow: 
+        0 2px 8px rgba(0, 0, 0, 0.06),
+        0 8px 24px rgba(0, 0, 0, 0.04);
 }
 
 .filter-bar-inner {
     display: flex;
     align-items: center;
-    gap: 14px;
-    flex-wrap: nowrap; /* NUNCA quebrar linha */
+    gap: 16px;
+    flex-wrap: nowrap;
+    overflow: visible !important; /* CRITICAL: permite dropdown visível */
+    padding-bottom: 2px;
 }
 
-/* Label da barra */
+.filter-bar-inner::-webkit-scrollbar {
+    display: none;
+}
+
+/* Label "Filtros" */
 .filter-bar-label {
     display: flex;
     align-items: center;
     gap: 10px;
-    color: var(--text-main, #1E293B);
+    color: #1e293b;
     font-weight: 700;
-    font-size: 15px;
+    font-size: 14px;
     white-space: nowrap;
-    padding-right: 20px;
-    border-right: 2px solid #e2e8f0;
+    padding-right: 16px;
+    border-right: 1px solid #e2e8f0;
+    flex-shrink: 0;
 }
 
 .filter-bar-icon {
@@ -44,244 +64,229 @@
     justify-content: center;
     width: 34px;
     height: 34px;
-    background: linear-gradient(135deg, var(--edenred-red, #E20613) 0%, #B9050F 100%);
-    color: white;
+    background: linear-gradient(135deg, rgba(226, 6, 19, 0.08), rgba(226, 6, 19, 0.04));
+    color: #E20613;
+    border: 1px solid rgba(226, 6, 19, 0.1);
     border-radius: 10px;
-    font-size: 16px;
-    box-shadow: 0 4px 15px rgba(226, 6, 19, 0.35);
+    font-size: 15px;
+}
+
+.filter-bar-title {
+    font-family: 'Ubuntu', sans-serif;
+    letter-spacing: 0.02em;
 }
 
 /* ==========================================================================
-   FILTER FIELDS GRID
+   FILTER FIELDS ROW
    ========================================================================== */
 
-/* Force horizontal layout on desktop */
 .filter-bar-fields {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 16px;
     flex: 1;
-    flex-wrap: nowrap;
-    min-width: 0; /* Allow shrinking */
-}
-
-/* Force horizontal group (Label + Input) */
-.filter-inline-group {
-    display: flex;
-    flex-direction: row !important;
-    align-items: center;
-    gap: 8px;
-    white-space: nowrap;
-    min-width: 0; /* Allow shrinking */
-}
-
-.filter-inline-group--toggle {
-    margin-left: 4px;
-    flex-shrink: 1;
     min-width: 0;
 }
 
-/* Compactar o premium-toggle DENTRO da barra de filtros */
-.filter-inline-group--toggle .premium-toggle-container {
-    padding: 3px;
-    border-radius: 10px;
-    gap: 0;
+/* Separador vertical entre campos */
+.filter-separator {
+    width: 1px;
+    height: 28px;
+    background: #e2e8f0;
+    flex-shrink: 0;
 }
 
-.filter-inline-group--toggle .premium-toggle-btn {
-    padding: 5px 14px;
-    font-size: 0.78rem;
-    border-radius: 7px;
-    gap: 5px;
-}
-
-.filter-inline-group--toggle .premium-toggle-btn i {
-    font-size: 0.75rem;
+/* Grupo inline: Label + Dropdown */
+.filter-inline-group {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .filter-inline-label {
     font-family: 'Ubuntu', sans-serif;
     font-size: 11px;
     font-weight: 700;
-    color: #64748b;
+    color: #94a3b8;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.05em;
     white-space: nowrap;
-    margin-right: 4px; /* Garante espaço se gap falhar */
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
 }
 
-/* ==========================================================================
-   INLINE DROPDOWN STYLING
-   ========================================================================== */
+.filter-inline-label i {
+    font-size: 12px;
+    color: #cbd5e1;
+}
 
 /* ==========================================================================
    INLINE DROPDOWN STYLING
    ========================================================================== */
 
 .filter-inline-dropdown {
-    width: 180px;
-    min-width: 140px;
-    max-width: 220px;
-    flex-shrink: 1; /* ALLOW SHRINKING */
+    width: 200px;
+    min-width: 180px;
+    max-width: 260px;
+    flex-shrink: 1;
+}
+
+.filter-inline-dropdown--wide {
+    width: 240px;
+    min-width: 200px;
+    max-width: 320px;
 }
 
 .filter-inline-dropdown .Select-control {
-    border: 1px solid #f1f5f9 !important;
-    border-radius: 999px !important; /* Pill Shape */
-    min-height: 40px !important; /* Taller */
-    background: #f8fafc !important; /* Slight grey */
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 10px !important;
+    min-height: 38px !important;
+    background: #ffffff !important;
     padding-left: 8px;
     display: flex !important;
     align-items: center;
+    box-shadow: none !important;
+    transition: all 0.2s ease !important;
 }
 
-/* Ensure placeholder and value are centered vertically */
-.filter-inline-dropdown .Select-placeholder, 
+.filter-inline-dropdown .Select-placeholder,
 .filter-inline-dropdown .Select-value {
-    line-height: 40px !important;
-    height: 40px !important;
+    line-height: 38px !important;
+    height: 38px !important;
 }
 
 .filter-inline-dropdown .Select-control:hover {
-    border-color: rgba(226, 6, 19, 0.3) !important;
-    background: white !important;
+    border-color: #cbd5e1 !important;
 }
 
 .filter-inline-dropdown .Select.is-focused .Select-control {
-    border-color: var(--edenred-red, #E20613) !important;
-    box-shadow: 0 0 0 4px rgba(226, 6, 19, 0.08) !important;
+    border-color: #E20613 !important;
+    box-shadow: 0 0 0 3px rgba(226, 6, 19, 0.06) !important;
     background: white !important;
 }
 
 .filter-inline-dropdown .Select-placeholder,
 .filter-inline-dropdown .Select-value-label {
     font-size: 13px !important;
-    color: #475569 !important; /* Darker text */
+    color: #475569 !important;
 }
 
 .filter-inline-dropdown .Select-menu-outer {
     border-radius: 12px !important;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15) !important;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12) !important;
     border: 1px solid #e2e8f0 !important;
-    z-index: 1000 !important;
+    z-index: 9999 !important; /* Acima de TUDO — charts Plotly usam ~1000 */
     margin-top: 4px !important;
+    position: absolute !important;
+}
+
+.filter-inline-dropdown .Select-option {
+    font-size: 13px !important;
+    padding: 10px 14px !important;
+    transition: background 0.1s ease !important;
 }
 
 .filter-inline-dropdown .Select-option.is-focused {
-    background-color: rgba(226, 6, 19, 0.06) !important;
+    background-color: rgba(226, 6, 19, 0.04) !important;
 }
 
 .filter-inline-dropdown .Select-option.is-selected {
-    background-color: var(--edenred-red, #E20613) !important;
+    background-color: #E20613 !important;
     color: white !important;
 }
 
 /* Multi-select tags */
 .filter-inline-dropdown .Select-value {
-    background-color: rgba(226, 6, 19, 0.08) !important;
-    border: 1px solid rgba(226, 6, 19, 0.15) !important;
-    border-radius: 4px !important;
+    background-color: rgba(226, 6, 19, 0.06) !important;
+    border: 1px solid rgba(226, 6, 19, 0.1) !important;
+    border-radius: 6px !important;
     font-size: 12px !important;
+    margin-top: 3px !important;
+}
+
+.filter-inline-dropdown .Select-value-icon {
+    border-right: 1px solid rgba(226, 6, 19, 0.1) !important;
+}
+
+.filter-inline-dropdown .Select-value-icon:hover {
+    background-color: rgba(226, 6, 19, 0.1) !important;
+    color: #E20613 !important;
 }
 
 /* ==========================================================================
-   TOGGLE BUTTON GROUP
+   ACTION BUTTONS
    ========================================================================== */
-
-.filter-toggle-group {
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.filter-toggle-group .btn {
-    font-size: 12px !important;
-    padding: 6px 12px !important;
-    font-weight: 500 !important;
-    border-radius: 0 !important;
-    transition: all 0.15s ease !important;
-}
-
-.filter-toggle-group .btn:first-child {
-    border-radius: 6px 0 0 6px !important;
-}
-
-.filter-toggle-group .btn:last-child {
-    border-radius: 0 6px 6px 0 !important;
-}
-
-.filter-toggle-group .btn-danger:not(.btn-outline-danger) {
-    background-color: var(--edenred-red, #E20613) !important;
-    border-color: var(--edenred-red, #E20613) !important;
-}
-
-.filter-toggle-group .btn-outline-secondary:hover {
-    background-color: #f1f5f9 !important;
-    color: #1e293b !important;
-}
 
 .filter-bar-actions {
     display: flex;
     align-items: center;
     margin-left: auto;
-    padding-left: 14px;
+    padding-left: 16px;
     border-left: 1px solid #e2e8f0;
-    flex-shrink: 0; /* Nunca encolher os botões de ação */
+    flex-shrink: 0;
     white-space: nowrap;
+    gap: 8px;
 }
 
 .btn-filter-apply {
-    background: linear-gradient(135deg, var(--edenred-red, #E20613) 0%, #B9050F 100%);
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
     color: white;
     border: none;
-    border-radius: 999px;
-    padding: 8px 24px;
-    font-size: 13px !important;
-    font-weight: 700 !important;
+    border-radius: 10px;
+    padding: 8px 20px;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
     font-family: 'Ubuntu', sans-serif;
-    box-shadow: 0 4px 12px rgba(226, 6, 19, 0.25);
-    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    letter-spacing: 0.01em;
 }
 
 .btn-filter-apply:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(226, 6, 19, 0.35);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+    background: linear-gradient(135deg, #0f172a 0%, #020617 100%);
     color: white;
 }
 
 .btn-filter-apply:active {
     transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-filter-clear {
-    background: #f1f5f9;
-    color: #64748b;
-    border: none;
-    border-radius: 50%;
+    background: transparent;
+    color: #94a3b8;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
     width: 36px;
     height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    font-size: 14px;
 }
 
 .btn-filter-clear:hover {
-    background: #e2e8f0;
-    color: #334155;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+    background: #f1f5f9;
+    color: #E20613;
+    border-color: rgba(226, 6, 19, 0.15);
+    transform: translateY(-1px);
 }
 
 /* ==========================================================================
-   ACTIVE FILTERS INDICATOR
+   ACTIVE FILTERS INDICATOR (Tags)
    ========================================================================== */
 
 .active-filters-indicator {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid #f1f5f9;
-    display: none; /* Hidden by default, shown when filters active */
+    margin-top: 0;
+    padding-top: 0;
+    display: none;
 }
 
 .active-filters-indicator.has-filters {
@@ -289,32 +294,59 @@
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #f1f5f9;
 }
 
 .filter-tag {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     padding: 4px 10px;
-    background: rgba(226, 6, 19, 0.08);
-    border: 1px solid rgba(226, 6, 19, 0.12);
-    border-radius: 16px;
+    background: rgba(226, 6, 19, 0.05);
+    border: 1px solid rgba(226, 6, 19, 0.08);
+    border-radius: 8px;
     font-size: 11px;
-    color: #c00510;
-    font-weight: 500;
+    color: #E20613;
+    font-weight: 600;
+    letter-spacing: 0.01em;
 }
 
 .filter-tag-label {
-    color: #64748b;
-    font-weight: 400;
+    color: #94a3b8;
+    font-weight: 500;
 }
 
 /* ==========================================================================
    RESPONSIVE
    ========================================================================== */
 
-/* Change breakpoint to only affect truly small screens (Mobile portrait) */
-@media (max-width: 576px) {
+/* Telas médias-grandes: permite wrap para evitar sobreposição */
+@media (max-width: 1200px) {
+    .filter-bar-inner {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .filter-bar-fields {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .filter-bar-actions {
+        border-left: none;
+        padding-left: 0;
+    }
+}
+
+/* Telas médias (tablets / laptops menores) */
+@media (max-width: 768px) {
+    .filter-bar {
+        padding: 12px 16px;
+        border-radius: 12px;
+    }
+    
     .filter-bar-inner {
         flex-direction: column;
         align-items: stretch;
@@ -323,14 +355,19 @@
     .filter-bar-label {
         border-right: none;
         border-bottom: 1px solid #e2e8f0;
-        padding-bottom: 12px;
+        padding-bottom: 10px;
+        padding-right: 0;
         margin-bottom: 4px;
     }
     
     .filter-bar-fields {
         flex-direction: column;
         align-items: stretch;
-        gap: 16px;
+        gap: 12px;
+    }
+    
+    .filter-separator {
+        display: none;
     }
     
     .filter-inline-group {
@@ -339,7 +376,8 @@
         gap: 4px;
     }
     
-    .filter-inline-dropdown {
+    .filter-inline-dropdown,
+    .filter-inline-dropdown--wide {
         width: 100%;
         max-width: none;
     }
@@ -349,8 +387,21 @@
         padding-left: 0;
         border-left: none;
         border-top: 1px solid #e2e8f0;
-        padding-top: 12px;
+        padding-top: 10px;
         justify-content: flex-end;
+    }
+}
+
+/* Mobile */
+@media (max-width: 576px) {
+    .filter-bar {
+        padding: 10px 12px;
+        border-radius: 10px;
+    }
+    
+    .filter-inline-dropdown,
+    .filter-inline-dropdown--wide {
+        min-width: 0;
     }
 }
 
@@ -359,24 +410,22 @@
    ========================================================================== */
 
 .filter-bar {
-    animation: fadeInUpGlass 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: filterSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-@keyframes fadeInUpGlass {
+@keyframes filterSlideIn {
     from {
         opacity: 0;
-        transform: translateY(12px);
-        filter: blur(4px);
+        transform: translateY(8px);
     }
     to {
         opacity: 1;
         transform: translateY(0);
-        filter: blur(0);
     }
 }
 
 /* ==========================================================================
-   ADDITIONAL FILTER COMPONENTS (from components.css)
+   LEGACY COMPATIBILITY (mantém estilos de outros componentes)
    ========================================================================== */
 
 .filter-card {
@@ -396,11 +445,10 @@
     display: block;
 }
 
-/* Dropdown Styling Override */
 .Select-control {
     border-radius: 8px !important;
     border-color: var(--border-light) !important;
-    transition: all var(--transition-base) !important;
+    transition: all 0.2s ease !important;
 }
 
 .Select-control:hover {
@@ -412,7 +460,6 @@
     box-shadow: 0 0 0 3px rgba(226, 6, 19, 0.1) !important;
 }
 
-/* Range Slider Edenred Colors */
 .rc-slider-track {
     background-color: var(--edenred-red) !important;
 }
@@ -427,7 +474,6 @@
     box-shadow: 0 0 0 4px rgba(226, 6, 19, 0.15) !important;
 }
 
-/* Toggle Switch RI */
 .custom-switch-ri .form-check-input:checked {
     background-color: var(--edenred-red) !important;
     border-color: var(--edenred-red) !important;

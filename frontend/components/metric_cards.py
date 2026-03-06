@@ -9,7 +9,7 @@ def make_metric_card(title, value, delta, color="edenred-red"):
         [
             html.Div([
                 html.H6(title, className="text-muted mb-0", style={"font-size": "0.875rem", "text-transform": "uppercase", "letter-spacing": "0.05em"}),
-                html.I(className=f"bi bi-info-circle text-muted", style={"font-size": "0.8rem"})
+                html.I(className=f"bi bi-question-circle-fill text-muted ms-2", style={"font-size": "0.9rem", "cursor": "help"})
             ], className="d-flex justify-content-between align-items-center mb-3"),
             
             html.H2(value, className="executive-title mb-2", style={"font-size": "1.75rem"}),

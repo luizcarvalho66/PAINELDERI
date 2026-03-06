@@ -51,10 +51,23 @@ def render_dashboard():
                     # Cabeçalho do Card (Estático): Título + Toggle de Granularidade
                     dbc.CardHeader([
                         html.Div([
-                            html.H3("Visão Geral", className="mb-0", style={
-                                "fontFamily": "Ubuntu", "color": "#1e293b", "fontWeight": "600",
-                                "borderLeft": "4px solid #E20613", "paddingLeft": "12px"
-                            }),
+                            html.Div([
+                                html.H3("Visão Geral", className="mb-0", style={
+                                    "fontFamily": "Ubuntu", "color": "#1e293b", "fontWeight": "600",
+                                    "borderLeft": "4px solid #E20613", "paddingLeft": "12px"
+                                }),
+                                # Toggle de Modo: RI ↔ Silent Order
+                                html.Div([
+                                    html.Div([
+                                        html.I(className="bi bi-graph-up"),
+                                        html.Span("RI")
+                                    ], id="btn-mode-ri", className="premium-toggle-btn active", n_clicks=0),
+                                    html.Div([
+                                        html.I(className="bi bi-shield-check"),
+                                        html.Span("Silent Order")
+                                    ], id="btn-mode-so", className="premium-toggle-btn", n_clicks=0),
+                                ], className="premium-toggle-container ms-3"),
+                            ], className="d-flex align-items-center"),
                             # Toggle de Granularidade (premium-toggle estático)
                             html.Div([
                                 html.Div([
@@ -70,7 +83,9 @@ def render_dashboard():
                                     html.Span("Semanal")
                                 ], id="btn-gran-semanal", className="premium-toggle-btn", n_clicks=0),
                             ], className="premium-toggle-container")
-                        ], className="d-flex justify-content-between align-items-center")
+                        ], className="d-flex justify-content-between align-items-center"),
+                        # Store para persistir modo RI/SO
+                        dcc.Store(id="ri-mode-store", data="ri"),
                     ], id="granularity-header", className="bg-transparent border-0 pt-4 px-4 pb-0", style={"display": "none"}),
                     
                     # Corpo do Card (Dinâmico - Charts injetados aqui)
