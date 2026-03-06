@@ -204,6 +204,7 @@ def calcular_economia_os():
                 AND COALESCE(c.complemento_peca, '') = COALESCE(rp.complemento_peca, '')
                 AND c.uf = rp.uf
             WHERE c.status_os = 'APROVADA'
+              AND (COALESCE(c.valor_mo, 0) > 0 OR COALESCE(c.valor_peca, 0) > 0)
         """)
         
         # Estatísticas

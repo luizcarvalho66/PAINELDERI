@@ -11,7 +11,7 @@ from backend.repositories.repo_base import (
 )
 
 
-@safe_memoize(timeout=600)  # Cache for 10 minutes
+@safe_memoize(timeout=120)  # Cache for 2 minutes
 def get_distinct_clients_corretiva():
     """
     Retorna lista de clientes distintos da tabela ri_corretiva_detalhamento.
@@ -27,7 +27,6 @@ def get_distinct_clients_corretiva():
         FROM ri_corretiva_detalhamento
         WHERE nome_cliente IS NOT NULL AND nome_cliente != ''
         ORDER BY nome_cliente
-        LIMIT 500
         """
         # CURSOR FIX
         cursor = conn.cursor()
@@ -40,7 +39,7 @@ def get_distinct_clients_corretiva():
         return []
 
 
-@safe_memoize(timeout=600)  # Cache for 10 minutes
+@safe_memoize(timeout=120)  # Cache for 2 minutes
 def get_distinct_clients_preventiva():
     """
     Retorna lista de clientes distintos da tabela logs_regulacao_preventiva_header.
@@ -68,7 +67,7 @@ def get_distinct_clients_preventiva():
         return []
 
 
-@safe_memoize(timeout=600)  # Cache for 10 minutes
+@safe_memoize(timeout=120)  # Cache for 2 minutes
 def get_distinct_months():
     """
     Retorna meses distintos com dados, formatados como opções de dropdown.
@@ -156,7 +155,6 @@ def get_distinct_chaves():
         FROM ri_corretiva_detalhamento
         WHERE peca IS NOT NULL OR tipo_mo IS NOT NULL
         ORDER BY 1
-        LIMIT 500
         """
         cursor = conn.cursor()
         df = cursor.execute(query).fetchdf()

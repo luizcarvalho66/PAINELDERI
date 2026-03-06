@@ -50,8 +50,10 @@ def get_ri_evolution_data(filters: dict = None):
 
     try:
         # Build dynamic WHERE clauses based on filters
-        where_conditions_corr = ["c.data_transacao IS NOT NULL"]
-        where_conditions_prev = ["data_transacao IS NOT NULL"]
+        # FIX 2026-03-06: Excluir itens cancelados (status_os = 'CANCELADA')
+        # Itens cancelados têm TransactionTimestamp mas o PBI os exclui
+        where_conditions_corr = ["c.data_transacao IS NOT NULL", "c.status_os != 'CANCELADA'"]
+        where_conditions_prev = ["data_transacao IS NOT NULL", "status_os != 'CANCELADA'"]
         
 
         if filters:
@@ -72,7 +74,7 @@ def get_ri_evolution_data(filters: dict = None):
                 for p in filters["periodos"]:
                     try:
                         year, month = p.split("-")
-                        period_clauses_prev.append(f"(year(data_cadastro) = {year} AND month(data_cadastro) = {month})")
+                        period_clauses_prev.append(f"(year(data_transacao) = {year} AND month(data_transacao) = {month})")
                     except:
                         pass
                 if period_clauses_prev:
@@ -87,6 +89,8 @@ def get_ri_evolution_data(filters: dict = None):
                 if valid_clients:
                     clients_escaped = "', '".join([c.replace("'", "''") for c in valid_clients])
                     where_conditions_corr.append(f"c.nome_cliente IN ('{clients_escaped}')")
+                    # FIX: Propagar filtro de cliente para preventiva também
+                    where_conditions_prev.append(f"nome_cliente IN ('{clients_escaped}')")
 
         
         where_corr = " AND ".join(where_conditions_corr)
@@ -137,17 +141,19 @@ def get_ri_evolution_data(filters: dict = None):
         """
         
         # 1.2 Fetch Pricing Data - PREVENTIVA (Economia Real via Engine)
+        # FIX: Usar where_prev para respeitar filtros de cliente/período
         query_pricing_prev = f"""
         SELECT
             date_trunc('{date_trunc_interval}', c.data_transacao) as mes_ref,
             SUM(c.economia_total) as sum_economia_pricing_prev
         FROM economia_calculada c
-        WHERE c.data_transacao IS NOT NULL
+        WHERE {where_prev.replace('data_transacao', 'c.data_transacao').replace('nome_cliente', 'c.nome_cliente')}
           AND c.tipo_origem = 'PREVENTIVA'
         GROUP BY 1
         """
         
         # 2. Fetch Preventiva Data
+        # FIX: Usar where_prev para respeitar filtros de cliente/período
         query_prev = f"""
         SELECT
             date_trunc('{date_trunc_interval}', data_transacao) as mes_ref,
@@ -157,9 +163,71 @@ def get_ri_evolution_data(filters: dict = None):
             SUM(COALESCE(valor_total, 0)) as sum_total_prev,
             SUM(COALESCE(valor_aprovado, 0)) as sum_aprovado_prev
         FROM ri_preventiva_detalhamento
-        WHERE data_transacao IS NOT NULL
+        WHERE {where_prev}
         GROUP BY 1
         ORDER BY 1
+        """
+        
+        # SILENT ORDER: OS com aprovação automática (sem aprovador humano)
+        # Critério: nome_aprovador IS NULL, vazio ou 'NAO INFORMADO'
+        # Validado: FLUA Fev/26 = 17/499 = 3.41% (alinhado com PBI)
+        query_so_corr = f"""
+        SELECT mes_ref, COUNT(*) as so_count_corr
+        FROM (
+            SELECT 
+                date_trunc('{date_trunc_interval}', c.data_transacao) as mes_ref,
+                c.numero_os,
+                SUM(CASE 
+                    WHEN nome_aprovador IS NOT NULL 
+                     AND TRIM(nome_aprovador) != '' 
+                     AND UPPER(TRIM(nome_aprovador)) NOT IN ('NAO INFORMADO', 'NÃO INFORMADO')
+                    THEN 1 ELSE 0 
+                END) as itens_com_aprovador
+            FROM ri_corretiva_detalhamento c
+            WHERE {where_corr}
+            GROUP BY 1, 2
+            HAVING itens_com_aprovador = 0
+        ) silent_os
+        GROUP BY 1
+        """
+        
+        query_so_prev = f"""
+        SELECT mes_ref, COUNT(*) as so_count_prev
+        FROM (
+            SELECT 
+                date_trunc('{date_trunc_interval}', data_transacao) as mes_ref,
+                numero_os,
+                SUM(CASE 
+                    WHEN nome_aprovador IS NOT NULL 
+                     AND TRIM(nome_aprovador) != '' 
+                     AND UPPER(TRIM(nome_aprovador)) NOT IN ('NAO INFORMADO', 'NÃO INFORMADO')
+                    THEN 1 ELSE 0 
+                END) as itens_com_aprovador
+            FROM ri_preventiva_detalhamento
+            WHERE {where_prev}
+            GROUP BY 1, 2
+            HAVING itens_com_aprovador = 0
+        ) silent_os
+        GROUP BY 1
+        """
+        
+        # 2.1 Contagem TOTAL de OS distintas (UNION corretiva + preventiva)
+        # FIX: Evita dupla contagem de OS que aparecem em AMBAS as tabelas
+        # (OS pode ter itens corretivos E preventivos ao mesmo tempo)
+        query_total_os = f"""
+        SELECT
+            mes_ref,
+            COUNT(DISTINCT numero_os) as total_os_distinct
+        FROM (
+            SELECT date_trunc('{date_trunc_interval}', c.data_transacao) as mes_ref, c.numero_os
+            FROM ri_corretiva_detalhamento c
+            WHERE {where_corr}
+            UNION
+            SELECT date_trunc('{date_trunc_interval}', data_transacao) as mes_ref, numero_os
+            FROM ri_preventiva_detalhamento
+            WHERE {where_prev}
+        ) combined
+        GROUP BY 1
         """
         
         df_corr = conn.execute(query_corr).fetchdf()
@@ -177,8 +245,24 @@ def get_ri_evolution_data(filters: dict = None):
         
         df_prev = conn.execute(query_prev).fetchdf()
         
-
+        try:
+            df_total_os = conn.execute(query_total_os).fetchdf()
+        except Exception as e:
+            print(f"[REPOSITORY WARNING] Could not fetch total OS count: {e}")
+            df_total_os = pd.DataFrame(columns=['mes_ref', 'total_os_distinct'])
         
+        # Silent Order queries
+        try:
+            df_so_corr = conn.execute(query_so_corr).fetchdf()
+        except Exception as e:
+            print(f"[REPOSITORY WARNING] Could not fetch SO corretiva: {e}")
+            df_so_corr = pd.DataFrame(columns=['mes_ref', 'so_count_corr'])
+        
+        try:
+            df_so_prev = conn.execute(query_so_prev).fetchdf()
+        except Exception as e:
+            print(f"[REPOSITORY WARNING] Could not fetch SO preventiva: {e}")
+            df_so_prev = pd.DataFrame(columns=['mes_ref', 'so_count_prev'])        
         # 3. Merge in Pandas (Outer Join on Month)
         if df_corr.empty and df_prev.empty:
             return pd.DataFrame()
@@ -214,6 +298,23 @@ def get_ri_evolution_data(filters: dict = None):
         df = pd.merge(df, df_pricing_corr, on='mes_ref', how='left').fillna(0)
         # Merge Pricing Preventiva
         df = pd.merge(df, df_pricing_prev, on='mes_ref', how='left').fillna(0)
+        # Merge Total OS Distinct (contagem sem dupla contagem)
+        if not df_total_os.empty:
+            df_total_os['mes_ref'] = pd.to_datetime(df_total_os['mes_ref']).dt.tz_localize(None)
+            df = pd.merge(df, df_total_os, on='mes_ref', how='left').fillna(0)
+        
+        # Merge Silent Order counts
+        if not df_so_corr.empty:
+            df_so_corr['mes_ref'] = pd.to_datetime(df_so_corr['mes_ref']).dt.tz_localize(None)
+            df = pd.merge(df, df_so_corr, on='mes_ref', how='left').fillna(0)
+        else:
+            df['so_count_corr'] = 0
+        
+        if not df_so_prev.empty:
+            df_so_prev['mes_ref'] = pd.to_datetime(df_so_prev['mes_ref']).dt.tz_localize(None)
+            df = pd.merge(df, df_so_prev, on='mes_ref', how='left').fillna(0)
+        else:
+            df['so_count_prev'] = 0
         
         # 4. Feature Engineering
         df['ano'] = df['mes_ref'].dt.year
@@ -274,7 +375,32 @@ def get_ri_evolution_data(filters: dict = None):
         
         df['ri_geral'] = ((economia_total_corr + economia_total_prev) / base_calculo.replace(0, 1)).clip(lower=0)
         
-        # DEBUG LOGGING TO FILE
+        # SILENT ORDER (SO) = % de OS com aprovação automática (sem aprovador)
+        # Garante que colunas existem (podem não existir se merge SO falhou)
+        if 'so_count_corr' not in df.columns:
+            df['so_count_corr'] = 0
+        if 'so_count_prev' not in df.columns:
+            df['so_count_prev'] = 0
+        
+        
+        
+        df['so_corretiva'] = np.where(
+            df['total_corr'] > 0,
+            df['so_count_corr'] / df['total_corr'],
+            0.0
+        )
+        df['so_preventiva'] = np.where(
+            df['total_prev'] > 0,
+            df['so_count_prev'] / df['total_prev'],
+            0.0
+        )
+        total_os_for_so = df['total_corr'] + df['total_prev']
+        so_total_count = df['so_count_corr'] + df['so_count_prev']
+        df['so_geral'] = np.where(
+            total_os_for_so > 0,
+            so_total_count / total_os_for_so,
+            0.0
+        )
 
         
         # Translate months using map
@@ -293,6 +419,12 @@ def get_ri_evolution_data(filters: dict = None):
         else:
             # Mensal (default): "Set 2025"
             df['x_label'] = df['mes_nome'].str[:3] + ' ' + df['ano'].astype(str)
+        
+        # Detectar meses parciais (mês corrente = dados incompletos)
+        from datetime import date as _date
+        today = _date.today()
+        current_month_start = pd.Timestamp(today.year, today.month, 1)
+        df['dados_parciais'] = df['mes_ref'] == current_month_start
         
         return df
         
@@ -391,8 +523,9 @@ def get_ri_evolution_30d(filters: dict = None):
 
     try:
         # Usa current_date - 30 (DuckDB syntax)
-        where_conditions_corr = ["c.data_transacao >= current_date() - INTERVAL '30' DAY"]
-        where_conditions_prev = ["data_transacao >= current_date() - INTERVAL '30' DAY"]
+        # FIX 2026-03-06: Excluir itens cancelados (alinhamento PBI)
+        where_conditions_corr = ["c.data_transacao >= current_date() - INTERVAL '30' DAY", "c.status_os != 'CANCELADA'"]
+        where_conditions_prev = ["data_transacao >= current_date() - INTERVAL '30' DAY", "status_os != 'CANCELADA'"]
         
         if filters and filters.get("clientes"):
             raw_clients = filters["clientes"]
@@ -400,6 +533,8 @@ def get_ri_evolution_30d(filters: dict = None):
             if valid_clients:
                 clients_escaped = "', '".join([c.replace("'", "''") for c in valid_clients])
                 where_conditions_corr.append(f"c.nome_cliente IN ('{clients_escaped}')")
+                # FIX: Propagar filtro de cliente para preventiva também
+                where_conditions_prev.append(f"nome_cliente IN ('{clients_escaped}')")
 
         where_corr = " AND ".join(where_conditions_corr)
         where_prev = " AND ".join(where_conditions_prev)
@@ -521,7 +656,7 @@ def get_top_ofensores_30d(filters: dict = None, limite=3):
     if conn is None: return []
 
     try:
-        where_conditions = ["c.data_transacao >= current_date - INTERVAL 30 DAY"]
+        where_conditions = ["c.data_transacao >= current_date - INTERVAL 30 DAY", "c.status_os != 'CANCELADA'"]
         if filters and filters.get("clientes"):
             valid_clients = [str(cl) for cl in filters["clientes"] if cl and str(cl).strip() != ""]
             if valid_clients:
@@ -543,6 +678,7 @@ def get_top_ofensores_30d(filters: dict = None, limite=3):
             WHERE {where_clause}
               AND c.nome_estabelecimento IS NOT NULL
               AND TRIM(c.nome_estabelecimento) != ''
+              AND COALESCE(c.valor_total, 0) > 0
             GROUP BY 1, 2
         ),
         econ_por_os AS (
@@ -613,7 +749,7 @@ def get_top_ofensores_30d(filters: dict = None, limite=3):
         return []
 
 
-@safe_memoize(timeout=600)
+@safe_memoize(timeout=120)
 def get_distinct_clients():
     """
     Retorna lista de nomes de clientes distintos disponíveis no DuckDB.

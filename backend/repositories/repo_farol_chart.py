@@ -73,6 +73,7 @@ def get_ri_corretivas_chart(filters: dict = None) -> pd.DataFrame:
                 MONTH(COALESCE(data_transacao, data_aprovacao_os)) as mes_num
             FROM ri_corretiva_detalhamento
             WHERE COALESCE(data_transacao, data_aprovacao_os) IS NOT NULL
+              AND status_os != 'CANCELADA'
         )
         SELECT
             d.ano,
