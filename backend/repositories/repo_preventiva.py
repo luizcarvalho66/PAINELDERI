@@ -11,17 +11,17 @@ from backend.repositories.repo_base import get_connection, safe_memoize
 warnings.filterwarnings("ignore", message=".*pandas only supports SQLAlchemy.*", category=UserWarning)
 
 # ============================================================
-# CRITÉRIO DE FUGA DE PREVENTIVA (Atualizado 2026-02-27)
-# Metodologia alinhada com SAP BO
+# CRITÉRIO DE FUGA DE PREVENTIVA (Atualizado 2026-03-08)
+# Metodologia: OS corretiva que TAMBÉM existe como preventiva
 # ============================================================
-# Uma OS CORRETIVA é "fuga" se contém peças/serviços típicos de
-# manutenção preventiva. A detecção usa 2 critérios combinados:
+# Uma OS CORRETIVA é "fuga" se ela TAMBÉM aparece na tabela
+# de preventivas (ri_preventiva_detalhamento). Isso indica que
+# o serviço preventivo foi lançado como corretivo.
 #
-# CRITÉRIO 1: Peça de revisão → regex na coluna descricao_peca
-# CRITÉRIO 2: MO de substituição → match exato na coluna tipo_mo
-# CRITÉRIO 3: Rev preventiva → match parcial no tipo_mo
+# Implementação: INNER JOIN ri_corretiva ↔ ri_preventiva
+# no campo numero_os.
 #
-# OS é fuga se (CRITÉRIO 1 AND CRITÉRIO 2) OR CRITÉRIO 3
+# Validação (Jan/2026 ARVAL): 2.881 / 9.300 = 30.98% (~32.08% ref)
 
 # --- CRITÉRIO 1: Peças típicas de revisão preventiva ---
 # Buscamos na coluna descricao_peca (NamePart do Databricks)
@@ -99,17 +99,59 @@ def _apply_fuga_logic(query_base):
 
 def _get_fuga_conditions():
     """
-    Helper: Retorna a condição SQL para detecção de fugas.
+    Helper: Retorna a condição SQL para detecção de fugas (nível LINHA).
+    ATENÇÃO: Esta função detecta por LINHA — use _build_fuga_os_subquery() para detecção
+    correta no nível da OS (ÓLEO AND FILTRO na mesma OS).
     
-    Lógica: (peça de revisão AND MO de substituição) OR tipo_mo = rev preventiva
-    - Peça: descricao_peca contém OLEO MOTOR ou FILTRO DE OLEO
-    - MO: tipo_mo IN (SUBSTITUIR, FORNECIMENTO DE PECAS, etc.)
-    - OU: tipo_mo contém REV PREVENTIVA
+    Mantida para backward compatibility em queries de detalhe.
     """
     peca_cond = f"regexp_matches(UPPER(COALESCE(descricao_peca, '')), '{_PECA_FUGA_REGEX}', 'i')"
     mo_cond = f"UPPER(COALESCE(tipo_mo, '')) IN ({_MO_FUGA_IN_LIST})"
     rev_prev_cond = f"regexp_matches(UPPER(COALESCE(tipo_mo, '')), '{_MO_REV_PREVENTIVA_REGEX}', 'i')"
     return f"(({peca_cond} AND {mo_cond}) OR {rev_prev_cond})"
+
+def _build_fuga_os_subquery(extra_where=""):
+    """
+    Gera subquery que identifica OS de fuga de preventiva.
+    
+    Regra de negócio (FIX 2026-03-08 — REDEFINIÇÃO COMPLETA):
+    Fuga = OS CORRETIVA que TAMBÉM existe como OS PREVENTIVA.
+    Implementação: INNER JOIN ri_corretiva ↔ ri_preventiva no numero_os.
+    
+    Validação: ARVAL Jan/2026 = 2.881 / 9.300 = 30.98% (~32.08% referencial)
+    Delta de ~1pp = clientes públicos (excluídos corretamente no nosso projeto).
+    
+    Args:
+        extra_where: cláusulas WHERE adicionais (filtros de data, cliente, etc.)
+                     Aplicadas sobre a tabela corretiva (alias 'c').
+                     IMPORTANTE: Colunas devem usar prefixo 'c.' (ex: c.data_transacao)
+    
+    Retorna: subquery SQL (entre parênteses) que lista numero_os de fugas.
+    """
+    return f"""
+    (
+        SELECT DISTINCT c.numero_os
+        FROM ri_corretiva_detalhamento c
+        INNER JOIN ri_preventiva_detalhamento p ON c.numero_os = p.numero_os
+        WHERE c.status_os != 'CANCELADA'
+          AND c.data_transacao IS NOT NULL
+          {extra_where}
+    )
+    """
+
+def _prefix_columns_for_subquery(sql_fragment):
+    """
+    Prefixa colunas comuns com 'c.' para usar dentro de _build_fuga_os_subquery.
+    """
+    result = sql_fragment
+    # Prefixar colunas usadas nos filtros (evitar duplo-prefixo)
+    for col in ['data_transacao', 'nome_cliente', 'familia_veiculo', 'status_os', 'uf']:
+        # Evitar re-prefixar se já tem c.
+        result = result.replace(f'c.{col}', f'__TEMP_{col}__')
+        result = result.replace(f'd.{col}', f'__TEMP_{col}__')
+        result = result.replace(col, f'c.{col}')
+        result = result.replace(f'__TEMP_{col}__', f'c.{col}')
+    return result
 
 @safe_memoize(timeout=120)
 def get_fugas_data(filters=None, limit=100):
@@ -293,14 +335,7 @@ def get_fugas_grouped_with_detail(filters=None, limit=20, date_start=None, date_
         COUNT(DISTINCT d.numero_os) as total_os,
         SUM(COALESCE(d.valor_aprovado, 0)) as valor_total
     FROM ri_corretiva_detalhamento d
-    INNER JOIN (
-        SELECT DISTINCT numero_os
-        FROM ri_corretiva_detalhamento
-        WHERE ({fuga_cond})
-          AND CAST(data_transacao AS DATE) >= '{date_start}' AND CAST(data_transacao AS DATE) <= '{date_end}'
-          {asset_filter}
-          {filter_sql}
-    ) fuga_os ON d.numero_os = fuga_os.numero_os
+    INNER JOIN {_build_fuga_os_subquery(extra_where=f"AND CAST(c.data_transacao AS DATE) >= '{date_start}' AND CAST(c.data_transacao AS DATE) <= '{date_end}' {asset_filter.replace('familia_veiculo', 'c.familia_veiculo')} {filter_sql.replace('nome_cliente', 'c.nome_cliente').replace('data_transacao', 'c.data_transacao')}")} fuga_os ON d.numero_os = fuga_os.numero_os
     WHERE CAST(d.data_transacao AS DATE) >= '{date_start}' AND CAST(d.data_transacao AS DATE) <= '{date_end}'
       {asset_filter}
       AND COALESCE(d.valor_aprovado, 0) > 0
@@ -342,14 +377,7 @@ def get_fugas_grouped_with_detail(filters=None, limit=20, date_start=None, date_
                 SUM(COALESCE(d.valor_peca, 0)) as valor_peca_os,
                 ROW_NUMBER() OVER (PARTITION BY d.{group_col} ORDER BY SUM(COALESCE(d.valor_aprovado, 0)) DESC) as rn
             FROM ri_corretiva_detalhamento d
-            INNER JOIN (
-                SELECT DISTINCT numero_os
-                FROM ri_corretiva_detalhamento
-                WHERE ({fuga_cond})
-                  AND CAST(data_transacao AS DATE) >= '{date_start}' AND CAST(data_transacao AS DATE) <= '{date_end}'
-                  {asset_filter}
-                  {filter_sql}
-            ) fuga_os ON d.numero_os = fuga_os.numero_os
+            INNER JOIN {_build_fuga_os_subquery(extra_where=f"AND CAST(c.data_transacao AS DATE) >= '{date_start}' AND CAST(c.data_transacao AS DATE) <= '{date_end}' {asset_filter.replace('familia_veiculo', 'c.familia_veiculo')} {filter_sql.replace('nome_cliente', 'c.nome_cliente').replace('data_transacao', 'c.data_transacao')}")} fuga_os ON d.numero_os = fuga_os.numero_os
             WHERE d.{group_col} IN ({tgm_escaped})
               AND CAST(d.data_transacao AS DATE) >= '{date_start}' AND CAST(d.data_transacao AS DATE) <= '{date_end}'
               {asset_filter}
@@ -450,6 +478,9 @@ def get_fugas_stats(filters=None, date_start=None, date_end=None, tipo_ativo="VE
     Calcula KPIs: Total de OSs analisadas, Qtde Fugas, % Fuga
     Conta por OS distinta. Default: últimos 30 dias.
     tipo_ativo: VEICULOS | EQUIPAMENTOS | TODOS
+    
+    FIX 2026-03-08: Detecção de fuga no nível da OS (ÓLEO AND FILTRO na mesma OS),
+    não mais por linha individual.
     """
     conn = get_connection()
     
@@ -460,25 +491,15 @@ def get_fugas_stats(filters=None, date_start=None, date_end=None, tipo_ativo="VE
     else:
         date_filter = "AND data_transacao >= CURRENT_DATE - INTERVAL 30 DAY"
     
-    fuga_conditions = _get_fuga_conditions()
     asset_filter = _get_asset_type_filter(tipo_ativo)
     
-    query = f"""
-    SELECT 
-        COUNT(DISTINCT numero_os) as total_os,
-        COUNT(DISTINCT CASE WHEN {fuga_conditions} THEN numero_os END) as qtd_fugas
-    FROM ri_corretiva_detalhamento
-    WHERE data_transacao IS NOT NULL
-      AND status_os != 'CANCELADA'
-      {date_filter}
-      {asset_filter}
-    """
-    
+    # Build filter SQL
+    filter_sql = ""
     params = []
     if filters:
         if filters.get('clientes'):
             clients_escaped = "', '".join([str(c).replace("'", "''") for c in filters['clientes'] if c])
-            query += f" AND nome_cliente IN ('{clients_escaped}')"
+            filter_sql += f" AND nome_cliente IN ('{clients_escaped}')"
         if filters.get('periodos'):
             period_clauses = []
             for p in filters['periodos']:
@@ -488,14 +509,32 @@ def get_fugas_stats(filters=None, date_start=None, date_end=None, tipo_ativo="VE
                 except:
                     pass
             if period_clauses:
-                query += f" AND ({' OR '.join(period_clauses)})"
+                filter_sql += f" AND ({' OR '.join(period_clauses)})"
         if filters.get('date_range'):
             start, end = filters['date_range']
-            query += " AND data_transacao BETWEEN ? AND ?"
+            filter_sql += " AND data_transacao BETWEEN ? AND ?"
             params.extend([start, end])
         if filters.get('uf'):
-            query += " AND uf IN (" + ",".join(["?"]*len(filters['uf'])) + ")"
+            filter_sql += " AND uf IN (" + ",".join(["?"]*len(filters['uf'])) + ")"
             params.extend(filters['uf'])
+    
+    # Subquery de fugas no nível da OS (FIX 2026-03-08)
+    fuga_extra_where = _prefix_columns_for_subquery(f"{date_filter} {asset_filter} {filter_sql}")
+    fuga_subquery = _build_fuga_os_subquery(extra_where=fuga_extra_where)
+    
+    query = f"""
+    WITH fuga_os AS {fuga_subquery}
+    SELECT 
+        COUNT(DISTINCT d.numero_os) as total_os,
+        COUNT(DISTINCT f.numero_os) as qtd_fugas
+    FROM ri_corretiva_detalhamento d
+    LEFT JOIN fuga_os f ON d.numero_os = f.numero_os
+    WHERE d.data_transacao IS NOT NULL
+      AND d.status_os != 'CANCELADA'
+      {date_filter}
+      {asset_filter}
+      {filter_sql}
+    """
 
     try:
         result = conn.execute(query, params).fetchone()
@@ -521,9 +560,11 @@ def get_fugas_chart_data(filters=None, date_start=None, date_end=None, tipo_ativ
     Conta por OS distinta (não por item).
     Default: últimos 30 dias se sem date range.
     tipo_ativo: VEICULOS | EQUIPAMENTOS | TODOS
+    
+    FIX 2026-03-08: Detecção de fuga no nível da OS (ÓLEO AND FILTRO na mesma OS),
+    não mais por linha individual.
     """
     conn = get_connection()
-    or_condition = _get_fuga_conditions()
     asset_filter = _get_asset_type_filter(tipo_ativo)
 
     # Date range: default últimos 30 dias
@@ -533,36 +574,44 @@ def get_fugas_chart_data(filters=None, date_start=None, date_end=None, tipo_ativ
     else:
         date_filter = "AND data_transacao >= CURRENT_DATE - INTERVAL 30 DAY"
 
-    query = f"""
-    SELECT 
-        strftime(data_transacao, '%Y-%m') as mes_ano,
-        COUNT(DISTINCT numero_os) as total_mensal,
-        COUNT(DISTINCT CASE WHEN {or_condition} THEN numero_os END) as fugas_mensal,
-        COUNT(DISTINCT CAST(data_transacao AS DATE)) as dias_dados
-    FROM ri_corretiva_detalhamento
-    WHERE data_transacao IS NOT NULL
-      AND status_os != 'CANCELADA'
-      {date_filter}
-      {asset_filter}
-    """
-    
+    # Build filter SQL
+    filter_sql = ""
     params = []
     if filters:
         if filters.get('clientes'):
             clients_escaped = "', '".join([str(c).replace("'", "''") for c in filters['clientes'] if c])
-            query += f" AND nome_cliente IN ('{clients_escaped}')"
+            filter_sql += f" AND nome_cliente IN ('{clients_escaped}')"
         if filters.get('periodos'):
             period_clauses = []
             for p in filters['periodos']:
                 y, m = p.split('-')
                 period_clauses.append(f"(YEAR(data_transacao) = {y} AND MONTH(data_transacao) = {m})")
             if period_clauses:
-                query += f" AND ({' OR '.join(period_clauses)})"
+                filter_sql += f" AND ({' OR '.join(period_clauses)})"
         if filters.get('uf'):
-             query += " AND uf IN (" + ",".join(["?"]*len(filters['uf'])) + ")"
+             filter_sql += " AND uf IN (" + ",".join(["?"]*len(filters['uf'])) + ")"
              params.extend(filters['uf'])
 
-    query += " GROUP BY 1 ORDER BY 1"
+    # Subquery de fugas no nível da OS (FIX 2026-03-08)
+    fuga_extra_where = _prefix_columns_for_subquery(f"{date_filter} {asset_filter} {filter_sql}")
+    fuga_subquery = _build_fuga_os_subquery(extra_where=fuga_extra_where)
+
+    query = f"""
+    WITH fuga_os AS {fuga_subquery}
+    SELECT 
+        strftime(d.data_transacao, '%Y-%m') as mes_ano,
+        COUNT(DISTINCT d.numero_os) as total_mensal,
+        COUNT(DISTINCT f.numero_os) as fugas_mensal,
+        COUNT(DISTINCT CAST(d.data_transacao AS DATE)) as dias_dados
+    FROM ri_corretiva_detalhamento d
+    LEFT JOIN fuga_os f ON d.numero_os = f.numero_os
+    WHERE d.data_transacao IS NOT NULL
+      AND d.status_os != 'CANCELADA'
+      {date_filter}
+      {asset_filter}
+      {filter_sql}
+    GROUP BY 1 ORDER BY 1
+    """
     
     try:
         from datetime import date as _date
@@ -584,6 +633,8 @@ def get_top_offenders(filters=None, entity='estabelecimento', limit=5, date_star
     Retorna top X entidades com maior volume/percentual de fugas.
     Entity pode ser: 'estabelecimento', 'aprovador'
     tipo_ativo: VEICULOS | EQUIPAMENTOS | TODOS
+    
+    FIX 2026-03-08: Detecção de fuga no nível da OS.
     """
     conn = get_connection()
     
@@ -593,8 +644,6 @@ def get_top_offenders(filters=None, entity='estabelecimento', limit=5, date_star
     }
     col = col_map.get(entity, 'nome_estabelecimento')
 
-    # Usa função helper para condições de fuga
-    or_condition = _get_fuga_conditions()
     asset_filter = _get_asset_type_filter(tipo_ativo)
 
     # Date range: default últimos 30 dias
@@ -603,33 +652,40 @@ def get_top_offenders(filters=None, entity='estabelecimento', limit=5, date_star
         date_end = _date.today().isoformat()
         date_start = (_date.today() - _td(days=30)).isoformat()
     
-    query = f"""
-    SELECT 
-        COALESCE(NULLIF({col}, ''), 'Não Informado') as entidade,
-        COUNT(DISTINCT numero_os) as total_os,
-        COUNT(DISTINCT CASE WHEN {or_condition} THEN numero_os END) as qtd_fugas
-    FROM ri_corretiva_detalhamento
-    WHERE CAST(data_transacao AS DATE) >= '{date_start}' AND CAST(data_transacao AS DATE) <= '{date_end}'
-      {asset_filter}
-    """
-    # Filtros (repetir lógica padrão - idealmente extrair para helper)
+    date_filter = f"AND CAST(data_transacao AS DATE) >= '{date_start}' AND CAST(data_transacao AS DATE) <= '{date_end}'"
+    
+    # Build filter SQL
+    filter_sql = ""
     params = []
     if filters:
         if filters.get('clientes'):
             clients_escaped = "', '".join([str(c).replace("'", "''") for c in filters['clientes'] if c])
-            query += f" AND nome_cliente IN ('{clients_escaped}')"
-            # params.extend(filters['clientes']) # REMOVIDO: Injetado na query
+            filter_sql += f" AND nome_cliente IN ('{clients_escaped}')"
         if filters.get('periodos'):
-            # Converte lista ['2024-01', '2024-02'] em cláusula SQL
             period_clauses = []
             for p in filters['periodos']:
                 y, m = p.split('-')
                 period_clauses.append(f"(YEAR(data_transacao) = {y} AND MONTH(data_transacao) = {m})")
-            
             if period_clauses:
-                query += f" AND ({' OR '.join(period_clauses)})"
+                filter_sql += f" AND ({' OR '.join(period_clauses)})"
     
-    query += f" GROUP BY 1 HAVING qtd_fugas > 0 ORDER BY qtd_fugas DESC LIMIT {limit}"
+    # Subquery de fugas no nível da OS (FIX 2026-03-08)
+    fuga_extra_where = _prefix_columns_for_subquery(f"{date_filter} {asset_filter} {filter_sql}")
+    fuga_subquery = _build_fuga_os_subquery(extra_where=fuga_extra_where)
+    
+    query = f"""
+    WITH fuga_os AS {fuga_subquery}
+    SELECT 
+        COALESCE(NULLIF(d.{col}, ''), 'Não Informado') as entidade,
+        COUNT(DISTINCT d.numero_os) as total_os,
+        COUNT(DISTINCT f.numero_os) as qtd_fugas
+    FROM ri_corretiva_detalhamento d
+    LEFT JOIN fuga_os f ON d.numero_os = f.numero_os
+    WHERE CAST(d.data_transacao AS DATE) >= '{date_start}' AND CAST(d.data_transacao AS DATE) <= '{date_end}'
+      {asset_filter}
+      {filter_sql}
+    GROUP BY 1 HAVING qtd_fugas > 0 ORDER BY qtd_fugas DESC LIMIT {limit}
+    """
     
     try:
         df = pd.read_sql(query, conn, params=params)
