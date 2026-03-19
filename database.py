@@ -136,7 +136,7 @@ def close_connection():
         for conn in _active_connections:
             try:
                 conn.close()
-            except:
+            except Exception:
                 pass
         _active_connections = []
         _conn_pid = None
@@ -456,7 +456,7 @@ def init_db():
         for peca in pecas_intercambiaveis:
             try:
                 conn.execute("INSERT INTO ref_pecas_intercambiaveis VALUES (?)", [peca])
-            except:
+            except Exception:
                 pass  # Ignore duplicates
         
         # --- REF: CLIENTES COM PACOTES ---
@@ -487,7 +487,7 @@ def init_db():
             for code in TGFM_ALL_CLIENTS:
                 try:
                     conn.execute("INSERT INTO ref_clientes_tgfm VALUES (?)", [str(code)])
-                except:
+                except Exception:
                     pass  # Ignore duplicates
             pass  # TGFM loaded
         except ImportError:
@@ -504,7 +504,7 @@ def init_db():
             # Index for TGFM filter performance
             conn.execute("CREATE INDEX IF NOT EXISTS idx_corr_det_cliente ON ri_corretiva_detalhamento (codigo_cliente)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_prev_det_cliente ON ri_preventiva_detalhamento (codigo_cliente)")
-        except:
+        except Exception:
             pass # Some versions of DuckDB handle indices differently or already exist
 
     except Exception as e:

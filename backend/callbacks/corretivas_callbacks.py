@@ -248,9 +248,10 @@ def register_corretivas_callbacks(app):
             return render_farol_table_content(dados), total_pages, pagination_style, should_reset_page
             
         except Exception as e:
-
+            import logging
+            logging.error(f"[FAROL TABLE] {e}")
             return (
-                html.Div(f"Erro: {str(e)}", className="text-danger"),
+                html.Div("Erro ao carregar tabela. Tente recarregar a página.", className="text-danger"),
                 1,
                 {"display": "none"},
                 1
@@ -316,7 +317,7 @@ def register_corretivas_callbacks(app):
             import traceback
             traceback.print_exc()
             return True, html.Div(
-                html.Small(f"Erro ao carregar detalhes: {str(e)}", className="text-danger"),
+                html.Small("Erro ao carregar detalhes. Tente novamente.", className="text-danger"),
                 className="text-center py-3"
             )
     
@@ -475,8 +476,9 @@ def register_corretivas_callbacks(app):
             return render_logs_table_content(df), total_pages, pagination_style, count_info, should_reset_page
             
         except Exception as e:
-
-            return html.Div(f"Erro: {str(e)}", className="text-danger p-3"), 1, {"display": "none"}, "", 1
+            import logging
+            logging.error(f"[LOGS TABLE] {e}")
+            return html.Div("Erro ao carregar logs. Tente recarregar a página.", className="text-danger p-3"), 1, {"display": "none"}, "", 1
 
 
 

@@ -133,7 +133,7 @@ def register_dashboard_callbacks(app):
             error_div = html.Div([
                 html.I(className="bi bi-exclamation-triangle-fill text-warning mb-3", style={"fontSize": "2rem"}),
                 html.H4("Erro ao carregar o dashboard", className="text-center text-muted"),
-                html.P(f"Detalhes: {str(e)[:200]}", className="text-center text-secondary small"),
+                html.P("Algo deu errado ao processar os dados. Tente recarregar a página.", className="text-center text-secondary small"),
                 html.P("Tente recarregar a página.", className="text-center text-muted mt-2")
             ], className="p-5 d-flex flex-column align-items-center justify-content-center h-100")
             return html.Div(), error_div

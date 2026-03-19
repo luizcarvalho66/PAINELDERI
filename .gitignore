@@ -30,6 +30,8 @@ cleanup*.py
 __pycache__/
 *.py[cod]
 .env
+.env*
+app.yaml
 venv/
 
 # Uploads

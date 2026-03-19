@@ -43,7 +43,7 @@ def get_ri_evolution_data(filters: dict = None):
                     try:
                         year, month = p.split("-")
                         period_clauses.append(f"(year(c.data_transacao) = {year} AND month(c.data_transacao) = {month})")
-                    except:
+                    except Exception:
                         pass
                 if period_clauses:
                     where_conditions_corr.append(f"({' OR '.join(period_clauses)})")
@@ -54,7 +54,7 @@ def get_ri_evolution_data(filters: dict = None):
                     try:
                         year, month = p.split("-")
                         period_clauses_prev.append(f"(year(data_cadastro) = {year} AND month(data_cadastro) = {month})")
-                    except:
+                    except Exception:
                         pass
                 if period_clauses_prev:
                     where_conditions_prev.append(f"({' OR '.join(period_clauses_prev)})")

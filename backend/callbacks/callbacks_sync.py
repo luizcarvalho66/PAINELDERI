@@ -27,7 +27,7 @@ def _run_sync_background():
         _sync_state["error"] = None
     except Exception as e:
         _sync_state["result"] = None
-        _sync_state["error"] = str(e)
+        _sync_state["error"] = "Erro interno na sincronização. Verifique os logs."
         print(f"[SYNC] Erro: {e}", flush=True)
     finally:
         _sync_state["running"] = False
@@ -413,7 +413,7 @@ def register_sync_callbacks(app):
             _check_result["data"] = result
         except Exception as e:
             print(f"[CHECK][ERROR] Erro crítico na thread: {e}", flush=True)
-            _check_result["data"] = {"has_new_data": False, "error": str(e)}
+            _check_result["data"] = {"has_new_data": False, "error": "Falha na verificação. Tente reconectar."}
         finally:
             _check_result["done"] = True
 

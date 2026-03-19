@@ -42,7 +42,7 @@ def get_ri_corretivas_chart(filters: dict = None) -> pd.DataFrame:
                     try:
                         year, month = p.split("-")
                         period_clauses.append(f"(ano = {year} AND mes_num = {month})")
-                    except:
+                    except Exception:
                         pass
                 if period_clauses:
                     where_clauses.append(f"({' OR '.join(period_clauses)})")

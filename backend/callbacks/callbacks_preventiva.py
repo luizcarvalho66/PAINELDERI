@@ -378,7 +378,7 @@ def register_preventiva_callbacks(app):
             triggered = ctx.triggered[0]
             btn_id = json.loads(triggered["prop_id"].rsplit(".", 1)[0])
             os_num = btn_id["index"]
-        except:
+        except Exception:
             return False, no_update
 
         # Buscar TODOS os itens individuais da OS

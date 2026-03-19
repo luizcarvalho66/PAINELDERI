@@ -64,7 +64,7 @@ def get_ri_evolution_data(filters: dict = None):
                     try:
                         year, month = p.split("-")
                         period_clauses.append(f"(year(c.data_transacao) = {year} AND month(c.data_transacao) = {month})")
-                    except:
+                    except Exception:
                         pass
                 if period_clauses:
                     where_conditions_corr.append(f"({' OR '.join(period_clauses)})")
@@ -75,7 +75,7 @@ def get_ri_evolution_data(filters: dict = None):
                     try:
                         year, month = p.split("-")
                         period_clauses_prev.append(f"(year(data_transacao) = {year} AND month(data_transacao) = {month})")
-                    except:
+                    except Exception:
                         pass
                 if period_clauses_prev:
                     where_conditions_prev.append(f"({' OR '.join(period_clauses_prev)})")
@@ -583,10 +583,10 @@ def get_ri_evolution_30d(filters: dict = None):
         
         df_corr = conn.execute(query_corr).fetchdf()
         try: df_pricing_corr = conn.execute(query_pricing_corr).fetchdf()
-        except: df_pricing_corr = pd.DataFrame(columns=['mes_ref', 'sum_economia_pricing'])
+        except Exception: df_pricing_corr = pd.DataFrame(columns=['mes_ref', 'sum_economia_pricing'])
         
         try: df_pricing_prev = conn.execute(query_pricing_prev).fetchdf()
-        except: df_pricing_prev = pd.DataFrame(columns=['mes_ref', 'sum_economia_pricing_prev'])
+        except Exception: df_pricing_prev = pd.DataFrame(columns=['mes_ref', 'sum_economia_pricing_prev'])
         
         df_prev = conn.execute(query_prev).fetchdf()
         
@@ -650,7 +650,7 @@ def get_top_ofensores_30d(filters: dict = None, limite=3):
     """
     try:
         conn = get_readonly_connection()
-    except:
+    except Exception:
         return []
 
     if conn is None: return []
@@ -758,7 +758,7 @@ def get_top_silent_order_30d(filters: dict = None, limite=3):
     """
     try:
         conn = get_readonly_connection()
-    except:
+    except Exception:
         return []
 
     if conn is None:
