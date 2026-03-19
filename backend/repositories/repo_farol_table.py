@@ -13,6 +13,21 @@ from backend.repositories.repo_preventiva import TIPOS_MO_OPORTUNIDADE_RI
 # Gera cláusula IN para filtro de oportunidades por tipo_mo
 _OPORTUNIDADE_MO_IN = "'" + "', '".join(TIPOS_MO_OPORTUNIDADE_RI) + "'"
 
+def _benchmark_cte(conn) -> str:
+    """Gera CTE benchmark_total de forma segura.
+    Se ref_total não existe (pricing pipeline ainda não rodou), retorna SELECT vazio.
+    """
+    try:
+        exists = conn.execute(
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'ref_total'"
+        ).fetchone()[0]
+    except Exception:
+        exists = 0
+    if exists:
+        return "benchmark_total AS (SELECT tipo_mo, AVG(p70_total) as avg_p70_total FROM ref_total GROUP BY tipo_mo)"
+    else:
+        return "benchmark_total AS (SELECT NULL::VARCHAR as tipo_mo, 0::DOUBLE as avg_p70_total WHERE FALSE)"
+
 
 # NOTA: Cache reativado após correções. Monitorar comportamento com filtros vazios.
 @safe_memoize(timeout=300)
@@ -65,7 +80,8 @@ def get_farol_table_data(filters: dict = None, page: int = 1, page_size: int = 1
         opp_order = "a.qtd_os DESC"  # default: por volume
         if only_opportunities:
             # Filtrar chaves onde regulacao RI < 80% (Amarelo + Vermelho)
-            opp_having = """HAVING (SUM(CASE WHEN COALESCE(valor_aprovado, 0) < COALESCE(valor_total, 0) - 0.01 THEN 1 ELSE 0 END)::FLOAT 
+            opp_having = """HAVING (SUM(CASE WHEN LOWER(mensagem_log) LIKE '%aprova__o autom_tica%'
+                                                   OR LOWER(mensagem_log) LIKE '%aprovacao automatica%' THEN 1 ELSE 0 END)::FLOAT 
                            / NULLIF(COUNT(*), 0)) * 100 < 80"""
             # Ordenar por impacto financeiro (OS x P70 = dinheiro em jogo)
             opp_order = "(a.qtd_os * a.p70) DESC"
@@ -95,11 +111,13 @@ def get_farol_table_data(filters: dict = None, page: int = 1, page_size: int = 1
                 COUNT(DISTINCT numero_os) as qtd_os,
                 COUNT(*) as total_itens,
                 
-                -- Taxa de regulação RI: valor_aprovado < valor_total = RI negociou preço real
-                SUM(CASE WHEN COALESCE(valor_aprovado, 0) < COALESCE(valor_total, 0) - 0.01 THEN 1 ELSE 0 END) as itens_aprovacao_auto,
+                -- Taxa de regulação RI: mensagem_log indica aprovação automática
+                SUM(CASE WHEN LOWER(mensagem_log) LIKE '%aprova__o autom_tica%'
+                              OR LOWER(mensagem_log) LIKE '%aprovacao automatica%' THEN 1 ELSE 0 END) as itens_aprovacao_auto,
                 
-                -- SEM REGULAÇÃO: preço original mantido (valor_aprovado >= valor_total)
-                SUM(CASE WHEN COALESCE(valor_aprovado, 0) >= COALESCE(valor_total, 0) - 0.01 THEN 1 ELSE 0 END) as itens_aprovacao_humana,
+                -- SEM REGULAÇÃO: aprovação não-automática (humana)
+                SUM(CASE WHEN NOT (LOWER(mensagem_log) LIKE '%aprova__o autom_tica%'
+                                   OR LOWER(mensagem_log) LIKE '%aprovacao automatica%') THEN 1 ELSE 0 END) as itens_aprovacao_humana,
                 
                 PERCENTILE_CONT(0.70) WITHIN GROUP (ORDER BY COALESCE(valor_aprovado, 0)) as p70,
                 AVG(COALESCE(valor_aprovado, 0)) as valor_medio
@@ -109,10 +127,7 @@ def get_farol_table_data(filters: dict = None, page: int = 1, page_size: int = 1
             {opp_having}
         ),
         -- Benchmark via Pricing Engine (P70 do valor total por tipo_mo)
-        benchmark_total AS (
-            SELECT tipo_mo, AVG(p70_total) as avg_p70_total
-            FROM ref_total GROUP BY tipo_mo
-        )
+        {_benchmark_cte(conn)}
         
         SELECT 
             a.chave,
@@ -242,7 +257,8 @@ def get_farol_total_count(filters: dict = None, only_opportunities: bool = False
         source_table = "ri_corretiva_detalhamento"
         if only_opportunities:
             # Contar chaves com regulacao RI < 80% (Amarelo + Vermelho)
-            having_clause = """HAVING (SUM(CASE WHEN COALESCE(valor_aprovado, 0) < COALESCE(valor_total, 0) - 0.01 THEN 1 ELSE 0 END)::FLOAT 
+            having_clause = """HAVING (SUM(CASE WHEN LOWER(mensagem_log) LIKE '%aprova__o autom_tica%'
+                                                    OR LOWER(mensagem_log) LIKE '%aprovacao automatica%' THEN 1 ELSE 0 END)::FLOAT 
                               / NULLIF(COUNT(*), 0)) * 100 < 80"""
         
         # Standard Grouping (group_by_client removido — drill-down substitui)
@@ -311,8 +327,9 @@ def get_farol_stats_full(filters: dict = None) -> dict:
                 COUNT(DISTINCT numero_os) as qtd_os,
                 COUNT(*) as total_itens,
                 
-                -- Taxa de regulação RI: valor_aprovado < valor_total = RI negociou preço real
-                SUM(CASE WHEN COALESCE(valor_aprovado, 0) < COALESCE(valor_total, 0) - 0.01 THEN 1 ELSE 0 END) as itens_aprovacao_auto,
+                -- Taxa de regulação RI: mensagem_log indica aprovação automática
+                SUM(CASE WHEN LOWER(mensagem_log) LIKE '%aprova__o autom_tica%'
+                              OR LOWER(mensagem_log) LIKE '%aprovacao automatica%' THEN 1 ELSE 0 END) as itens_aprovacao_auto,
                 
                 PERCENTILE_CONT(0.70) WITHIN GROUP (ORDER BY COALESCE(valor_aprovado, 0)) as p70,
                 AVG(COALESCE(valor_aprovado, 0)) as valor_medio
@@ -321,10 +338,7 @@ def get_farol_stats_full(filters: dict = None) -> dict:
             GROUP BY COALESCE(peca, 'SEM PEÇA'), COALESCE(tipo_mo, 'SEM MO')
         ),
         -- Benchmark via Pricing Engine (P70 total por tipo_mo)
-        benchmark_total AS (
-            SELECT tipo_mo, AVG(p70_total) as avg_p70_total
-            FROM ref_total GROUP BY tipo_mo
-        )
+        {_benchmark_cte(conn)}
         SELECT 
             a.chave,
             a.qtd_os,
@@ -546,8 +560,9 @@ def _get_farol_stats_for_period(conn, mes_ref) -> dict:
                 COALESCE(tipo_mo, 'SEM MO') as tipo_mo,
                 COUNT(DISTINCT numero_os) as qtd_os,
                 COUNT(*) as total_itens,
-                -- Taxa de regulação RI: valor_aprovado < valor_total = RI negociou preço real
-                SUM(CASE WHEN COALESCE(valor_aprovado, 0) < COALESCE(valor_total, 0) - 0.01 THEN 1 ELSE 0 END) as itens_aprovacao_auto,
+                -- Taxa de regulação RI: mensagem_log indica aprovação automática
+                SUM(CASE WHEN LOWER(mensagem_log) LIKE '%aprova__o autom_tica%'
+                              OR LOWER(mensagem_log) LIKE '%aprovacao automatica%' THEN 1 ELSE 0 END) as itens_aprovacao_auto,
                 PERCENTILE_CONT(0.70) WITHIN GROUP (ORDER BY COALESCE(valor_aprovado, 0)) as p70,
                 AVG(COALESCE(valor_aprovado, 0)) as valor_medio
             FROM ri_corretiva_detalhamento
@@ -555,10 +570,7 @@ def _get_farol_stats_for_period(conn, mes_ref) -> dict:
             GROUP BY COALESCE(peca, 'SEM PEÇA'), COALESCE(tipo_mo, 'SEM MO')
         ),
         -- Benchmark via Pricing Engine (P70 total por tipo_mo)
-        benchmark_total AS (
-            SELECT tipo_mo, AVG(p70_total) as avg_p70_total
-            FROM ref_total GROUP BY tipo_mo
-        )
+        {_benchmark_cte(conn)}
         SELECT 
             a.chave,
             a.qtd_os,
@@ -604,17 +616,14 @@ def _initialize_snapshot_if_missing():
 # =============================================================================
 
 @safe_memoize(timeout=180)
-def get_drill_down_chave(peca: str, tipo_mo: str, clientes: tuple = None, limit: int = 50) -> pd.DataFrame:
+def get_drill_down_chave(peca: str, tipo_mo: str, clientes: tuple = None, data_inicio: str = None, data_fim: str = None, limit: int = 50) -> pd.DataFrame:
     """
     Retorna detalhes de OSs para uma chave específica (Peça + Tipo MO).
-    Usado para drill-down na tabela do farol.
     
     Args:
-        clientes: tupla de nomes de clientes para filtrar (do farol-filter-cliente).
-                  Se None ou vazio, retorna todos os clientes.
-    
-    Inclui: numero_os, nome_cliente, valor_total, valor_aprovado,
-            data_transacao, aprovador, peca_aprovada (regulação RI)
+        clientes: tupla de nomes de clientes (hashable para cache).
+        data_inicio: filtro data início (YYYY-MM-DD). Se None, sem filtro.
+        data_fim: filtro data fim (YYYY-MM-DD). Se None, sem filtro.
     """
     conn = get_connection()
     
@@ -629,29 +638,43 @@ def get_drill_down_chave(peca: str, tipo_mo: str, clientes: tuple = None, limit:
             valor_total,
             valor_aprovado,
             data_transacao,
-            peca_aprovada,
-            -- Regra: se RI regulou (peca_aprovada=FALSE) → "Aprovação de RI"
-            -- nome_aprovador registra quem estava logado, não quem decidiu
+            -- Aprovador (nome real, NULL se não informado)
             CASE 
-                WHEN peca_aprovada = FALSE THEN 'Aprovação de RI'
                 WHEN nome_aprovador IS NULL 
                   OR TRIM(nome_aprovador) = '' 
-                  OR UPPER(TRIM(nome_aprovador)) = 'NAO INFORMADO'
-                THEN 'Aprovação de RI'
+                  OR UPPER(TRIM(nome_aprovador)) IN ('NAO INFORMADO', 'NÃO INFORMADO')
+                THEN NULL
                 ELSE nome_aprovador
             END as aprovador,
+            -- Negociador: quem fez o desconto (se houve redução de preço)
             CASE 
-                WHEN UPPER(TRIM(tipo_mo)) IN (SELECT UPPER(TRIM(tipo_mo)) FROM ref_aprovacao_automatica)
-                THEN 'Automática'
-                ELSE 'Manual'
-            END as tipo_aprovacao
+                WHEN COALESCE(valor_aprovado, 0) < COALESCE(valor_total, 0) - 0.01
+                THEN COALESCE(NULLIF(TRIM(nome_aprovador), ''), 'Sistema')
+                ELSE NULL
+            END as negociador,
+            -- Aprovação automática (via mensagem_log)
+            CASE 
+                WHEN LOWER(mensagem_log) LIKE '%aprova__o autom_tica%'
+                  OR LOWER(mensagem_log) LIKE '%aprovacao automatica%'
+                THEN TRUE
+                ELSE FALSE
+            END as aprovacao_automatica,
+            mensagem_log
         FROM ri_corretiva_detalhamento
         WHERE peca = '{peca}' AND tipo_mo = '{tipo_mo}'
+          AND status_os != 'CANCELADA'
+          AND COALESCE(valor_aprovado, 0) > 0
         """
         # Filtrar por clientes se fornecido
         if clientes:
             placeholders = ", ".join([f"'{c}'" for c in clientes])
             query += f" AND nome_cliente IN ({placeholders})"
+        
+        # Filtrar por período
+        if data_inicio:
+            query += f" AND data_transacao >= '{data_inicio}'"
+        if data_fim:
+            query += f" AND data_transacao <= '{data_fim}'"
         
         query += f"""
         ORDER BY data_transacao DESC
@@ -664,3 +687,4 @@ def get_drill_down_chave(peca: str, tipo_mo: str, clientes: tuple = None, limit:
     except Exception as e:
         print(f"[REPO_FAROL_TABLE] Erro no drill-down: {e}")
         return pd.DataFrame()
+

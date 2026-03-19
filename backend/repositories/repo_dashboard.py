@@ -749,6 +749,89 @@ def get_top_ofensores_30d(filters: dict = None, limite=3):
         return []
 
 
+@safe_memoize(timeout=300)
+def get_top_silent_order_30d(filters: dict = None, limite=3):
+    """
+    Busca os Top Estabelecimentos com maior volume de Silent Order nos últimos 5 meses.
+    Silent Order = OS com aprovação automática (sem aprovador humano).
+    Ranking: por VOLUME de SO (não apenas %), para evitar ECs triviais (2 OS = 100%).
+    """
+    try:
+        conn = get_readonly_connection()
+    except:
+        return []
+
+    if conn is None:
+        return []
+
+    try:
+        where_conditions = [
+            "c.data_transacao >= current_date - INTERVAL 150 DAY",
+            "c.status_os != 'CANCELADA'"
+        ]
+        if filters and filters.get("clientes"):
+            valid_clients = [str(cl) for cl in filters["clientes"] if cl and str(cl).strip() != ""]
+            if valid_clients:
+                clients_escaped = "', '".join([cl.replace("'", "''") for cl in valid_clients])
+                where_conditions.append(f"c.nome_cliente IN ('{clients_escaped}')")
+
+        where_clause = " AND ".join(where_conditions)
+
+        query = f"""
+        WITH os_details AS (
+            SELECT
+                c.nome_estabelecimento,
+                c.numero_os,
+                SUM(CASE
+                    WHEN nome_aprovador IS NOT NULL
+                     AND TRIM(nome_aprovador) != ''
+                     AND UPPER(TRIM(nome_aprovador)) NOT IN ('NAO INFORMADO', 'NÃO INFORMADO')
+                    THEN 1 ELSE 0
+                END) as itens_com_aprovador
+            FROM ri_corretiva_detalhamento c
+            WHERE {where_clause}
+              AND c.nome_estabelecimento IS NOT NULL
+              AND TRIM(c.nome_estabelecimento) != ''
+            GROUP BY 1, 2
+        )
+        SELECT
+            nome_estabelecimento,
+            COUNT(*) as total_os,
+            SUM(CASE WHEN itens_com_aprovador = 0 THEN 1 ELSE 0 END) as so_count
+        FROM os_details
+        GROUP BY 1
+        HAVING COUNT(*) >= 5
+        ORDER BY so_count DESC, (so_count::FLOAT / total_os) DESC
+        LIMIT {limite}
+        """
+
+        df = conn.execute(query).fetchdf()
+        if df.empty:
+            return []
+
+        result = []
+        for _, row in df.iterrows():
+            total = int(row['total_os'])
+            so = int(row['so_count'])
+            pct = (so / total * 100) if total > 0 else 0
+            nome_raw = str(row['nome_estabelecimento']).strip()
+            nome = nome_raw[:25] + "..." if len(nome_raw) > 25 else nome_raw
+            result.append({
+                "nome": nome,
+                "so_percent": round(pct, 1),
+                "total_os": total,
+                "so_count": so,
+            })
+
+        return result
+
+    except Exception as e:
+        print(f"[REPOSITORY ERROR] get_top_silent_order: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
 @safe_memoize(timeout=120)
 def get_distinct_clients():
     """
