@@ -245,8 +245,9 @@ def get_databricks_conn():
     """
     Cria conexão com Databricks SQL Warehouse ou retorna do cache.
     Detecta automaticamente o ambiente:
-    - Databricks App: usa SDK Config (OAuth M2M via Service Principal)
-    - Local: usa CLI profile (~/.databrickscfg)
+    - Databricks App: usa credentials_provider (OAuth M2M via Service Principal)
+      → Delega autenticação ao SDK — robusto entre versões
+    - Local: usa CLI profile (~/.databrickscfg) com OAuth U2M
     """
     global _cached_conn, _conn_created_at
     import traceback
@@ -267,6 +268,7 @@ def get_databricks_conn():
         else:
             _close_cached_conn()
     
+    conn = None
     
     if IS_DATABRICKS_APP:
         
@@ -277,76 +279,45 @@ def get_databricks_conn():
             'DATABRICKS_CLIENT_SECRET': 'SET' if os.getenv('DATABRICKS_CLIENT_SECRET') else 'NOT SET',
             'DATABRICKS_TOKEN': 'SET' if os.getenv('DATABRICKS_TOKEN') else 'NOT SET',
         }
+        print(f"[SYNC] Ambiente Databricks App detectado. ENV: {env_vars}", flush=True)
         
-        # MÉTODO 1: Usar SDK Config que auto-descobre OAuth M2M credentials
+        # MÉTODO 1 (RECOMENDADO): credentials_provider via SDK Config
+        # Delega toda a autenticação ao SDK — robusto entre versões do SDK.
+        # O SP do app precisa ter CAN USE no SQL Warehouse.
         try:
             from databricks.sdk.core import Config
             cfg = Config()
-            
-            # Tentar obter token - diferentes versões do SDK têm APIs diferentes
-            token = None
             host = (cfg.host or HOST).replace("https://", "").replace("http://", "").rstrip("/")
             
-            # Tentativa 1: cfg.authenticate() sem argumentos (versão mais recente)
-            try:
-                auth_result = cfg.authenticate()
-                
-                if callable(auth_result):
-                    # É uma HeaderFactory - chama para obter headers
-                    headers_result = auth_result()
-                    if isinstance(headers_result, dict):
-                        auth_header = headers_result.get('Authorization', '')
-                        if auth_header.startswith('Bearer '):
-                            token = auth_header[len('Bearer '):]
-                elif isinstance(auth_result, dict):
-                    auth_header = auth_result.get('Authorization', '')
-                    if auth_header.startswith('Bearer '):
-                        token = auth_header[len('Bearer '):]
-            except TypeError:
-                # Tentativa 2: cfg.authenticate(headers_dict) (versão anterior)
-                try:
-                    headers = {}
-                    cfg.authenticate(headers)
-                    auth_header = headers.get('Authorization', '')
-                    if auth_header.startswith('Bearer '):
-                        token = auth_header[len('Bearer '):]
-                except Exception as e2:
-                    print(f"[SYNC] authenticate(dict) também falhou: {e2}", flush=True)
+            def credential_provider():
+                """HeaderFactory que o SQL connector usa para obter headers de auth."""
+                return cfg.authenticate
             
-            # Tentativa 3: acesso direto ao token (se disponível)
-            if not token:
-                try:
-                    token = cfg.token
-                    if token:
-                        pass
-                except AttributeError:
-                    pass
-            
-            if token:
-                return sql.connect(
-                    server_hostname=host,
-                    http_path=HTTP_PATH,
-                    access_token=token,
-                )
-            else:
-                raise Exception("Não foi possível obter token via SDK Config")
+            conn = sql.connect(
+                server_hostname=host,
+                http_path=HTTP_PATH,
+                credentials_provider=credential_provider,
+            )
+            print(f"[SYNC] ✅ Conectado via credentials_provider (SDK Config) — host: {host}", flush=True)
                 
         except Exception as e:
-            print(f"[SYNC] Método SDK Config falhou: {e}", flush=True)
+            print(f"[SYNC] ⚠️ credentials_provider falhou: {e}", flush=True)
             traceback.print_exc()
             
-            # MÉTODO 2: Fallback para DATABRICKS_TOKEN env var
+            # MÉTODO 2 (FALLBACK): DATABRICKS_TOKEN env var (app.yaml)
             token = os.getenv('DATABRICKS_TOKEN')
             if token:
                 host = os.getenv('DATABRICKS_HOST', HOST).replace("https://", "").replace("http://", "").rstrip("/")
-                return sql.connect(
+                conn = sql.connect(
                     server_hostname=host,
                     http_path=HTTP_PATH,
                     access_token=token,
                 )
-            
-            raise
+                print(f"[SYNC] ✅ Conectado via DATABRICKS_TOKEN env var (fallback)", flush=True)
+            else:
+                raise
     else:
+        # AMBIENTE LOCAL: OAuth U2M via CLI profile (abre browser se necessário)
         conn = sql.connect(
             server_hostname=HOST,
             http_path=HTTP_PATH,
@@ -354,6 +325,7 @@ def get_databricks_conn():
             profile=PROFILE,
             _socket_timeout=900,  # 15min — precisa esperar queries grandes
         )
+        print(f"[SYNC] ✅ Conectado via OAuth U2M (CLI profile: {PROFILE})", flush=True)
         
     # Salvar no cache antes de retornar
     if conn:
@@ -444,7 +416,6 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
             ON fs.Sk_FuelCustomer = fc.Sk_FuelCustomer
         WHERE {date_filter}
           AND fc.CustomerSourceCode IN ({client_ids})
-          AND fi.CancellationTimestamp IS NULL
     )
     SELECT 
         cast(b.OrderServiceCode as string) as numero_os,
