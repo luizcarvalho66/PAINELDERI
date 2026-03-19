@@ -13,8 +13,8 @@ import glob
 import time
 
 
-# Senha de administrador para reset — hardcoded
-_RESET_PASSWORD = "Ducha1408@@"
+# Senha de administrador para reset — via env var (NUNCA hardcoded)
+_RESET_PASSWORD = os.environ.get("ADMIN_RESET_PASSWORD", "")
 
 
 def register_sidebar_callbacks(app):
@@ -130,7 +130,7 @@ def register_sidebar_callbacks(app):
                 html.Div(
                     [
                         html.I(className="bi bi-exclamation-circle-fill text-warning me-2"),
-                        html.Span(f"Erro no reset: {str(e)}", className="text-warning"),
+                        html.Span("Erro no reset. Verifique os logs do servidor.", className="text-warning"),
                     ],
                 ),
                 no_update,

@@ -4,6 +4,13 @@ import os
 import sys
 import signal
 import atexit
+
+# Carregar .env para dev local (em produção, app.yaml injeta as env vars)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv opcional — em produção não precisa
 import tempfile
 from frontend.layout import get_layout
 from backend.callbacks import register_all_callbacks
@@ -161,7 +168,7 @@ if __name__ == "__main__":
             # Check if main table has data
             try:
                 count = conn.execute("SELECT COUNT(*) FROM ri_corretiva_detalhamento").fetchone()[0]
-            except:
+            except Exception:
                 count = 0
             
             if count == 0:
@@ -188,4 +195,4 @@ if __name__ == "__main__":
     import threading
     threading.Thread(target=initial_sync_check, daemon=True).start()
 
-    app.run(host=host, port=port, debug=True, use_reloader=False)
+    app.run(host=host, port=port, debug=debug_mode, use_reloader=False)

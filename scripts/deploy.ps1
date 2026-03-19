@@ -1,7 +1,8 @@
 # Deploy Script for Databricks Apps
 # Syncs local code to workspace and triggers deployment
 
-$CLI_PATH = "C:\Users\luicarvalho\AppData\Local\Microsoft\WinGet\Packages\Databricks.DatabricksCLI_Microsoft.Winget.Source_8wekyb3d8bbwe\databricks.exe"
+# CLI: tenta env var, depois PATH do sistema
+$CLI_PATH = if ($env:DATABRICKS_CLI_PATH) { $env:DATABRICKS_CLI_PATH } else { "databricks" }
 $DB_PROFILE = "adb-7941093640821140"
 $REMOTE_PATH = "/Workspace/Users/luiz.carvalho@edenred.com/paineilri"
 $APP_NAME = "paineilri"

@@ -47,7 +47,7 @@ def build_where_clause(filters: dict, table_alias: str = "") -> str:
                     period_clauses.append(
                         f"(YEAR({prefix}data_transacao) = {year} AND MONTH({prefix}data_transacao) = {month})"
                     )
-                except:
+                except Exception:
                     pass
             if period_clauses:
                 where_clauses.append(f"({' OR '.join(period_clauses)})")

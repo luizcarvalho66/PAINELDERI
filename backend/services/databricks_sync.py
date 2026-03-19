@@ -131,9 +131,9 @@ def check_new_data():
                 ).fetchone()
                 if row and row[0]:
                     local_max_date = str(row[0])[:10]  # YYYY-MM-DD
-            except:
+            except Exception:
                 pass
-        except:
+        except Exception:
             pass
 
         # Conectar ao Databricks (OAuth U2M — abre browser se necessário)
@@ -233,7 +233,7 @@ def _close_cached_conn():
     if _cached_conn:
         try:
             _cached_conn.close()
-        except:
+        except Exception:
             pass
     _cached_conn = None
     _conn_created_at = None
@@ -653,7 +653,7 @@ def sync_all_data(days=150):
             cursor_db.close()
             # NÃO fechamos conn_db pois estamos usando cache (singleton) 
             # e ele poderá ser reusado nos próximos minutos.
-        except:
+        except Exception:
             pass
         
         # Concatenar todos os resultados
@@ -699,7 +699,7 @@ def sync_all_data(days=150):
             set_maintenance_mode(True)
         except ImportError:
             try: close_connection() 
-            except: pass
+            except Exception: pass
             
         time.sleep(1)
         conn_local = get_connection(read_only=False)
@@ -736,7 +736,7 @@ def sync_all_data(days=150):
                             try:
                                 desc = conn_local.execute(f"DESCRIBE {stg}").fetchall()
                                 stg_types = {r[0]: r[1] for r in desc}
-                            except:
+                            except Exception:
                                 # Fallback: inferir do pandas dtype
                                 for col in missing:
                                     dtype = str(stg_df[col].dtype)
@@ -867,7 +867,7 @@ def sync_all_data(days=150):
         try:
             from database import set_maintenance_mode
             set_maintenance_mode(False)
-        except:
+        except Exception:
             pass
         
     return results
