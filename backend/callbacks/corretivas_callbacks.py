@@ -306,7 +306,8 @@ def register_corretivas_callbacks(app):
             
             df = get_drill_down_chave(peca, tipo_mo, clientes=clientes_tuple)
             cor_farol = key_data.get("cor", "amarelo")
-            content = render_drill_down_content(df, cor_farol=cor_farol)
+            chave_nome = f"{peca} + {tipo_mo}"
+            content = render_drill_down_content(df, cor_farol=cor_farol, chave_nome=chave_nome)
             
             return True, content
             

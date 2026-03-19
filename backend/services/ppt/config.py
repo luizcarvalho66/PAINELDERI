@@ -62,3 +62,8 @@ ICONS_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
     "assets", "icons"
 )
+
+ICONS_KPI_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+    "assets", "icons_kpi"
+)

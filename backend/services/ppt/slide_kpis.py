@@ -15,7 +15,7 @@ from .config import (
 from .helpers import add_text_box, add_rounded_rect, add_content_header, add_footer_logo, add_pill_badge
 
 
-def build_slide_kpis(prs, kpi_data: dict):
+def build_slide_kpis(prs, kpi_data: dict, period_label: str = "Últimos 30 Dias"):
     """KPIs comprimidos à esquerda (2x3) com espaço livre à direita para análises."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
 
@@ -23,8 +23,8 @@ def build_slide_kpis(prs, kpi_data: dict):
     bg.fill.solid()
     bg.fill.fore_color.rgb = WHITE
 
-    # Novo Header Limpo (Plano Estratégico)
-    add_content_header(slide, "Resultados Executivos – RI  |  Últimos 30 Dias")
+    # Header com período dinâmico
+    add_content_header(slide, f"Resultados Executivos – RI  |  {period_label}")
 
     import os
     ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))

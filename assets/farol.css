@@ -789,3 +789,320 @@
 .logs-table-wrapper::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* ==========================================================================
+   DRILL-DOWN PANEL - Premium Sub-Table (OS por Chave)
+   FIX 2026-03-08: CSS dedicado — antes era zero styling
+   ========================================================================== */
+
+/* Panel Container — frosted glass embed */
+.drill-down-panel {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 12px;
+  margin: 4px 12px 12px 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.02);
+  animation: drillDownSlide 0.25s ease-out;
+  overflow: hidden;
+}
+
+/* Branded Header — Premium Edenred Integrado */
+.drill-down-branded-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: linear-gradient(to right, #1e293b, #0f172a); /* Match table header */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08); /* Linha sutil separator */
+}
+
+/* Left Elements */
+.drill-down-accent-bar {
+  width: 4px;
+  height: 22px;
+  border-radius: 2px;
+  margin-right: 14px;
+  flex-shrink: 0;
+}
+
+.drill-down-header-icon {
+  font-size: 1.05rem;
+  margin-right: 10px;
+}
+
+.drill-down-header-title {
+  font-family: 'Ubuntu', sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #ffffff;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.drill-down-header-badge {
+  margin-left: 14px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 3px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Right Elements (Date Filter) */
+.drill-down-date-icon {
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.drill-down-date-separator {
+  color: #cbd5e1;
+  margin: 0 10px;
+  font-size: 0.8rem;
+  font-weight: 300;
+  opacity: 0.5;
+}
+
+/* Date Inputs — Native Dark Theme */
+.drill-down-date-input {
+  font-family: "Ubuntu", sans-serif !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  padding: 4px 10px !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 6px !important;
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  width: 130px !important;
+  height: 32px !important;
+  outline: none !important;
+  transition: all 0.2s ease !important;
+  color-scheme: dark !important; /* Força o ícone nativo pro dark mode */
+}
+
+.drill-down-date-input:focus {
+  border-color: #E20613 !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 0 0 2px rgba(226, 6, 19, 0.4) !important;
+}
+
+.drill-down-date-input:hover {
+  border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Webkit date picker icon styling */
+.drill-down-date-input::-webkit-calendar-picker-indicator {
+  opacity: 0.6;
+  cursor: pointer;
+  filter: invert(1);
+  transition: opacity 0.15s ease;
+}
+
+.drill-down-date-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.8;
+}
+
+@keyframes drillDownSlide {
+  from { opacity: 0; transform: translateY(-8px); max-height: 0; }
+  to   { opacity: 1; transform: translateY(0); max-height: 2000px; }
+}
+
+/* Table Wrapper */
+.drill-down-table-wrapper {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.drill-down-table-wrapper::-webkit-scrollbar {
+  height: 4px;
+}
+.drill-down-table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+.drill-down-table-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+/* Header — subtle dark gradient */
+.drill-down-header {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
+}
+
+.drill-down-header th {
+  font-family: "Ubuntu", sans-serif !important;
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85) !important;
+  background: transparent !important;
+  padding: 10px 12px !important;
+  border: none !important;
+  white-space: nowrap;
+}
+
+/* Body Rows — zebra + hover */
+.drill-down-row {
+  transition: all 0.15s ease;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.drill-down-row:nth-child(even) {
+  background-color: rgba(248, 250, 252, 0.6);
+}
+
+.drill-down-row:nth-child(odd) {
+  background-color: #ffffff;
+}
+
+.drill-down-row:hover {
+  background-color: rgba(226, 6, 19, 0.03) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.drill-down-row:last-child {
+  border-bottom: none;
+}
+
+.drill-down-row td {
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  color: #334155;
+  vertical-align: middle;
+  border: none;
+}
+
+/* Cell: OS Number */
+.drill-down-cell-os {
+  font-family: "Ubuntu", sans-serif;
+  font-weight: 600;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+/* Cell: Cliente */
+.drill-down-cell-cliente {
+  font-weight: 500;
+  color: #1e293b;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Cell: Money — Solicitado */
+.drill-down-cell-money-solicitado {
+  font-family: "Ubuntu", sans-serif;
+  font-variant-numeric: tabular-nums;
+  color: #64748b;
+  font-weight: 400;
+}
+
+/* Quando houve desconto: risco no valor solicitado */
+.drill-down-valor-diff {
+  text-decoration: line-through;
+  text-decoration-color: rgba(226, 6, 19, 0.4);
+  color: #94a3b8 !important;
+}
+
+/* Cell: Money — Aprovado */
+.drill-down-cell-money-aprovado {
+  font-family: "Ubuntu", sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* Cell: Data */
+.drill-down-cell-data {
+  color: #64748b;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+/* Aprovador: sistema RI (robô icon) */
+.drill-down-aprovador-ri {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.drill-down-aprovador-ri .bi {
+  font-size: 0.85rem;
+  color: #cbd5e1;
+}
+
+/* Aprovador: pessoa real */
+.drill-down-aprovador-comum {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.8rem;
+  color: #334155;
+  font-weight: 500;
+}
+
+/* Badge: Regulado (verde pill) */
+.drill-down-badge-regulado {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: "Ubuntu", sans-serif;
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  white-space: nowrap;
+}
+
+.drill-down-badge-regulado .bi {
+  font-size: 0.75rem;
+}
+
+/* Badge: Original (cinza pill) */
+.drill-down-badge-original {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  font-family: "Ubuntu", sans-serif;
+  background: rgba(148, 163, 184, 0.08);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  white-space: nowrap;
+}
+
+.drill-down-badge-original .bi {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+}
+
+/* Footer */
+.drill-down-footer {
+  display: flex;
+  align-items: center;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.drill-down-footer-text {
+  font-family: "Ubuntu", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #64748b;
+  letter-spacing: 0.02em;
+}
+

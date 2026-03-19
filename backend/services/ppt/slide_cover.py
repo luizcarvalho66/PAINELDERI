@@ -2,8 +2,8 @@
 """
 Slide 1 — Capa executiva estilo Edenred.
 
-Design split-screen com border radius, ícone profissional,
-círculo vermelho gigante e posicionamento perfeito.
+Design split-screen com gradiente diagonal, elipse branca,
+nome do cliente, período real dos dados e data de geração.
 """
 
 import os
@@ -24,8 +24,8 @@ from .config import (
 from .helpers import add_text_box
 
 
-def build_slide_cover(prs):
-    """Capa executiva moderna inspirada na nova identidade visual (Gradiente + Círculo Branco)."""
+def build_slide_cover(prs, client_name=None, period_start=None, period_end=None):
+    """Capa executiva moderna com nome do cliente, período real e data de geração."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
 
     # ============================================
@@ -36,29 +36,25 @@ def build_slide_cover(prs):
     )
     bg_rect.line.fill.background()
     
-    # Usar a API nativa para criar o gradiente
     fill = bg_rect.fill
     fill.gradient()
     
-    # Definir as cores das paradas do gradiente
     fill.gradient_stops[0].color.rgb = RGBColor(0xE2, 0x06, 0x13)  # Edenred Red
     fill.gradient_stops[0].position = 0.0
     fill.gradient_stops[1].color.rgb = RGBColor(0xFF, 0x14, 0x93)  # Magenta/Rosa
     fill.gradient_stops[1].position = 1.0
     
-    # Injetar o ângulo de 135° diretamente no XML do gradiente
+    # Ângulo 135° via XML
     spPr = bg_rect.element.spPr
     gradFill = spPr.find(qn('a:gradFill'))
     if gradFill is not None:
-        # Remover qualquer elemento de direção existente (path, lin)
         for old_dir in gradFill.findall(qn('a:lin')) + gradFill.findall(qn('a:path')):
             gradFill.remove(old_dir)
-        # Adicionar direção linear diagonal (8100000 = 135°)
         lin = parse_xml('<a:lin xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" ang="8100000" scaled="1"/>')
         gradFill.append(lin)
 
     # ============================================
-    # SHAPE BRANCO (PILL / ELIPSE VERTICAL) DIREITA
+    # SHAPE BRANCO (ELIPSE VERTICAL) DIREITA
     # ============================================
     shape_width = Inches(7.5)  
     shape_height = Inches(9.5) 
@@ -82,12 +78,16 @@ def build_slide_cover(prs):
     # LOGO EDENRED DENTRO DO SHAPE BRANCO
     # ============================================
     if os.path.exists(LOGO_PATH):
-        logo_w = Inches(4.0)
-        # Centralizar no shape branco (center_x, center_y são o centro do oval)
+        # Reduzir o logo e centralizar na parte *visível* do shape branco
+        logo_w = Inches(2.8)
+        
+        # O shape começa em shape_left e vai até SLIDE_WIDTH (na parte visível)
+        visible_center_x = shape_left + ((SLIDE_WIDTH - shape_left) / 2)
+        
         slide.shapes.add_picture(
             LOGO_PATH,
-            center_x - (logo_w / 2) - Inches(0.3), 
-            center_y - Inches(1.0), 
+            visible_center_x - (logo_w / 2), 
+            center_y - Inches(0.5), 
             width=logo_w
         )
 
@@ -98,7 +98,7 @@ def build_slide_cover(prs):
     
     # Título Principal (Linha 1)
     add_text_box(
-        slide, text_left, Inches(4.3),
+        slide, text_left, Inches(3.8),
         Inches(10.0), Inches(0.6),
         "Apresentação",
         size=36, bold=True, color=WHITE, alignment=PP_ALIGN.LEFT
@@ -106,7 +106,7 @@ def build_slide_cover(prs):
 
     # Título Principal (Linha 2)
     add_text_box(
-        slide, text_left, Inches(4.9),
+        slide, text_left, Inches(4.4),
         Inches(10.0), Inches(0.6),
         "Desempenho de RI",
         size=36, bold=True, color=WHITE, alignment=PP_ALIGN.LEFT
@@ -115,7 +115,7 @@ def build_slide_cover(prs):
     # Linha separadora (Pill curta branca)
     pill = slide.shapes.add_shape(
         MSO_SHAPE.ROUNDED_RECTANGLE,
-        text_left + Inches(0.05), Inches(5.6), 
+        text_left + Inches(0.05), Inches(5.1), 
         Inches(0.8), Inches(0.06)
     )
     pill.fill.solid()
@@ -123,24 +123,53 @@ def build_slide_cover(prs):
     pill.line.fill.background()
     pill.adjustments[0] = 0.5 
 
-    # Subtítulo (Período da análise)
-    add_text_box(
-        slide, text_left, Inches(5.85),  
-        Inches(6.0), Inches(0.4),
-        "Análise dos Últimos 30 Dias",
-        size=16, bold=False, color=WHITE, alignment=PP_ALIGN.LEFT
-    )
+    # Nome do Cliente TGM (destaque)
+    if client_name:
+        add_text_box(
+            slide, text_left, Inches(5.3),
+            Inches(6.0), Inches(0.5),
+            client_name.upper(),
+            size=20, bold=True, color=WHITE, alignment=PP_ALIGN.LEFT
+        )
 
-    # Data do período (calculada automaticamente)
-    from datetime import timedelta
-    data_fim = datetime.now()
-    data_inicio = data_fim - timedelta(days=30)
-    periodo_str = f"{data_inicio.strftime('%d/%m/%Y')} — {data_fim.strftime('%d/%m/%Y')}"
+    # Período real dos dados
+    if period_start and period_end:
+        # Formatar datas — aceita string ISO ou objetos date/datetime
+        if isinstance(period_start, str):
+            try:
+                ps = datetime.fromisoformat(period_start).strftime('%d/%m/%Y')
+            except ValueError:
+                ps = period_start
+        else:
+            ps = period_start.strftime('%d/%m/%Y')
+        
+        if isinstance(period_end, str):
+            try:
+                pe = datetime.fromisoformat(period_end).strftime('%d/%m/%Y')
+            except ValueError:
+                pe = period_end
+        else:
+            pe = period_end.strftime('%d/%m/%Y')
+        
+        periodo_str = f"Período: {ps} — {pe}"
+    else:
+        periodo_str = ""
+
+    if periodo_str:
+        add_text_box(
+            slide, text_left, Inches(5.9),
+            Inches(6.0), Inches(0.4),
+            periodo_str,
+            size=14, bold=False, color=WHITE, alignment=PP_ALIGN.LEFT
+        )
+
+    # Data de geração do relatório
+    data_geracao = datetime.now().strftime('%d/%m/%Y')
     add_text_box(
         slide, text_left, Inches(6.45),
         Inches(6.0), Inches(0.4),
-        periodo_str,
-        size=14, bold=False, color=WHITE, alignment=PP_ALIGN.LEFT
+        f"Relatório gerado em {data_geracao}",
+        size=12, bold=False, color=WHITE, alignment=PP_ALIGN.LEFT
     )
 
     # Numeração no canto inferior direito

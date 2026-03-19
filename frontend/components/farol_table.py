@@ -421,7 +421,7 @@ def render_farol_table_content(dados):
     )
 
 
-def render_drill_down_content(df, cor_farol="amarelo"):
+def render_drill_down_content(df, cor_farol="amarelo", chave_nome=""):
     """
     Renderiza a sub-tabela de drill-down com as OS individuais de uma chave.
     Chamada pelo callback quando o usuário clica em uma row do farol.
@@ -432,6 +432,54 @@ def render_drill_down_content(df, cor_farol="amarelo"):
             className="text-center py-4 px-3"
         )
     
+    # Cores por farol
+    color_map = {
+        "verde": "#10b981",
+        "amarelo": "#f59e0b",
+        "vermelho": "#E20613",
+        "cinza": "#94a3b8"
+    }
+    hex_color = color_map.get(cor_farol, color_map["cinza"])
+    
+    icon_map = {
+        "verde": "bi-check-circle-fill",
+        "amarelo": "bi-exclamation-triangle-fill",
+        "vermelho": "bi-x-circle-fill",
+        "cinza": "bi-dash-circle"
+    }
+    icon_class = icon_map.get(cor_farol, icon_map["cinza"])
+    
+    # ── BRANDED HEADER — Premium Edenred Integrado ──
+    drill_header = html.Div([
+        # ▸ Left: Accent bar (color farol) + Icon + Chave name
+        html.Div([
+            # Accent bar vertical
+            html.Div(className="drill-down-accent-bar", style={"background": hex_color}),
+            html.I(className=f"bi {icon_class} drill-down-header-icon", style={"color": hex_color}),
+            html.Span(chave_nome or "Detalhes", className="drill-down-header-title"),
+            # Contagem de OS como badge integrado
+            html.Span(f"{len(df)} OS", className="drill-down-header-badge"),
+        ], className="d-flex align-items-center"),
+        
+        # ▸ Right: Date filter compact (usando dbc.Input para suporte oficial a HTML5 types no Dash)
+        html.Div([
+            html.I(className="bi bi-calendar-range me-2 drill-down-date-icon"),
+            dbc.Input(
+                type="date",
+                id="drill-down-date-start",
+                className="drill-down-date-input",
+                placeholder="Início"
+            ),
+            html.Span("→", className="drill-down-date-separator"),
+            dbc.Input(
+                type="date",
+                id="drill-down-date-end",
+                className="drill-down-date-input",
+                placeholder="Fim"
+            ),
+        ], className="d-flex align-items-center"),
+    ], className="drill-down-branded-header")
+    
     # Header da sub-tabela
     sub_header = html.Thead(
         html.Tr([
@@ -440,8 +488,8 @@ def render_drill_down_content(df, cor_farol="amarelo"):
             html.Th("Solicitado", className="text-end"),
             html.Th("Aprovado", className="text-end"),
             html.Th("Data"),
-            html.Th("Aprovador"),
-            html.Th("RI", className="text-center"),
+            html.Th("Negociador"),
+            html.Th("Aprovação", className="text-center"),
         ], className="drill-down-header")
     )
     
@@ -466,30 +514,26 @@ def render_drill_down_content(df, cor_farol="amarelo"):
             except Exception:
                 data_str = ""
         
-        # Aprovador (já vem tratado do SQL: "Aprovação de RI" se nulo)
+        # Negociador: quem fez o desconto (se houve redução de preço)
+        negociador = str(row.get("negociador", "")) if row.get("negociador") else ""
+        if negociador:
+            negociador_element = html.Span(negociador, className="drill-down-aprovador-comum")
+        else:
+            negociador_element = html.Span("—", className="text-muted", style={"fontSize": "0.8rem"})
+        
+        # Tipo de aprovação: Automática ou Humana (via mensagem_log)
+        is_auto = row.get("aprovacao_automatica", False) == True
         aprovador = str(row.get("aprovador", "")) if row.get("aprovador") else ""
-        is_ri = aprovador == "Aprovação de RI"
         
-        if is_ri:
-            aprovador_element = html.Span([
-                html.I(className="bi bi-robot me-1"), 
-                aprovador
-            ], className="drill-down-aprovador-ri")
-        else:
-            aprovador_element = html.Span(aprovador, className="drill-down-aprovador-comum")
-        
-        # Flag RI (peca_aprovada = FALSE = RI negociou = BOM)
-        peca_aprovada = row.get("peca_aprovada", None)
-        if peca_aprovada == False:
-            ri_badge = html.Span([
-                html.I(className="bi bi-check-circle-fill me-1"), "Regulado"
+        if is_auto:
+            aprov_badge = html.Span([
+                html.I(className="bi bi-cpu me-1"), "Automática"
             ], className="drill-down-badge-regulado")
-        elif peca_aprovada == True:
-            ri_badge = html.Span([
-                html.I(className="bi bi-dash-circle me-1"), "Original"
-            ], className="drill-down-badge-original")
         else:
-            ri_badge = html.Span("—", className="text-muted small")
+            aprov_children = [html.I(className="bi bi-person me-1"), "Humana"]
+            if aprovador:
+                aprov_children.append(html.Span(f" · {aprovador}", style={"fontWeight": "500", "fontSize": "0.72rem"}))
+            aprov_badge = html.Span(aprov_children, className="drill-down-badge-original")
         
         sub_rows.append(
             html.Tr([
@@ -498,8 +542,8 @@ def render_drill_down_content(df, cor_farol="amarelo"):
                 html.Td(val_total_fmt, className=val_total_class),
                 html.Td(val_aprov_fmt, className="drill-down-cell-money-aprovado text-end"),
                 html.Td(data_str, className="drill-down-cell-data"),
-                html.Td(aprovador_element),
-                html.Td(ri_badge, className="text-center"),
+                html.Td(negociador_element),
+                html.Td(aprov_badge, className="text-center"),
             ], className="drill-down-row")
         )
     
@@ -508,16 +552,8 @@ def render_drill_down_content(df, cor_farol="amarelo"):
     total_rows = len(df)
     footer_text = f"Mostrando {min(50, total_rows)} de {total_rows} OS" if total_rows > 50 else f"{total_rows} OS encontradas"
     
-    # Determinar cor do indicador com base na cor da row pai (para ::before via text color)
-    color_map = {
-        "verde": "#10b981",    # success
-        "amarelo": "#f59e0b",  # warning
-        "vermelho": "#E20613", # danger
-        "cinza": "#94a3b8"     # muted
-    }
-    hex_color = color_map.get(cor_farol, color_map["cinza"])
-    
     return html.Div([
+        drill_header,
         html.Div([
             dbc.Table(
                 [sub_header, sub_body],
@@ -531,7 +567,7 @@ def render_drill_down_content(df, cor_farol="amarelo"):
             html.I(className="bi bi-list-ul me-2 text-muted"),
             html.Span(footer_text, className="drill-down-footer-text")
         ], className="drill-down-footer")
-    ], className="drill-down-panel", style={"color": hex_color})
+    ], className="drill-down-panel")
 
 
 
