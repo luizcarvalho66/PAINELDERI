@@ -127,14 +127,15 @@
     position: absolute;
     top: 12px;
     right: 12px;
-    padding: 0.15rem 0.5rem;
-    background: var(--bg-main);
-    color: var(--text-muted);
+    padding: 0.2rem 0.6rem;
+    background: #f1f5f9;
+    color: #94a3b8;
     font-size: 0.65rem;
     font-weight: 500;
     letter-spacing: 0.3px;
-    text-transform: uppercase;
-    border-radius: 4px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
 }
 
 /* -- Footer -- */
@@ -186,6 +187,111 @@
     background: linear-gradient(135deg, #c00510, #a00410);
     box-shadow: 0 2px 8px rgba(226, 6, 19, 0.3);
     transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   PPT MODAL — Micro-Interações Humanizadas
+   ========================================================================== */
+
+/* Hover nos items de conteúdo */
+.ppt-content-item:hover {
+    border-color: rgba(226, 6, 19, 0.2) !important;
+    background-color: #fafbfc !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transform: translateY(-1px);
+}
+
+/* Hover nas pílulas de período */
+.ppt-period-pill:hover {
+    border-color: rgba(226, 6, 19, 0.3) !important;
+    color: #E20613 !important;
+    background-color: rgba(226, 6, 19, 0.03) !important;
+}
+
+/* Botão Cancelar hover */
+.modal-minimal-btn-cancel:hover {
+    border-color: #94a3b8 !important;
+    color: #1e293b !important;
+    background-color: #f8fafc !important;
+}
+
+/* Botão Gerar hover (quando habilitado) */
+.modal-minimal-btn-confirm:not(:disabled):hover {
+    opacity: 1 !important;
+    box-shadow: 0 4px 16px -2px rgba(226, 6, 19, 0.4) !important;
+    transform: translateY(-1px);
+}
+
+/* Botão Gerar quando habilitado */
+.modal-minimal-btn-confirm:not(:disabled) {
+    opacity: 1 !important;
+}
+
+/* Dropdown do modal premium — Branding Edenred */
+.modal-premium-dropdown .Select-control {
+    border-radius: 10px !important;
+    border: 1px solid #e2e8f0 !important;
+    transition: all 0.2s ease;
+    min-height: 42px !important;
+}
+
+.modal-premium-dropdown .Select-control:hover {
+    border-color: #E20613 !important;
+    box-shadow: 0 0 0 2px rgba(226, 6, 19, 0.06);
+}
+
+/* Menu dropdown: altura limitada + scroll suave */
+.modal-premium-dropdown .Select-menu-outer {
+    border-radius: 10px !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.1) !important;
+    margin-top: 4px !important;
+    overflow: hidden;
+}
+
+.modal-premium-dropdown .Select-menu {
+    max-height: 200px !important;
+    overflow-y: auto !important;
+}
+
+/* Itens do dropdown — espaçamento e hover */
+.modal-premium-dropdown .VirtualizedSelectOption {
+    padding: 10px 14px !important;
+    font-size: 0.82rem !important;
+    color: #334155 !important;
+    border-bottom: 1px solid #f8fafc;
+    transition: all 0.15s ease;
+    cursor: pointer !important;
+}
+
+.modal-premium-dropdown .VirtualizedSelectOption:hover,
+.modal-premium-dropdown .VirtualizedSelectFocusedOption {
+    background-color: rgba(226, 6, 19, 0.04) !important;
+    color: #E20613 !important;
+}
+
+/* Item selecionado */
+.modal-premium-dropdown .Select-value-label {
+    font-size: 0.85rem !important;
+    color: #1e293b !important;
+    font-weight: 500 !important;
+}
+
+/* Placeholder */
+.modal-premium-dropdown .Select-placeholder {
+    font-size: 0.85rem !important;
+    color: #94a3b8 !important;
+}
+
+/* Seta do dropdown */
+.modal-premium-dropdown .Select-arrow-zone {
+    padding-right: 12px !important;
+}
+
+/* Focus state */
+.modal-premium-dropdown.is-focused .Select-control {
+    border-color: #E20613 !important;
+    box-shadow: 0 0 0 3px rgba(226, 6, 19, 0.08) !important;
 }
 
 /* -- 3D Slide Builder Overlay (Premium Clean Edition) -- */
