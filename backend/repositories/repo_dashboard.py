@@ -75,11 +75,7 @@ def get_ri_evolution_data(filters: dict = None):
                     try:
                         year, month = p.split("-")
                         period_clauses_prev.append(f"(year(data_transacao) = {year} AND month(data_transacao) = {month})")
-<<<<<<< Updated upstream
-                    except:
-=======
                     except Exception:
->>>>>>> Stashed changes
                         pass
                 if period_clauses_prev:
                     where_conditions_prev.append(f"({' OR '.join(period_clauses_prev)})")
@@ -172,28 +168,6 @@ def get_ri_evolution_data(filters: dict = None):
         ORDER BY 1
         """
         
-<<<<<<< Updated upstream
-        # SILENT ORDER: OS com aprovação automática (sem aprovador humano)
-        # Critério: nome_aprovador IS NULL, vazio ou 'NAO INFORMADO'
-        # Validado: FLUA Fev/26 = 17/499 = 3.41% (alinhado com PBI)
-        query_so_corr = f"""
-        SELECT mes_ref, COUNT(*) as so_count_corr
-        FROM (
-            SELECT 
-                date_trunc('{date_trunc_interval}', c.data_transacao) as mes_ref,
-                c.numero_os,
-                SUM(CASE 
-                    WHEN nome_aprovador IS NOT NULL 
-                     AND TRIM(nome_aprovador) != '' 
-                     AND UPPER(TRIM(nome_aprovador)) NOT IN ('NAO INFORMADO', 'NÃO INFORMADO')
-                    THEN 1 ELSE 0 
-                END) as itens_com_aprovador
-            FROM ri_corretiva_detalhamento c
-            WHERE {where_corr}
-            GROUP BY 1, 2
-            HAVING itens_com_aprovador = 0
-        ) silent_os
-=======
         # SILENT ORDER: OS com aprovação automática (sem intervenção humana)
         # FIX 2026-03-23: Migrado de mensagem_log → aprovacao_automatica_os
         # Campo booleano vindo de fs.IsAutomaticApproval (Databricks, nível OS)
@@ -205,35 +179,15 @@ def get_ri_evolution_data(filters: dict = None):
             COUNT(DISTINCT CASE WHEN COALESCE(c.aprovacao_automatica_os, false) = true THEN c.numero_os END) as so_count_corr
         FROM ri_corretiva_detalhamento c
         WHERE {where_corr}
->>>>>>> Stashed changes
         GROUP BY 1
         """
         
         query_so_prev = f"""
-<<<<<<< Updated upstream
-        SELECT mes_ref, COUNT(*) as so_count_prev
-        FROM (
-            SELECT 
-                date_trunc('{date_trunc_interval}', data_transacao) as mes_ref,
-                numero_os,
-                SUM(CASE 
-                    WHEN nome_aprovador IS NOT NULL 
-                     AND TRIM(nome_aprovador) != '' 
-                     AND UPPER(TRIM(nome_aprovador)) NOT IN ('NAO INFORMADO', 'NÃO INFORMADO')
-                    THEN 1 ELSE 0 
-                END) as itens_com_aprovador
-            FROM ri_preventiva_detalhamento
-            WHERE {where_prev}
-            GROUP BY 1, 2
-            HAVING itens_com_aprovador = 0
-        ) silent_os
-=======
         SELECT 
             date_trunc('{date_trunc_interval}', data_transacao) as mes_ref,
             COUNT(DISTINCT CASE WHEN COALESCE(aprovacao_automatica_os, false) = true THEN numero_os END) as so_count_prev
         FROM ri_preventiva_detalhamento
         WHERE {where_prev}
->>>>>>> Stashed changes
         GROUP BY 1
         """
         
@@ -277,14 +231,6 @@ def get_ri_evolution_data(filters: dict = None):
             print(f"[REPOSITORY WARNING] Could not fetch total OS count: {e}")
             df_total_os = pd.DataFrame(columns=['mes_ref', 'total_os_distinct'])
         
-<<<<<<< Updated upstream
-        # Silent Order queries
-        try:
-            df_so_corr = conn.execute(query_so_corr).fetchdf()
-        except Exception as e:
-            print(f"[REPOSITORY WARNING] Could not fetch SO corretiva: {e}")
-            df_so_corr = pd.DataFrame(columns=['mes_ref', 'so_count_corr'])
-=======
         # Silent Order queries (com fallback para query legada pré-resync)
         try:
             df_so_corr = conn.execute(query_so_corr).fetchdf()
@@ -305,15 +251,10 @@ def get_ri_evolution_data(filters: dict = None):
                 df_so_corr = conn.execute(fallback_so_corr).fetchdf()
             except Exception:
                 df_so_corr = pd.DataFrame(columns=['mes_ref', 'so_count_corr'])
->>>>>>> Stashed changes
         
         try:
             df_so_prev = conn.execute(query_so_prev).fetchdf()
         except Exception as e:
-<<<<<<< Updated upstream
-            print(f"[REPOSITORY WARNING] Could not fetch SO preventiva: {e}")
-            df_so_prev = pd.DataFrame(columns=['mes_ref', 'so_count_prev'])        
-=======
             print(f"[REPOSITORY WARNING] SO preventiva (novo campo) falhou, usando fallback mensagem_log: {e}")
             try:
                 fallback_so_prev = f"""
@@ -329,8 +270,7 @@ def get_ri_evolution_data(filters: dict = None):
                 """
                 df_so_prev = conn.execute(fallback_so_prev).fetchdf()
             except Exception:
-                df_so_prev = pd.DataFrame(columns=['mes_ref', 'so_count_prev'])        
->>>>>>> Stashed changes
+                df_so_prev = pd.DataFrame(columns=['mes_ref', 'so_count_prev'])
         # 3. Merge in Pandas (Outer Join on Month)
         if df_corr.empty and df_prev.empty:
             return pd.DataFrame()
@@ -651,17 +591,10 @@ def get_ri_evolution_30d(filters: dict = None):
         
         df_corr = conn.execute(query_corr).fetchdf()
         try: df_pricing_corr = conn.execute(query_pricing_corr).fetchdf()
-<<<<<<< Updated upstream
-        except: df_pricing_corr = pd.DataFrame(columns=['mes_ref', 'sum_economia_pricing'])
-        
-        try: df_pricing_prev = conn.execute(query_pricing_prev).fetchdf()
-        except: df_pricing_prev = pd.DataFrame(columns=['mes_ref', 'sum_economia_pricing_prev'])
-=======
         except Exception: df_pricing_corr = pd.DataFrame(columns=['mes_ref', 'sum_economia_pricing'])
         
         try: df_pricing_prev = conn.execute(query_pricing_prev).fetchdf()
         except Exception: df_pricing_prev = pd.DataFrame(columns=['mes_ref', 'sum_economia_pricing_prev'])
->>>>>>> Stashed changes
         
         df_prev = conn.execute(query_prev).fetchdf()
         
@@ -725,11 +658,7 @@ def get_top_ofensores_30d(filters: dict = None, limite=3):
     """
     try:
         conn = get_readonly_connection()
-<<<<<<< Updated upstream
-    except:
-=======
     except Exception:
->>>>>>> Stashed changes
         return []
 
     if conn is None: return []
@@ -837,11 +766,7 @@ def get_top_silent_order_30d(filters: dict = None, limite=3):
     """
     try:
         conn = get_readonly_connection()
-<<<<<<< Updated upstream
-    except:
-=======
     except Exception:
->>>>>>> Stashed changes
         return []
 
     if conn is None:
@@ -861,36 +786,6 @@ def get_top_silent_order_30d(filters: dict = None, limite=3):
         where_clause = " AND ".join(where_conditions)
 
         query = f"""
-<<<<<<< Updated upstream
-        WITH os_details AS (
-            SELECT
-                c.nome_estabelecimento,
-                c.numero_os,
-                SUM(CASE
-                    WHEN nome_aprovador IS NOT NULL
-                     AND TRIM(nome_aprovador) != ''
-                     AND UPPER(TRIM(nome_aprovador)) NOT IN ('NAO INFORMADO', 'NÃO INFORMADO')
-                    THEN 1 ELSE 0
-                END) as itens_com_aprovador
-            FROM ri_corretiva_detalhamento c
-            WHERE {where_clause}
-              AND c.nome_estabelecimento IS NOT NULL
-              AND TRIM(c.nome_estabelecimento) != ''
-            GROUP BY 1, 2
-        )
-        SELECT
-            nome_estabelecimento,
-            COUNT(*) as total_os,
-            SUM(CASE WHEN itens_com_aprovador = 0 THEN 1 ELSE 0 END) as so_count
-        FROM os_details
-        GROUP BY 1
-        HAVING COUNT(*) >= 5
-        ORDER BY so_count DESC, (so_count::FLOAT / total_os) DESC
-        LIMIT {limite}
-        """
-
-        df = conn.execute(query).fetchdf()
-=======
         SELECT
             c.nome_estabelecimento,
             COUNT(DISTINCT c.numero_os) as total_os,
@@ -925,7 +820,6 @@ def get_top_silent_order_30d(filters: dict = None, limite=3):
             ORDER BY so_count DESC, (so_count::FLOAT / total_os) DESC LIMIT {limite}
             """
             df = conn.execute(query_fallback).fetchdf()
->>>>>>> Stashed changes
         if df.empty:
             return []
 
