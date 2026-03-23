@@ -1,5 +1,4 @@
 # Agent & System Metadata
-.agent/
 .vscode/
 .databricks/
 .pytest_cache/
@@ -39,7 +38,6 @@ venv/
 uploads/
 
 # Project docs (local only)
-AGENTS.md
 assets/_icon_backups/
 
 # Temp files
