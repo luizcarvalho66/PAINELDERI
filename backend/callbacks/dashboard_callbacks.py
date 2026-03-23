@@ -207,10 +207,15 @@ def register_dashboard_callbacks(app):
         avg_ri_prev = df['ri_preventiva'].mean() * 100
         avg_ri_corr = df['ri_corretiva'].mean() * 100
         
-        # SO Metrics (quando modo = 'so')
-        avg_so_geral = df['so_geral'].mean() * 100 if 'so_geral' in df.columns else 0
-        avg_so_prev = df['so_preventiva'].mean() * 100 if 'so_preventiva' in df.columns else 0
-        avg_so_corr = df['so_corretiva'].mean() * 100 if 'so_corretiva' in df.columns else 0
+        # SO Metrics — TAXA GLOBAL (sum SO / sum OS), alinhado com TGM bignumbers
+        # FIX 2026-03-23: Migrado de .mean() (média de médias mensais) para taxa global
+        _so_corr_sum = df['so_count_corr'].sum() if 'so_count_corr' in df.columns else 0
+        _so_prev_sum = df['so_count_prev'].sum() if 'so_count_prev' in df.columns else 0
+        _tot_corr = df['total_corr'].sum() if 'total_corr' in df.columns else 0
+        _tot_prev = df['total_prev'].sum() if 'total_prev' in df.columns else 0
+        avg_so_geral = ((_so_corr_sum + _so_prev_sum) / (_tot_corr + _tot_prev) * 100) if (_tot_corr + _tot_prev) > 0 else 0
+        avg_so_prev = (_so_prev_sum / _tot_prev * 100) if _tot_prev > 0 else 0
+        avg_so_corr = (_so_corr_sum / _tot_corr * 100) if _tot_corr > 0 else 0
         
         # Selecionar métricas conforme modo
         is_so_mode = (ri_mode == 'so')
