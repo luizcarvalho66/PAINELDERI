@@ -406,6 +406,7 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
             fs.MileageNumber,
             fs.MaintenanceTypeCode,
             fs.ManagerReport,
+            COALESCE(fs.IsAutomaticApproval, false) as IsAutomaticApproval,
             cast(fc.CustomerSourceCode as string) as codigo_cliente,
             cast(fc.CustomerSourceCode as string) as codigo_tgm,
             COALESCE(fc.CustomerShortName, CONCAT('Cliente ', cast(fc.CustomerSourceCode as string))) as nome_cliente
@@ -461,14 +462,16 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
         b.TransactionTimestamp as data_criacao_os,
         b.ApprovalTimestamp as data_aprovacao_os,
         
-        COALESCE(wu.WebUserName, 'Não Informado') as nome_aprovador,
-        COALESCE(wu.WebUserFullName, 'Não Informado') as nome_aprovador_completo,
+        COALESCE(wu.WebUserName, 'SISTEMA (Automático)') as nome_aprovador,
+        COALESCE(wu.WebUserFullName, 'SISTEMA (Automático)') as nome_aprovador_completo,
+        COALESCE(wu.IsInternalUser, false) as is_internal_user,
         
         COALESCE(cast(ml.LaborName as string), 'SEM MO') as tipo_mo,
         try_cast(b.MileageNumber as double) as hodometro,
         COALESCE(sah.ApprovalHistoryName, b.ManagerReport, 'Aprovação Automática') as mensagem_log,
         COALESCE(sah.DetailName, '') as detalhe_regulacao,
-        COALESCE(b.WasPartApproved, false) as peca_aprovada
+        COALESCE(b.WasPartApproved, false) as peca_aprovada,
+        b.IsAutomaticApproval as aprovacao_automatica_os
         
     FROM base b
     LEFT JOIN hive_metastore.gold.dim_vehicle v 
