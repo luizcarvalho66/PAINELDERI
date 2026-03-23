@@ -1,0 +1,39 @@
+# ============================================================
+# Databricks Apps Configuration — Painel RI Edenred
+# ============================================================
+# SEGURANÇA: Este arquivo NÃO contém credenciais.
+# Em produção, o Databricks Apps injeta automaticamente:
+#   - DATABRICKS_HOST
+#   - DATABRICKS_CLIENT_ID / CLIENT_SECRET (via Service Principal)
+#   - DATABRICKS_TOKEN
+# Essas vars ficam no .env (local, gitignored) ou no Databricks UI.
+# ============================================================
+
+command:
+  - "gunicorn"
+  - "app:server"
+  - "--bind"
+  - "0.0.0.0:8080"
+  - "--workers"
+  - "1"
+  - "--timeout"
+  - "120"
+
+env:
+  - name: DASH_DEBUG
+    value: "False"
+  - name: DASH_SERVER_ADDRESS
+    value: "0.0.0.0"
+  - name: DASH_SERVER_PORT
+    value: "8080"
+
+# ============================================================
+# ⚠️ VARIÁVEIS SENSÍVEIS — configurar na UI do Databricks Apps
+# (Apps > paineilri > Settings > Environment Variables)
+# Elas ficam CRIPTOGRAFADAS no Databricks, não expostas no GitHub.
+# ============================================================
+# - ADMIN_RESET_PASSWORD  → Senha do reset de banco (sidebar)
+# - DATABRICKS_HOST       → Injetado automaticamente pelo Service Principal
+# - DATABRICKS_CLIENT_ID  → Injetado automaticamente pelo Service Principal
+# - DATABRICKS_CLIENT_SECRET → Injetado automaticamente pelo Service Principal
+# ============================================================

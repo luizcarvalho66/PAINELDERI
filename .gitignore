@@ -31,7 +31,8 @@ __pycache__/
 *.py[cod]
 .env
 .env*
-app.yaml
+# app.yaml — NÃO ignorar! Necessário para Databricks Apps.
+# Filtragem de deploy feita pelo .databricksignore
 venv/
 
 # Uploads
