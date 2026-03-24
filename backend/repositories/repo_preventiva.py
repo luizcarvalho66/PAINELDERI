@@ -228,7 +228,7 @@ def _has_column(conn, table, column):
             f"SELECT column_name FROM information_schema.columns WHERE table_name='{table}' AND column_name='{column}'"
         ).fetchone()
         return result is not None
-    except:
+    except Exception:
         return False
 
 
@@ -506,7 +506,7 @@ def get_fugas_stats(filters=None, date_start=None, date_end=None, tipo_ativo="VE
                 try:
                     y, m = p.split('-')
                     period_clauses.append(f"(YEAR(data_transacao) = {y} AND MONTH(data_transacao) = {m})")
-                except:
+                except Exception:
                     pass
             if period_clauses:
                 filter_sql += f" AND ({' OR '.join(period_clauses)})"
