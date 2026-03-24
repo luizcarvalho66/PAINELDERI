@@ -131,9 +131,9 @@ def check_new_data():
                 ).fetchone()
                 if row and row[0]:
                     local_max_date = str(row[0])[:10]  # YYYY-MM-DD
-            except:
+            except Exception:
                 pass
-        except:
+        except Exception:
             pass
 
         # Conectar ao Databricks (OAuth U2M — abre browser se necessário)
@@ -150,7 +150,7 @@ def check_new_data():
             ON fi.Sk_MaintenanceServices = fs.Sk_MaintenanceServices
         INNER JOIN hive_metastore.gold.dim_fuelcustomers fc
             ON fs.Sk_FuelCustomer = fc.Sk_FuelCustomer
-        WHERE fi.TransactionTimestamp >= date_add(current_date(), -150)
+        WHERE CAST(fi.TransactionTimestamp AS DATE) >= date_add(current_date(), -150)
           AND fc.CustomerSourceCode IN ({client_ids})
         """
         cursor.execute(query_max)
@@ -170,8 +170,8 @@ def check_new_data():
                     ON fi.Sk_MaintenanceServices = fs.Sk_MaintenanceServices
                 INNER JOIN hive_metastore.gold.dim_fuelcustomers fc
                     ON fs.Sk_FuelCustomer = fc.Sk_FuelCustomer
-                WHERE fi.TransactionTimestamp > '{local_max_date}'
-                  AND fi.TransactionTimestamp >= date_add(current_date(), -150)
+                WHERE CAST(fi.TransactionTimestamp AS DATE) > '{local_max_date}'
+                  AND CAST(fi.TransactionTimestamp AS DATE) >= date_add(current_date(), -150)
                   AND fc.CustomerSourceCode IN ({client_ids})
                 """
                 cursor2.execute(query_count)
@@ -233,7 +233,7 @@ def _close_cached_conn():
     if _cached_conn:
         try:
             _cached_conn.close()
-        except:
+        except Exception:
             pass
     _cached_conn = None
     _conn_created_at = None
@@ -366,14 +366,14 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
     - INCREMENTAL: watermark → busca dados mais recentes que watermark
     """
     if watermark:
-        # Incremental: apenas dados novos (FIX 2026-03-05: fi.TransactionTimestamp)
-        date_filter = f"fi.TransactionTimestamp > '{watermark}'"
+        # Incremental: apenas dados novos (FIX 2026-03-06: CAST AS DATE para match exato)
+        date_filter = f"CAST(fi.TransactionTimestamp AS DATE) > '{watermark}'"
     elif date_from and date_to:
         # Gap fill: intervalo específico de datas faltantes
-        date_filter = f"fi.TransactionTimestamp >= '{date_from}' AND fi.TransactionTimestamp < '{date_to}'"
+        date_filter = f"CAST(fi.TransactionTimestamp AS DATE) >= '{date_from}' AND CAST(fi.TransactionTimestamp AS DATE) < '{date_to}'"
     else:
         # Full load: últimos {days} dias
-        date_filter = f"fi.TransactionTimestamp >= date_add(current_date(), -{days})"
+        date_filter = f"CAST(fi.TransactionTimestamp AS DATE) >= date_add(current_date(), -{days})"
     
     client_ids = ", ".join([str(x) for x in TGM_CLIENT_IDS])
     
@@ -656,7 +656,7 @@ def sync_all_data(days=150):
             cursor_db.close()
             # NÃO fechamos conn_db pois estamos usando cache (singleton) 
             # e ele poderá ser reusado nos próximos minutos.
-        except:
+        except Exception:
             pass
         
         # Concatenar todos os resultados
@@ -702,7 +702,7 @@ def sync_all_data(days=150):
             set_maintenance_mode(True)
         except ImportError:
             try: close_connection() 
-            except: pass
+            except Exception: pass
             
         time.sleep(1)
         conn_local = get_connection(read_only=False)
@@ -739,7 +739,7 @@ def sync_all_data(days=150):
                             try:
                                 desc = conn_local.execute(f"DESCRIBE {stg}").fetchall()
                                 stg_types = {r[0]: r[1] for r in desc}
-                            except:
+                            except Exception:
                                 # Fallback: inferir do pandas dtype
                                 for col in missing:
                                     dtype = str(stg_df[col].dtype)
@@ -870,7 +870,7 @@ def sync_all_data(days=150):
         try:
             from database import set_maintenance_mode
             set_maintenance_mode(False)
-        except:
+        except Exception:
             pass
         
     return results
