@@ -396,18 +396,25 @@ def render_reports_section():
                     style={"display": "none"}  # Controlado via callback
                 ),
 
-                    # PPT — ATIVO
-                    _build_report_card(
-                        variant="ppt",
-                        icon_name="vscode-icons:file-type-powerpoint",
-                        title="Apresentação Executiva",
-                        description="Relatório visual com KPIs, gráficos comparativos e farol de regulação.",
-                        button_label="Gerar .PPTX",
-                        button_icon="ph:file-ppt-light",
-                        enabled=True,
-                        btn_id="btn-export-ppt",
-                        accent_color="#E20613",
-                    ),
+                    # PPT — ATIVO (com Badge BETA)
+                    html.Div([
+                        # Badge BETA flutuante
+                        html.Span(
+                            [html.I(className="bi bi-stars me-1"), "BETA"],
+                            className="report-beta-badge"
+                        ),
+                        _build_report_card(
+                            variant="ppt",
+                            icon_name="vscode-icons:file-type-powerpoint",
+                            title="Apresentação Executiva",
+                            description="Relatório visual com KPIs, gráficos comparativos e farol de regulação.",
+                            button_label="Gerar .PPTX",
+                            button_icon="ph:file-ppt-light",
+                            enabled=True,
+                            btn_id="btn-export-ppt",
+                            accent_color="#E20613",
+                        ),
+                    ], style={"position": "relative"}),
                     # Excel — EM BREVE
                     _build_report_card(
                         variant="excel",
