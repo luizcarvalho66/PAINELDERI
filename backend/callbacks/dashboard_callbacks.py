@@ -193,13 +193,7 @@ def register_dashboard_callbacks(app):
         # 2. RI Geral
         ri_geral_avg = df['ri_geral'].mean() * 100
         
-        # 3. Economia Real (Atualizado para Pricing Engine)
-        # Corretiva usa a economia_calculada; Preventiva usa delta simples
-        econ_corr = df['sum_economia_pricing'].sum() if 'sum_economia_pricing' in df.columns else 0
-        econ_prev = (df['sum_total_prev'] - df['sum_aprovado_prev']).clip(lower=0).sum()
-        economia_real = econ_corr + econ_prev
-        
-        # 4. Comparativo Metrics
+        # 3. Comparativo Metrics
         total_prev = int(df['qtd_prev'].sum())
         total_corr = int(df['qtd_corr'].sum())
         ratio_prev_corr = (total_prev / (total_corr + total_prev) * 100) if (total_corr + total_prev) > 0 else 0
@@ -224,7 +218,7 @@ def register_dashboard_callbacks(app):
         display_corr = avg_so_corr if is_so_mode else avg_ri_corr
         mode_label = "SO" if is_so_mode else "RI"
         
-        # 5. Cálculo de Tendências (comparando último vs penúltimo mês)
+        # 4. Cálculo de Tendências (comparando último vs penúltimo mês)
         trend_ri_geral = None
         trend_ri_prev = None
         trend_ri_corr = None
@@ -279,24 +273,16 @@ def register_dashboard_callbacks(app):
 
         # --- Construir RETORNO separado: (KPIs, Charts) ---
         
-        # KPIs ribbon
+        # KPIs ribbon (5 cards)
         kpis_section = html.Div([
             dbc.Row([
-                # Group 1: Volumetria & Financeiro
+                # Group 1: Volumetria
                 dbc.Col(render_kpi_card(
                     "Análise Total", 
                     _fmt_br(total_analisado), 
                     "Ordens processadas", 
                     "bi-layers", 
                     "text-primary"
-                ), width=12, sm=6, md=6, lg=4, xl=2),
-                
-                dbc.Col(render_kpi_card(
-                    "Economia Real", 
-                    f"R$ {_fmt_br(economia_real/1000000, 1)}M", 
-                    "Valor economizado", 
-                    "bi-cash-stack", 
-                    "text-success"
                 ), width=12, sm=6, md=6, lg=4, xl=2),
                 
                 dbc.Col(render_kpi_card(
@@ -381,27 +367,35 @@ def register_dashboard_callbacks(app):
                         ),
                         dbc.PopoverBody([
                             html.P([
-                                html.Strong("RI Geral"), " é um ", html.Strong("percentual"), 
-                                " — a proporção de economia sobre o total solicitado."
+                                html.Strong("Silent Order (SO)"), " é o ", html.Strong("percentual"),
+                                " de Ordens de Serviço aprovadas automaticamente, sem intervenção de um analista."
                             ], style={"fontSize": "13px", "marginBottom": "8px"}),
                             html.Div([
-                                html.Span("📊 ", style={"fontSize": "14px"}),
-                                html.Span("Exemplo: ", style={"fontWeight": "600", "fontSize": "12px"}),
+                                html.I(className="bi bi-clipboard2-check me-2", style={"color": "#10b981", "fontSize": "14px"}),
+                                html.Span("Definição: ", style={"fontWeight": "600", "fontSize": "12px"}),
                             ]),
                             html.P(
-                                "Se em 5 dias o workshop cobrou R$ 100 e economizamos R$ 35, "
-                                "o RI = 35%. Em 30 dias, cobraria R$ 600 e economizaríamos R$ 210 — "
-                                "ainda 35%. O percentual não muda com mais dias.",
+                                "Uma OS é considerada Silent Order quando nenhum de seus itens "
+                                "possui aprovador humano registrado (nome_aprovador é nulo ou 'NÃO INFORMADO'). "
+                                "Quanto menor o SO, mais o time de RI está atuando.",
                                 style={"fontSize": "12px", "color": "#64748b", "marginBottom": "10px",
-                                       "borderLeft": "3px solid #E20613", "paddingLeft": "8px",
-                                       "backgroundColor": "rgba(226,6,19,0.03)", "padding": "8px",
+                                       "borderLeft": "3px solid #10b981", "paddingLeft": "8px",
+                                       "backgroundColor": "rgba(16,185,129,0.03)", "padding": "8px",
                                        "borderRadius": "4px"}
                             ),
+                            html.P([
+                                html.I(className="bi bi-graph-up me-1", style={"color": "#E20613", "fontSize": "11px"}),
+                                html.Span(
+                                    "A Análise Financeira (RI monetário) estará disponível em breve "
+                                    "com métricas de economia e pricing.",
+                                    style={"fontSize": "12px", "color": "#64748b"}
+                                ),
+                            ], style={"marginBottom": "6px"}),
                             html.P([
                                 html.I(className="bi bi-exclamation-triangle-fill me-1", style={"color": "#f59e0b", "fontSize": "11px"}),
                                 html.Span(
                                     "Meses marcados como (parcial) têm menos dados. "
-                                    "O volume (R$, OS) será menor, mas o % de RI permanece representativo.",
+                                    "O volume de OS será menor, mas o % de SO permanece representativo.",
                                     style={"fontSize": "12px", "color": "#64748b"}
                                 ),
                             ], style={"marginBottom": "0"}),

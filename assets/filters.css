@@ -319,6 +319,203 @@
 }
 
 /* ==========================================================================
+   DATEPICKERRANGE — Calendário Premium Edenred
+   ========================================================================== */
+
+/* Container do DatePickerRange na barra de filtros */
+.filter-inline-group--calendar {
+    min-width: 280px;
+}
+
+.filter-datepicker-range {
+    font-family: 'Ubuntu', sans-serif !important;
+}
+
+/* Inputs de data (start / end) */
+.filter-datepicker-range .DateInput {
+    width: 120px !important;
+    background: transparent !important;
+}
+
+.filter-datepicker-range .DateInput_input {
+    font-family: 'Ubuntu', sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: #1e293b !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 10px !important;
+    padding: 7px 10px !important;
+    line-height: 1.4 !important;
+    transition: all 0.2s ease !important;
+    text-align: center !important;
+}
+
+.filter-datepicker-range .DateInput_input::placeholder {
+    color: #94a3b8 !important;
+    font-weight: 400 !important;
+    font-size: 12px !important;
+}
+
+.filter-datepicker-range .DateInput_input__focused {
+    border-color: #E20613 !important;
+    box-shadow: 0 0 0 3px rgba(226, 6, 19, 0.08) !important;
+    outline: none !important;
+}
+
+/* Seta entre datas */
+.filter-datepicker-range .DateRangePickerInput_arrow {
+    padding: 0 6px !important;
+    color: #cbd5e1 !important;
+}
+
+.filter-datepicker-range .DateRangePickerInput_arrow svg {
+    fill: #cbd5e1 !important;
+    width: 16px !important;
+    height: 16px !important;
+}
+
+/* Container do input */
+.filter-datepicker-range .DateRangePickerInput {
+    background: transparent !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* Botão clear (X) */
+.filter-datepicker-range .DateRangePickerInput_clearDates {
+    padding: 4px !important;
+    margin: 0 0 0 4px !important;
+}
+
+.filter-datepicker-range .DateRangePickerInput_clearDates svg {
+    fill: #94a3b8 !important;
+    width: 12px !important;
+    height: 12px !important;
+}
+
+.filter-datepicker-range .DateRangePickerInput_clearDates:hover svg {
+    fill: #E20613 !important;
+}
+
+/* ─── Popup do Calendário ─── */
+.DateRangePicker_picker {
+    z-index: 9999 !important;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.14), 0 4px 12px rgba(0, 0, 0, 0.06) !important;
+    border-radius: 16px !important;
+    border: 1px solid #e2e8f0 !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+}
+
+/* Headers do mês */
+.CalendarMonth_caption {
+    font-family: 'Ubuntu', sans-serif !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #1e293b !important;
+    padding-bottom: 35px !important; /* Aumentar para empurrar o header para baixo */
+}
+
+/* Tabela de dias - empurrar para baixo do WeekHeader */
+.CalendarMonth_table {
+    margin-top: 10px !important;
+}
+
+/* Header dos dias da semana (MO, TU...) */
+.DayPicker_weekHeader {
+    color: #94a3b8 !important;
+    top: 50px !important; /* Ajustar a posição vertical do texto dos dias da semana */
+}
+
+/* Setas de navegação */
+.DayPickerNavigation_button {
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    padding: 6px !important;
+    transition: all 0.15s ease !important;
+}
+
+.DayPickerNavigation_button:hover {
+    border-color: #E20613 !important;
+    background: rgba(226, 6, 19, 0.04) !important;
+}
+
+.DayPickerNavigation_button svg {
+    fill: #64748b !important;
+}
+
+/* Dias normais */
+.CalendarDay__default {
+    border: none !important;
+    border-radius: 8px !important;
+    font-family: 'Ubuntu', sans-serif !important;
+    font-size: 13px !important;
+    color: #334155 !important;
+    transition: all 0.1s ease !important;
+}
+
+.CalendarDay__default:hover {
+    background: rgba(226, 6, 19, 0.06) !important;
+    color: #E20613 !important;
+    border: none !important;
+}
+
+/* Dia selecionado (start/end) */
+.CalendarDay__selected,
+.CalendarDay__selected:active,
+.CalendarDay__selected:hover {
+    background: #E20613 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+}
+
+/* Range entre datas */
+.CalendarDay__selected_span {
+    background: rgba(226, 6, 19, 0.08) !important;
+    color: #c00510 !important;
+    border: none !important;
+}
+
+.CalendarDay__selected_span:hover {
+    background: rgba(226, 6, 19, 0.14) !important;
+    color: #E20613 !important;
+    border: none !important;
+}
+
+/* Hovered span (enquanto arrasta) */
+.CalendarDay__hovered_span,
+.CalendarDay__hovered_span:hover {
+    background: rgba(226, 6, 19, 0.06) !important;
+    color: #E20613 !important;
+    border: none !important;
+}
+
+/* Dias bloqueados (fora do range) */
+.CalendarDay__blocked_out_of_range {
+    color: #d1d5db !important;
+    background: transparent !important;
+}
+
+/* Hoje */
+.CalendarDay__today {
+    font-weight: 700 !important;
+    position: relative;
+}
+
+/* Dias da semana (header) */
+.DayPicker_weekHeader_li small {
+    font-family: 'Ubuntu', sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: #94a3b8 !important;
+    text-transform: uppercase !important;
+}
+
+/* ==========================================================================
    RESPONSIVE
    ========================================================================== */
 

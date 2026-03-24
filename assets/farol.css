@@ -318,6 +318,34 @@
   font-weight: 700;
 }
 
+/* Disabled state — Análise Financeira "Em breve" */
+.premium-toggle-btn.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+.premium-toggle-btn.disabled:hover {
+  background: transparent;
+  color: #64748b;
+}
+
+/* Badge "Em breve" — pill cinza sutil */
+.badge-coming-soon {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #94a3b8, #64748b);
+  color: white;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
 /* Override para o toggle dentro do CardHeader de Visão Geral */
 #granularity-header {
   position: relative;

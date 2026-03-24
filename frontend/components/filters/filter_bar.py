@@ -1,9 +1,11 @@
 """
 Barra de Filtros Unificada - RI Dashboard
 Design profissional e compacto — Apple Glass aesthetic
+DatePickerRange para período (calendário interativo)
 """
 from dash import html, dcc
 import dash_bootstrap_components as dbc
+from datetime import date, timedelta
 
 
 def render_filter_bar():
@@ -11,8 +13,13 @@ def render_filter_bar():
     Renderiza uma barra de filtros horizontal unificada.
     Todos os filtros afetam TODOS os gráficos do dashboard.
     
-    Layout: [🔍 Filtros] |  [Período ▾]  [Cliente ▾]  | [Aplicar] [✕]
+    Layout: [🔍 Filtros] |  [📅 Período (calendar)]  [Cliente ▾]  | [Aplicar] [✕]
     """
+    # Defaults: últimos 5 meses completos
+    today = date.today()
+    default_end = today
+    default_start = (today - timedelta(days=150)).replace(day=1)  # Sempre dia 1 do mês
+
     return html.Div([
         # Container principal
         html.Div([
@@ -26,20 +33,24 @@ def render_filter_bar():
             
             # Grid de filtros
             html.Div([
-                # 1. Período (Mês)
+                # 1. Período (DatePickerRange — calendário interativo)
                 html.Div([
                     html.Label([
                         html.I(className="bi bi-calendar3 me-1"),
                         "Período"
                     ], className="filter-inline-label"),
-                    dcc.Dropdown(
-                        id="global-filter-periodo",
-                        placeholder="Todos os meses",
-                        multi=True,
-                        searchable=True,
-                        className="filter-inline-dropdown"
+                    dcc.DatePickerRange(
+                        id="global-filter-periodo-range",
+                        display_format="DD/MM/YYYY",
+                        first_day_of_week=1,  # Segunda-feira
+                        start_date_placeholder_text="Data início",
+                        end_date_placeholder_text="Data fim",
+                        min_date_allowed=default_start,
+                        max_date_allowed=default_end,
+                        clearable=True,
+                        className="filter-datepicker-range",
                     )
-                ], className="filter-inline-group"),
+                ], className="filter-inline-group filter-inline-group--calendar"),
                 
                 # Separador vertical sutil
                 html.Div(className="filter-separator"),

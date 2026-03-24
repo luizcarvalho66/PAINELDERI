@@ -524,6 +524,7 @@ def render_drill_down_content(df, cor_farol="amarelo", chave_nome=""):
         # Tipo de aprovação: Automática ou Humana (via mensagem_log)
         is_auto = row.get("aprovacao_automatica", False) == True
         aprovador = str(row.get("aprovador", "")) if row.get("aprovador") else ""
+        is_internal = row.get("is_internal_user", False) == True
         
         if is_auto:
             aprov_badge = html.Span([
@@ -533,6 +534,25 @@ def render_drill_down_content(df, cor_farol="amarelo", chave_nome=""):
             aprov_children = [html.I(className="bi bi-person me-1"), "Humana"]
             if aprovador:
                 aprov_children.append(html.Span(f" · {aprovador}", style={"fontWeight": "500", "fontSize": "0.72rem"}))
+            # Pill Interno/Externo
+            if is_internal:
+                aprov_children.append(html.Span([
+                    html.I(className="bi bi-building", style={"fontSize": "0.55rem", "marginRight": "2px"}),
+                    "Int"
+                ], className="badge rounded-pill ms-1", style={
+                    "backgroundColor": "rgba(59,130,246,0.1)", "color": "#2563EB",
+                    "fontSize": "0.6rem", "fontWeight": "600", "padding": "2px 5px",
+                    "verticalAlign": "middle"
+                }))
+            elif aprovador:
+                aprov_children.append(html.Span([
+                    html.I(className="bi bi-person-badge", style={"fontSize": "0.55rem", "marginRight": "2px"}),
+                    "Ext"
+                ], className="badge rounded-pill ms-1", style={
+                    "backgroundColor": "rgba(100,116,139,0.1)", "color": "#64748B",
+                    "fontSize": "0.6rem", "fontWeight": "600", "padding": "2px 5px",
+                    "verticalAlign": "middle"
+                }))
             aprov_badge = html.Span(aprov_children, className="drill-down-badge-original")
         
         sub_rows.append(

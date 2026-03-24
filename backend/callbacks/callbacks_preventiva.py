@@ -227,23 +227,30 @@ def register_preventiva_callbacks(app):
         [
             Input("processing-complete-store", "data"),
             Input("global-filters-applied-store", "data"),
-            Input("prev-date-picker", "start_date"),
-            Input("prev-date-picker", "end_date"),
             Input("prev-detail-date-range", "start_date"),
             Input("prev-detail-date-range", "end_date"),
             Input("prev-tipo-ativo-store", "data"),
         ],
         prevent_initial_call=True
     )
-    def update_preventiva_dashboard(is_processed, filters_state, date_start, date_end, detail_start, detail_end, tipo_ativo):
+    def update_preventiva_dashboard(is_processed, filters_state, detail_start, detail_end, tipo_ativo):
         if not is_processed:
             return (no_update,) * 6
         
         filters = filters_state if filters_state and filters_state.get("applied") else {}
         
-        # Datas do chart (prev-date-picker)
-        ds = str(date_start)[:10] if date_start else None
-        de = str(date_end)[:10] if date_end else None
+        # Datas do chart: derivadas do filtro global (periodos YYYY-MM)
+        ds = None
+        de = None
+        periodos = filters.get("periodos", [])
+        if periodos:
+            # Extrair date_start do primeiro mês e date_end do último mês
+            ds = f"{periodos[0]}-01"
+            # Último dia do último mês
+            from dateutil.relativedelta import relativedelta
+            from datetime import datetime as _dt
+            last_month = _dt.strptime(f"{periodos[-1]}-01", "%Y-%m-%d")
+            de = (last_month + relativedelta(months=1, days=-1)).strftime("%Y-%m-%d")
         
         # Datas do detalhamento (prev-detail-date-range)
         dds = str(detail_start)[:10] if detail_start else None
@@ -313,6 +320,7 @@ def register_preventiva_callbacks(app):
         
         header = [html.Thead(html.Tr([
             html.Th("Nome", className="text-secondary fs-8"),
+            html.Th("Tipo", className="text-secondary fs-8 text-center"),
             html.Th("Fugas", className="text-secondary fs-8 text-center"),
             html.Th("% Fuga", className="text-secondary fs-8 text-end")
         ]))]
@@ -325,8 +333,31 @@ def register_preventiva_callbacks(app):
                 html.Small(f"de {row['total_os']:,}".replace(",", ".") + " OS", 
                           className="text-muted", style={"fontSize": "0.7rem"})
             ])
+            
+            # Pill Interno/Externo (somente para aba aprovador)
+            tipo_pill = html.Span()
+            if entity == "aprovador":
+                is_internal = row.get('is_internal', False)
+                if is_internal:
+                    tipo_pill = html.Span([
+                        html.I(className="bi bi-building me-1", style={"fontSize": "0.6rem"}),
+                        "Interno"
+                    ], className="badge rounded-pill", style={
+                        "backgroundColor": "rgba(59,130,246,0.1)", "color": "#2563EB",
+                        "fontSize": "0.68rem", "fontWeight": "600", "padding": "3px 8px"
+                    })
+                else:
+                    tipo_pill = html.Span([
+                        html.I(className="bi bi-person-badge me-1", style={"fontSize": "0.6rem"}),
+                        "Externo"
+                    ], className="badge rounded-pill", style={
+                        "backgroundColor": "rgba(100,116,139,0.1)", "color": "#64748B",
+                        "fontSize": "0.68rem", "fontWeight": "600", "padding": "3px 8px"
+                    })
+            
             rows.append(html.Tr([
                 html.Td(row['entidade'], className="fw-bold fs-7 text-truncate", style={"maxWidth": "150px"}),
+                html.Td(tipo_pill, className="text-center"),
                 html.Td(fugas_display, className="text-center fs-7"),
                 html.Td(
                     html.Span(f"{row['pct_fuga']}%", className="badge bg-danger bg-opacity-10 text-danger rounded-pill"), 
@@ -423,6 +454,25 @@ def register_preventiva_callbacks(app):
                 WHERE numero_os = '{os_num}' AND COALESCE(valor_aprovado, 0) > 0
                 ORDER BY COALESCE(valor_aprovado, 0) DESC
             """).fetchdf()
+            
+            # Buscar itens PREVENTIVOS da mesma OS (excluídos da análise corretiva)
+            try:
+                prev_items_df = conn.execute(f"""
+                    SELECT 
+                        descricao_peca,
+                        tipo_mo,
+                        COALESCE(valor_aprovado, 0) as valor_total,
+                        tipo_manutencao
+                    FROM ri_preventiva_detalhamento
+                    WHERE numero_os = '{os_num}'
+                    ORDER BY COALESCE(valor_aprovado, 0) DESC
+                """).fetchdf()
+                prev_count = len(prev_items_df)
+                prev_valor = float(prev_items_df['valor_total'].sum()) if not prev_items_df.empty else 0
+            except Exception:
+                prev_items_df = pd.DataFrame()
+                prev_count = 0
+                prev_valor = 0
             
             valor = float(row[6] or 0)
             valor_mo = float(row[7] or 0)
@@ -536,12 +586,59 @@ def register_preventiva_callbacks(app):
             ], className="d-flex align-items-center mt-2",
                style={"backgroundColor": "#FFF7ED", "padding": "6px 10px", "borderRadius": "6px", "border": "1px solid #FDBA74"}))
 
+        # Seção de itens preventivos (excluídos da análise corretiva)
+        prev_section = []
+        if prev_count > 0:
+            prev_section = [
+                html.Div([
+                    html.Div([
+                        html.I(className="bi bi-shield-exclamation me-2", style={"color": "#F59E0B", "fontSize": "0.85rem"}),
+                        html.Span(f"{prev_count} {'item' if prev_count == 1 else 'itens'} preventivo{'s' if prev_count > 1 else ''} nesta OS", 
+                                  style={"fontSize": "0.82rem", "fontWeight": "600", "color": "#92400E"}),
+                    ], className="d-flex align-items-center mb-2"),
+                    html.Div([
+                        html.Span("Valor:", style={"fontSize": "0.75rem", "color": "#92400E", "fontWeight": "500"}),
+                        html.Span(f" {_format_brl(prev_valor)}", style={"fontSize": "0.82rem", "fontWeight": "700", "color": "#92400E"}),
+                    ], className="mb-2"),
+                    html.Div(
+                        "Estes itens foram classificados como manutenção preventiva e não entraram na análise corretiva.",
+                        style={"fontSize": "0.72rem", "color": "#A16207", "lineHeight": "1.4"}
+                    ),
+                    # Mini-tabela dos itens preventivos
+                    html.Div([
+                        html.Table([
+                            html.Tbody([
+                                html.Tr([
+                                    html.Td(
+                                        str(p_item.get('descricao_peca', 'N/A'))[:35],
+                                        style={"fontSize": "0.72rem", "color": "#92400E", "padding": "2px 6px",
+                                               "maxWidth": "150px", "overflow": "hidden", "textOverflow": "ellipsis", "whiteSpace": "nowrap"}
+                                    ),
+                                    html.Td(
+                                        _format_brl(float(p_item.get('valor_total', 0))),
+                                        style={"fontSize": "0.72rem", "color": "#92400E", "fontWeight":"600", 
+                                               "padding": "2px 6px", "textAlign": "right"}
+                                    ),
+                                ]) for _, p_item in (prev_items_df.head(5).iterrows() if not prev_items_df.empty else [])
+                            ])
+                        ], style={"width": "100%"}),
+                        html.Div(f"+ {prev_count - 5} mais...", style={
+                            "fontSize": "0.68rem", "color": "#A16207", "marginTop": "2px"
+                        }) if prev_count > 5 else None,
+                    ], className="mt-2") if not prev_items_df.empty else None,
+                ], className="mt-3", style={
+                    "backgroundColor": "#FFFBEB", "padding": "10px 14px", 
+                    "borderRadius": "8px", "border": "1px solid #FDE68A"
+                }),
+            ]
+
         left_panel = html.Div([
             header_info,
             valor_display,
             composition_bar,
             composition_legend,
             *flags,
+            *prev_section,
         ], style={"flex": "0 0 340px", "paddingRight": "20px", "borderRight": "1px solid #F1F5F9"})
         
         # ═══════════════════════════════════════════════

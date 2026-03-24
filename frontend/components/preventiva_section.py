@@ -33,21 +33,7 @@ def render_preventiva_section(initial_data=None):
                                     style={"fontSize": "1rem"}
                                 )
                             ], className="d-flex align-items-center"),
-                            # Date Picker Range — estilo premium "botão pílula"
-                            html.Div([
-                                html.I(className="bi bi-calendar3 text-muted me-2", style={"fontSize": "0.85rem"}),
-                                dcc.DatePickerRange(
-                                    id="prev-date-picker",
-                                    start_date=three_months_ago,
-                                    end_date=today,
-                                    display_format="DD/MM/YY",
-                                    start_date_placeholder_text="Início",
-                                    end_date_placeholder_text="Fim",
-                                    className="prev-date-range-premium",
-                                    style={"transform": "scale(0.85)", "transformOrigin": "right center", "fontSize": "0.78rem"}
-                                ),
-                            ], className="d-flex align-items-center bg-white border rounded-pill px-3 py-1 shadow-sm"),
-                        ], className="d-flex align-items-center justify-content-between mb-4", style={"position": "relative", "zIndex": 1050}),
+                        ], className="d-flex align-items-center justify-content-between mb-4"),
                         dcc.Graph(
                             id="prev-chart-evolution",
                             figure=initial_data.get('figure', {}) if initial_data else {},
