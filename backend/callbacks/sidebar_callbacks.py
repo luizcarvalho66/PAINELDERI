@@ -11,10 +11,18 @@ import dash_bootstrap_components as dbc
 import os
 import glob
 import time
+import hmac
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-# Senha de administrador para reset — via env var (NUNCA hardcoded)
-_RESET_PASSWORD = os.environ.get("ADMIN_RESET_PASSWORD", "")
+# [SEC-002] Senha de administrador para reset — via env var (NUNCA hardcoded)
+# NOTA DE SEGURANÇA: Se ADMIN_RESET_PASSWORD não estiver configurada, reset é BLOQUEADO.
+# Autenticação JWT/OAuth está no backlog — não se aplica neste escopo porque
+# o Databricks Apps já provê proxy reverso com autenticação SSO corporativa.
+# A senha aqui é uma camada extra de proteção para operação destrutiva (reset DB).
+_RESET_PASSWORD = os.environ.get("ADMIN_RESET_PASSWORD")  # None se não configurada
 
 
 def register_sidebar_callbacks(app):
@@ -48,7 +56,19 @@ def register_sidebar_callbacks(app):
         prevent_initial_call=True,
     )
     def execute_reset(n_clicks, password):
-        if not password or password.strip() != _RESET_PASSWORD:
+        # [SEC-002] Bloqueia se env var não configurada + comparação timing-safe
+        if not _RESET_PASSWORD:
+            logger.warning("[RESET] ADMIN_RESET_PASSWORD não configurada — reset bloqueado")
+            return (
+                html.Div(
+                    [
+                        html.I(className="bi bi-shield-lock-fill text-danger me-2"),
+                        html.Span("Reset desabilitado (senha não configurada).", className="text-danger fw-bold"),
+                    ],
+                ),
+                no_update,
+            )
+        if not password or not hmac.compare_digest(password.strip(), _RESET_PASSWORD):
             return (
                 html.Div(
                     [
