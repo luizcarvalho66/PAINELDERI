@@ -386,18 +386,24 @@ def register_sync_callbacks(app):
             )
 
     # =============================================
-    # CALLBACK 3: Toggle modal (botao Acompanhar)
+    # CALLBACK 3: Toggle modal (botao Acompanhar vs Fechar)
     # =============================================
     @app.callback(
         Output("modal-data-consumption", "is_open"),
-        [Input("btn-data-consumption", "n_clicks")],
+        [
+            Input("btn-data-consumption", "n_clicks"),
+            Input("btn-close-sync-modal", "n_clicks")
+        ],
         [State("modal-data-consumption", "is_open")],
         prevent_initial_call=True
     )
-    def toggle_data_consumption_modal(n_clicks, is_open):
-        """Abre/fecha o modal de progresso."""
-        if n_clicks:
-            return not is_open
+    def toggle_data_consumption_modal(n_clicks_open, n_clicks_close, is_open):
+        """Abre/fecha o modal de progresso com controle explícito."""
+        triggered = dash.ctx.triggered_id
+        if triggered == "btn-close-sync-modal":
+            return False
+        if triggered == "btn-data-consumption":
+            return True
         return is_open
 
     # =============================================

@@ -1,14 +1,14 @@
-#System Metadata
+# System Metadata
 .vscode/
 .databricks/
 .pytest_cache/
 
-# Data files (parquet, DuckDB, exports)
+# Arquivos de dados
 data/
 *.parquet
 *.duckdb
 
-# Data & Context Files
+# Dados e Contexto
 Arquivos de contexto/
 *.csv
 *.xlsx
@@ -17,7 +17,8 @@ Arquivos de contexto/
 prod_logs.txt
 export_data.py
 
-# Debug & diagnostic files
+# Debug e diagnóstico
+
 debug_*.py
 debug_*.txt
 diag*.py
@@ -25,7 +26,7 @@ diag*.txt
 check_*.py
 cleanup*.py
 
-# Python & Environment
+# Python e Ambiente
 __pycache__/
 *.py[cod]
 .env
@@ -37,8 +38,8 @@ venv/
 # Uploads
 uploads/
 
-# Project docs (local only)
+# Documentação do projeto
 assets/_icon_backups/
 
-# Temp files
+# Arquivos temporários
 tmp_*
