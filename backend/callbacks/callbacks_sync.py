@@ -22,7 +22,7 @@ def _run_sync_background():
     """Executa o sync em background thread."""
     global _sync_state
     try:
-        result = sync_all_data(days=150)
+        result = sync_all_data(days=450)
         _sync_state["result"] = result
         _sync_state["error"] = None
     except Exception as e:
@@ -401,7 +401,7 @@ def register_sync_callbacks(app):
         return is_open
 
     # =============================================
-    # CALLBACK 4: Check novos dados (startup) — NON-BLOCKING + MODAL
+    # CALLBACK 4: Check novos dados (startup) — NON-BLOCKING TOAST
     # =============================================
     _check_result = {"data": None, "done": False}
 
@@ -413,14 +413,18 @@ def register_sync_callbacks(app):
             _check_result["data"] = result
         except Exception as e:
             print(f"[CHECK][ERROR] Erro crítico na thread: {e}", flush=True)
-            _check_result["data"] = {"has_new_data": False, "error": "Falha na verificação. Tente reconectar."}
+            _check_result["data"] = {"has_new_data": False, "error": "Falha na verificação. Tente reconectar.", "warehouse_off": False}
         finally:
             _check_result["done"] = True
 
     @app.callback(
         [
             Output("new-data-poll-interval", "disabled", allow_duplicate=True),
-            Output("modal-databricks-auth", "is_open", allow_duplicate=True),
+            Output("sync-new-data-toast", "is_open", allow_duplicate=True),
+            Output("new-data-toast-body", "children", allow_duplicate=True),
+            Output("sync-new-data-toast", "icon", allow_duplicate=True),
+            Output("sync-new-data-toast", "header", allow_duplicate=True),
+            Output("sync-new-data-toast", "duration", allow_duplicate=True),
         ],
         [
             Input("new-data-check-interval", "n_intervals"),
@@ -429,10 +433,10 @@ def register_sync_callbacks(app):
         prevent_initial_call=True
     )
     def check_new_data_on_startup(n_intervals, retry_clicks):
-        """Dispara thread de verificação + abre modal de autenticação.
+        """Dispara thread de verificação + mostra toast de loading (NON-BLOCKING).
         
-        Abre o modal "Conectando ao Databricks..." e inicia a thread que
-        faz a conexão OAuth U2M e a comparação de datas.
+        NÃO abre modal — o app fica 100% usável. Apenas mostra um toast
+        discreto no canto informando que está verificando.
         
         Também é disparado pelo botão 'Reconectar' no toast de erro.
         """
@@ -441,7 +445,7 @@ def register_sync_callbacks(app):
         
         # No startup, pula o primeiro intervalo
         if triggered_id == 'new-data-check-interval' and n_intervals == 0:
-            return True, False
+            return True, False, no_update, no_update, no_update, no_update
         
         # Se é retry, limpa conexão cacheada para forçar novo OAuth
         if triggered_id == 'btn-retry-databricks-check':
@@ -459,10 +463,24 @@ def register_sync_callbacks(app):
         check_thread = threading.Thread(target=_run_check_new_data, daemon=True)
         check_thread.start()
         
-        return False, True  # Ativa polling + ABRE modal
+        # Toast de loading discreto (não bloqueia nada)
+        loading_msg = html.Div([
+            html.Div([
+                html.I(className="bi bi-cloud-check me-2", style={"color": "#0ea5e9"}),
+                html.Span("Verificando dados no Databricks...",
+                    style={"fontSize": "0.85rem", "color": "#475569"}),
+            ], className="d-flex align-items-center"),
+            html.Div([
+                html.I(className="bi bi-info-circle me-1", style={"color": "#94a3b8", "fontSize": "0.7rem"}),
+                html.Small("Se necessário, o navegador abrirá para autenticar.",
+                    style={"color": "#94a3b8", "fontSize": "0.75rem"}),
+            ], className="d-flex align-items-center mt-1"),
+        ])
+        
+        return False, True, loading_msg, "info", "Conectando...", 30000  # Ativa polling + toast
 
     # =============================================
-    # CALLBACK 5: Polling — fecha modal + mostra toast com comparação
+    # CALLBACK 5: Polling — mostra toast com resultado
     # =============================================
     @app.callback(
         [
@@ -471,15 +489,17 @@ def register_sync_callbacks(app):
             Output("new-data-poll-interval", "disabled"),
             Output("sync-new-data-toast", "icon", allow_duplicate=True),
             Output("sync-new-data-toast", "header", allow_duplicate=True),
-            Output("modal-databricks-auth", "is_open"),
+            Output("sync-new-data-toast", "duration"),
+            Output("warehouse-retry-interval", "disabled"),
         ],
         [Input("new-data-poll-interval", "n_intervals")],
         prevent_initial_call=True
     )
     def poll_new_data_check(n_intervals):
-        """Polling não-bloqueante: fecha modal e mostra toast com comparação real.
+        """Polling não-bloqueante: mostra toast com comparação real.
         
         Prioridades:
+        0. warehouse_off → toast persistente + ativa retry interval
         1. has_new_data → Databricks tem dados mais novos que o local
         2. is_stale → dados locais defasados vs data atual do usuário
         3. tudo OK → dados em dia
@@ -487,7 +507,33 @@ def register_sync_callbacks(app):
         if _check_result.get("done"):
             result = _check_result.get("data", {})
             
-            # CASO 1: Erro de conexão — com botão de retry
+            # CASO 0: Warehouse OFF — toast persistente + retry automático
+            if result and result.get("warehouse_off"):
+                msg = html.Div([
+                    html.Div([
+                        html.I(className="bi bi-power me-2 warehouse-pulse-icon",
+                            style={"color": "#f59e0b", "fontSize": "1.1rem"}),
+                        html.Strong("Warehouse desligada", style={"color": "#92400e"}),
+                    ], className="mb-2"),
+                    html.Div([
+                        html.Span("Usando dados locais enquanto aguardamos.",
+                            style={"fontSize": "0.85rem", "color": "#78716c"}),
+                    ], className="mb-2"),
+                    html.Div([
+                        html.Div(className="warehouse-waiting-bar", style={
+                            "height": "3px", "borderRadius": "2px", "width": "100%",
+                            "background": "linear-gradient(90deg, #fbbf24 0%, #f59e0b 50%, #fbbf24 100%)",
+                            "backgroundSize": "200% 100%",
+                            "animation": "warehouse-shimmer 2s ease-in-out infinite",
+                        }),
+                    ], className="mb-2"),
+                    html.Small("Tentando reconectar automaticamente a cada 15s...",
+                        className="text-muted", style={"fontSize": "0.75rem"}),
+                ])
+                # Toast sem duration (persistente), ativa warehouse-retry-interval
+                return True, msg, True, "warning", "⚡ Warehouse Offline", 0, False
+            
+            # CASO 1: Erro genérico de conexão — com botão de retry
             if result and result.get("error"):
                 error_msg = str(result['error'])[:100]
                 msg = html.Div([
@@ -508,7 +554,7 @@ def register_sync_callbacks(app):
                             className="text-muted", style={"fontSize": "0.75rem"}),
                     ], className="d-flex align-items-center"),
                 ])
-                return True, msg, True, "danger", "Erro na Verificação", False
+                return True, msg, True, "danger", "Erro na Verificação", 15000, True
             
             remote_date = result.get("remote_max_date", "?")
             local_date = result.get("local_max_date", "?")
@@ -542,7 +588,7 @@ def register_sync_callbacks(app):
                     html.Small("Clique em 'Sincronizar' para atualizar.",
                         className="text-muted"),
                 ])
-                return True, msg, True, "warning", "Atualização Disponível", False
+                return True, msg, True, "warning", "Atualização Disponível", 15000, True
             
             # CASO 3: Dados defasados — local em dia com Databricks mas pipeline atrasado
             if is_stale and pipeline_lag:
@@ -560,7 +606,7 @@ def register_sync_callbacks(app):
                     html.Small(f"Base local sincronizada com Databricks ({fmt(remote_date)}). Aguardando atualização do pipeline.",
                         className="text-muted"),
                 ])
-                return True, msg, True, "info", "Pipeline Databricks Atrasado", False
+                return True, msg, True, "info", "Pipeline Databricks Atrasado", 12000, True
             
             # CASO 4: Dados defasados — local atrás do Databricks
             if is_stale:
@@ -579,7 +625,7 @@ def register_sync_callbacks(app):
                     html.Small(f"{records_msg} — Databricks até {fmt(remote_date)}.",
                         className="text-muted"),
                 ])
-                return True, msg, True, "warning", "Dados Desatualizados", False
+                return True, msg, True, "warning", "Dados Desatualizados", 12000, True
             
             # CASO 5: Tudo atualizado (sem defasagem significativa)
             msg = html.Div([
@@ -592,9 +638,66 @@ def register_sync_callbacks(app):
                 html.Small(f"{local_count:,} registros sincronizados. Base atualizada!",
                     className="text-muted"),
             ])
-            return True, msg, True, "success", "Dados Atualizados", False
+            return True, msg, True, "success", "Dados Atualizados", 8000, True
         
         # Thread ainda rodando — retorna sem atualizar
-        return no_update, no_update, no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update, no_update, no_update, no_update
+
+    # =============================================
+    # CALLBACK 6: Retry quando warehouse off — re-dispara check automaticamente
+    # =============================================
+    @app.callback(
+        [
+            Output("new-data-poll-interval", "disabled", allow_duplicate=True),
+            Output("warehouse-retry-interval", "disabled", allow_duplicate=True),
+            Output("sync-new-data-toast", "is_open", allow_duplicate=True),
+            Output("new-data-toast-body", "children", allow_duplicate=True),
+            Output("sync-new-data-toast", "header", allow_duplicate=True),
+            Output("sync-new-data-toast", "duration", allow_duplicate=True),
+        ],
+        [Input("warehouse-retry-interval", "n_intervals")],
+        prevent_initial_call=True
+    )
+    def warehouse_retry_check(n_intervals):
+        """Re-dispara check_new_data quando warehouse estava off.
+        
+        Roda a cada 15s. Se a warehouse já ligou, o check normal obtém sucesso
+        e o CALLBACK 5 mostra o resultado. Se continua off, atualiza o toast.
+        """
+        if n_intervals is None or n_intervals == 0:
+            return no_update, no_update, no_update, no_update, no_update, no_update
+        
+        # Re-limpar e re-disparar check
+        _check_result["data"] = None
+        _check_result["done"] = False
+        
+        check_thread = threading.Thread(target=_run_check_new_data, daemon=True)
+        check_thread.start()
+        
+        # Atualizar toast com tentativa N
+        retry_msg = html.Div([
+            html.Div([
+                html.I(className="bi bi-power me-2 warehouse-pulse-icon",
+                    style={"color": "#f59e0b", "fontSize": "1.1rem"}),
+                html.Strong("Warehouse desligada", style={"color": "#92400e"}),
+            ], className="mb-2"),
+            html.Div([
+                html.Span("Usando dados locais enquanto aguardamos.",
+                    style={"fontSize": "0.85rem", "color": "#78716c"}),
+            ], className="mb-2"),
+            html.Div([
+                html.Div(className="warehouse-waiting-bar", style={
+                    "height": "3px", "borderRadius": "2px", "width": "100%",
+                    "background": "linear-gradient(90deg, #fbbf24 0%, #f59e0b 50%, #fbbf24 100%)",
+                    "backgroundSize": "200% 100%",
+                    "animation": "warehouse-shimmer 2s ease-in-out infinite",
+                }),
+            ], className="mb-2"),
+            html.Small(f"Tentativa {n_intervals}/40 — reconectando a cada 15s...",
+                className="text-muted", style={"fontSize": "0.75rem"}),
+        ])
+        
+        # Ativa polling normal para capturar resultado do novo check
+        return False, no_update, True, retry_msg, "⚡ Warehouse Offline", 0
 
 

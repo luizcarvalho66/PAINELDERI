@@ -114,7 +114,7 @@ def create_fugas_evolution_chart(data):
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         
-        height=320, 
+        height=450, 
         margin=dict(l=20, r=20, t=90, b=50),
         bargap=0.3, 
 

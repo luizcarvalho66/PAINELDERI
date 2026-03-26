@@ -77,66 +77,28 @@ def get_layout():
         ),
         
         # Interval para polling do check de novos dados (ativado pelo check_new_data_on_startup)
+        # Aumentado: 40 tentativas a cada 5s (~3.3 min) — suporta warehouse iniciando
         dcc.Interval(
             id="new-data-poll-interval",
-            interval=3000,     # Verifica a cada 3 segundos
-            max_intervals=10,  # Máximo 30 segundos de polling (Databricks pode demorar)
-            disabled=True,     # Inicia desabilitado
+            interval=5000,      # Verifica a cada 5 segundos
+            max_intervals=40,   # Máximo ~3.3 min de polling
+            disabled=True,      # Inicia desabilitado
             n_intervals=0
         ),
 
-        # Modal de autenticação Databricks (aparece durante conexão OAuth)
-        dbc.Modal(
-            [
-                dbc.ModalHeader(
-                    dbc.ModalTitle(
-                        [
-                            html.I(className="bi bi-cloud-check me-2"),
-                            "Conectando ao Databricks"
-                        ],
-                    ),
-                    close_button=False,
-                    className="modal-header-databricks",
-                ),
-                dbc.ModalBody(
-                    html.Div([
-                        dbc.Spinner(
-                            color="danger",
-                            size="lg",
-                            spinner_style={"width": "2.5rem", "height": "2.5rem"},
-                        ),
-                        html.P("Verificando se há dados novos para sincronizar.",
-                            style={"color": "#475569", "fontSize": "0.9rem", "marginTop": "1.5rem", "marginBottom": "0.5rem"}),
-                        html.Div([
-                            html.I(className="bi bi-info-circle me-2", style={"color": "#94a3b8", "fontSize": "12px"}),
-                            html.Small("Se necessário, seu navegador abrirá para autenticar.",
-                                style={"color": "#94a3b8"}),
-                        ], className="d-flex align-items-center justify-content-center"),
-                    ], className="text-center", style={"padding": "2rem 1rem"}),
-                    className="modal-body-databricks",
-                ),
-                dbc.ModalFooter(
-                    html.Div(
-                        [
-                            html.I(className="bi bi-shield-lock-fill me-1"),
-                            html.Small("OAuth U2M • Autenticação segura via browser"),
-                        ],
-                        className="modal-footer-info",
-                    ),
-                    className="modal-footer-databricks",
-                ),
-            ],
-            id="modal-databricks-auth",
-            is_open=False,
-            centered=True,
-            backdrop="static",
-            keyboard=False,
-            size="sm",
-            className="modal-databricks-premium",
+        # Interval para retry quando warehouse está off (backoff 15s, ~10 min)
+        dcc.Interval(
+            id="warehouse-retry-interval",
+            interval=15000,     # Verifica a cada 15 segundos
+            max_intervals=40,   # Máximo ~10 min de polling
+            disabled=True,      # Inicia desabilitado
+            n_intervals=0
         ),
 
+        # Placeholder oculto — o modal foi removido mas o ID precisa existir para callbacks
+        html.Div(id="modal-databricks-auth", style={"display": "none"}),
 
-        # Toast de alerta de novos dados (canto superior direito)
+        # Toast de verificação de dados (canto superior direito) — ÚNICO FEEDBACK
         dbc.Toast(
             [
                 html.P(id="new-data-toast-body", className="mb-0 small"),
@@ -146,16 +108,20 @@ def get_layout():
             icon="info",
             is_open=False,
             dismissable=True,
-            duration=12000,  # 12 segundos
+            duration=12000,  # 12 segundos (override dinâmico para warehouse off)
             style={
                 "position": "fixed",
                 "top": 20,
                 "right": 20,
                 "zIndex": 9999,
-                "minWidth": "350px",
+                "minWidth": "360px",
+                "maxWidth": "420px",
+                "borderRadius": "14px",
+                "boxShadow": "0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)",
+                "fontFamily": "Ubuntu, sans-serif",
             },
-            header_style={"color": "#1A1A2E", "fontWeight": "700"},
-            body_style={"background": "#fff"},
+            header_style={"color": "#1A1A2E", "fontWeight": "700", "fontSize": "0.9rem"},
+            body_style={"background": "#fff", "borderRadius": "0 0 14px 14px"},
         ),
 
         # Placeholders ocultos: IDs precisam existir no layout root para que

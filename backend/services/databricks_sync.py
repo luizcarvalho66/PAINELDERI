@@ -218,8 +218,18 @@ def check_new_data():
             "new_records_count": new_records_count,
         }
     except Exception as e:
-        print(f"[CHECK][ERROR] Erro ao verificar novos dados: {e}", flush=True)
-        return {"has_new_data": False, "error": str(e)}
+        error_str = str(e).lower()
+        # Detectar warehouse desligada/iniciando (SQL Warehouse stopped, starting, etc.)
+        warehouse_keywords = ["warehouse", "endpoint", "cluster"]
+        warehouse_states = ["stopped", "stopping", "starting", "not running", "terminated", "unavailable"]
+        warehouse_off = any(kw in error_str for kw in warehouse_keywords) and any(st in error_str for st in warehouse_states)
+        
+        if warehouse_off:
+            print(f"[CHECK][WAREHOUSE OFF] Warehouse detectada como desligada/iniciando: {e}", flush=True)
+        else:
+            print(f"[CHECK][ERROR] Erro ao verificar novos dados: {e}", flush=True)
+        
+        return {"has_new_data": False, "error": str(e), "warehouse_off": warehouse_off}
 
 
 # Cache de conexão (evita múltiplos U2M)
@@ -397,11 +407,13 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
             fs.DisapprovalTimestamp,
             fi.IsPreventiveMaintenance,
             fi.PartId,
+            fi.Sk_MaintenancePart,
             fs.OrderServiceCode,
             fs.VehicleSourceCode as IdVehicle,
             fs.Sk_MaintenanceVehicle,
             fs.Sk_MaintenanceMerchant,
             fs.Sk_ServiceOrderApprover,
+            fs.Sk_FirstApprover,
             fs.Sk_ServiceOrderApprovalHistory,
             fs.MileageNumber,
             fs.MaintenanceTypeCode,
@@ -417,6 +429,7 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
             ON fs.Sk_FuelCustomer = fc.Sk_FuelCustomer
         WHERE {date_filter}
           AND fc.CustomerSourceCode IN ({client_ids})
+          AND fi.CancellationTimestamp IS NULL
     )
     SELECT 
         cast(b.OrderServiceCode as string) as numero_os,
@@ -437,7 +450,7 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
         'N/A' as chassi,
         COALESCE(cast(mv.VehicleYear as string), 'N/A') as ano_veiculo,
         
-        p.NamePart as descricao_peca,
+        dmp.PartName as descricao_peca,
         COALESCE(b.PartComplement, 'GENERICA') as complemento_peca,
         
         CASE 
@@ -471,7 +484,14 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
         COALESCE(sah.ApprovalHistoryName, b.ManagerReport, 'Aprovação Automática') as mensagem_log,
         COALESCE(sah.DetailName, '') as detalhe_regulacao,
         COALESCE(b.WasPartApproved, false) as peca_aprovada,
-        b.IsAutomaticApproval as aprovacao_automatica_os
+        b.IsAutomaticApproval as aprovacao_automatica_os,
+        
+        -- Silent Order PBI: lógica idêntica ao Power BI (FIX 2026-03-25)
+        CASE 
+            WHEN wu_first.WebUserName = 'Autorizacao De Servico Programado' THEN 'Sim'
+            WHEN wu.WebUserName IS NULL AND b.IsPreventiveMaintenance = true THEN 'Sim'
+            ELSE 'Não'
+        END as silent_order_pbi
         
     FROM base b
     LEFT JOIN hive_metastore.gold.dim_vehicle v 
@@ -480,12 +500,14 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
         ON b.Sk_MaintenanceVehicle = mv.Sk_MaintenanceVehicle
     LEFT JOIN hive_metastore.gold.dim_maintenancemerchants mm
         ON b.Sk_MaintenanceMerchant = mm.Sk_MaintenanceMerchant
-    LEFT JOIN hive_metastore.gold.dim_part p
-        ON b.PartId = p.IdPart
+    LEFT JOIN hive_metastore.gold.dim_maintenanceparts dmp
+        ON b.Sk_MaintenancePart = dmp.Sk_MaintenancePart
     LEFT JOIN hive_metastore.gold.dim_maintenancelabors ml
         ON b.Sk_MaintenanceLabor = ml.Sk_MaintenanceLabor
     LEFT JOIN hive_metastore.gold.dim_webusers wu
         ON b.Sk_ServiceOrderApprover = wu.Sk_WebUser
+    LEFT JOIN hive_metastore.gold.dim_webusers wu_first
+        ON b.Sk_FirstApprover = wu_first.Sk_WebUser
     LEFT JOIN hive_metastore.gold.dim_serviceordersapprovalhistory sah
         ON b.Sk_ServiceOrderApprovalHistory = sah.Sk_ServiceOrderApprovalHistory
         AND sah.IsLastServiceOrderApproval = true
@@ -561,7 +583,7 @@ def _download_legacy(cursor_db, chunk_size=50000):
     return pd.DataFrame(all_rows, columns=cols) if all_rows else pd.DataFrame()
 
 
-def sync_all_data(days=150):
+def sync_all_data(days=450):
     """
     Sync híbrido inteligente:
     - FULL: Primeiro sync → baixa todos os {days} dias
