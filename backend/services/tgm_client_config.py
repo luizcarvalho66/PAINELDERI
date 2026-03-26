@@ -1,6 +1,6 @@
 # Lista de IDs de Clientes TGM para filtro no Databricks
 # Estes são SourceNumber (codigo_tgm) da dim_fuelcustomers.
-# Atualizado em: 2026-03-06 — Curadoria FINAL v4
+# Atualizado em: 2026-03-25 — Curadoria v5
 # IMPORTANTE: Após atualizar esta lista, forçar re-sync completo (FULL LOAD).
 #
 # === HISTÓRICO DE CURADORIA ===
@@ -11,6 +11,8 @@
 #     Fonte: REGULAÇÃO-INTELIGENTE-RI (305 IDs) + novos (44 IDs) = 349 total
 #     Excluídos: 21 IDs PUBLIC (validados vs "clientes (2) 1.xlsx")
 #     Ativos: 328 IDs PRIVATE
+# v5 (2026-03-25): +1 excluído: 241857 (LOCADORA VW/LM - AG, Auto Gestão)
+#     Excluídos: 22 IDs. Ativos: 327 IDs PRIVATE
 
 TGM_CLIENT_IDS = [
     2278, 2572, 3005, 5470, 12511, 31837, 33407, 34081, 35958, 36295,
@@ -80,7 +82,9 @@ EXCLUDED_PUBLIC_IDS = [
     230011,  # SENAPPEN - Sede
     # === Governos Estaduais ===
     233898,  # GOV MG - Secretaria de Planejamento
+    # === Auto Gestão (fora do escopo TGM) ===
+    241857,  # LOCADORA VW/LM - AG (Auto Gestão — não é TGM, distorce métricas)
 ]
 
-# Lista final filtrada (21 excluídos → 328 clientes privados)
+# Lista final filtrada (22 excluídos → 327 clientes privados)
 TGM_CLIENT_IDS = [id for id in TGM_CLIENT_IDS if id not in EXCLUDED_PUBLIC_IDS]
