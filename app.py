@@ -188,4 +188,4 @@ if __name__ == "__main__":
     import threading
     threading.Thread(target=initial_sync_check, daemon=True).start()
 
-    app.run(host=host, port=port, debug=True, use_reloader=False)
+    app.run(host=host, port=port, debug=debug_mode, use_reloader=False)
