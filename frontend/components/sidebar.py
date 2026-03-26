@@ -4,31 +4,25 @@ Edenred Executive Branding
 """
 from dash import html, dcc
 import dash_bootstrap_components as dbc
+from dash_iconify import DashIconify
 
 
 
 def create_nav_item(icon_class: str, label: str, href: str, tooltip_id: str):
-    """Create a navigation item with tooltip support for collapsed mode."""
+    """Create a navigation item with CSS-only tooltip (no dbc.Tooltip)."""
     return html.Div(
-        [
-            dbc.NavLink(
-                [
-                    html.I(className=f"{icon_class} nav-icon"),
-                    html.Span(label, className="nav-label"),
-                ],
-                href=href,
-                active="exact",
-                className="sidebar-nav-link",
-            ),
-            dbc.Tooltip(
-                label,
-                target=tooltip_id,
-                placement="right",
-                className="sidebar-tooltip",
-            ),
-        ],
+        dbc.NavLink(
+            [
+                html.I(className=f"{icon_class} nav-icon"),
+                html.Span(label, className="nav-label"),
+            ],
+            href=href,
+            active="exact",
+            className="sidebar-nav-link",
+        ),
         id=tooltip_id,
         className="nav-item-wrapper",
+        **{"data-tooltip": label},
     )
 
 
@@ -133,7 +127,11 @@ def render_sidebar():
                                 [
                                     html.Div(
                                         [
-                                            html.I(className="bi bi-database-check-fill connection-icon"),
+                                            DashIconify(
+                                                icon="simple-icons:databricks",
+                                                width=18, height=18,
+                                                style={"color": "#FF3621", "marginRight": "8px"},
+                                            ),
                                             html.Span("Databricks Direct", className="connection-label"),
                                         ],
                                         className="connection-header"
@@ -189,71 +187,63 @@ def render_sidebar():
                                 className="databricks-status-card mb-3"
                             ),
                             
-                            # ===== MODAL: Reset DB (protegido por senha) — MacOS Style =====
+                            # ===== MODAL: Reset DB — Notion Style =====
                             dbc.Modal(
                                 [
                                     dbc.ModalHeader([
                                         html.Div([
+                                            html.Div(
+                                                html.I(className="bi bi-shield-exclamation", style={"color": "#E20613"}),
+                                                className="notion-header-icon",
+                                                style={"backgroundColor": "rgba(226, 6, 19, 0.08)"},
+                                            ),
                                             html.Div([
-                                                html.I(className="bi bi-shield-exclamation", style={"color": "#E20613", "fontSize": "1.2rem"}),
-                                            ], style={
-                                                "width": "42px", "height": "42px", "borderRadius": "12px",
-                                                "backgroundColor": "rgba(226, 6, 19, 0.08)",
-                                                "display": "flex", "alignItems": "center", "justifyContent": "center",
-                                                "marginRight": "16px"
-                                            }),
-                                            html.Div([
-                                                html.Span("Reset Completo do Banco", style={
-                                                    "fontWeight": "700", "fontSize": "1.15rem", "color": "#1e293b",
-                                                    "fontFamily": "Ubuntu, sans-serif", "letterSpacing": "-0.02em",
-                                                    "display": "block", "marginBottom": "2px"
-                                                }),
-                                                html.Div("Ação irreversível — todos os dados locais serão removidos", style={
-                                                    "fontSize": "0.85rem", "color": "#64748b", "fontWeight": "400"
-                                                })
+                                                html.Div("Reset Completo do Banco", className="notion-header-title"),
+                                                html.Div("Ação irreversível — dados locais serão removidos", className="notion-header-subtitle"),
                                             ])
-                                        ], className="d-flex align-items-center")
-                                    ], close_button=True, class_name="macos-modal-header"),
+                                        ], className="notion-header-row")
+                                    ], close_button=True, class_name="notion-modal-header"),
                                     dbc.ModalBody(
                                         [
-                                            # Alerta visual
+                                            # Alerta visual limpo
                                             html.Div([
+                                                html.I(className="bi bi-exclamation-triangle-fill", style={"color": "#E20613", "fontSize": "1.4rem"}),
                                                 html.Div([
-                                                    html.I(className="bi bi-exclamation-diamond-fill", style={"color": "#E20613", "fontSize": "1.6rem"}),
-                                                ], className="text-center mb-3"),
-                                                html.Div("Ação Destrutiva", style={"fontWeight": "700", "color": "#E20613", "fontSize": "0.95rem", "textAlign": "center", "marginBottom": "8px"}),
-                                                html.P(
-                                                    "Isso irá excluir TODOS os dados locais (DuckDB + cache). "
-                                                    "Um novo sync completo será necessário após o reset.",
-                                                    style={"fontSize": "0.85rem", "color": "#64748b", "textAlign": "center", "lineHeight": "1.5", "marginBottom": "0"}
-                                                )
-                                            ], className="apple-glass-card danger-tint mb-4"),
+                                                    html.Div("Ação Destrutiva", style={"fontWeight": "700", "color": "#191919", "fontSize": "0.9rem"}),
+                                                    html.P(
+                                                        "Isso irá excluir TODOS os dados locais (DuckDB + cache). "
+                                                        "Um novo sync completo será necessário após o reset.",
+                                                        style={"fontSize": "0.82rem", "color": "#6b6b6b", "lineHeight": "1.5", "marginBottom": "0", "marginTop": "4px"}
+                                                    )
+                                                ]),
+                                            ], className="notion-card", style={"borderColor": "rgba(226,6,19,0.2)", "marginBottom": "20px"}),
+
                                             # Campo de senha
                                             html.Label([
-                                                html.I(className="bi bi-key-fill me-2", style={"color": "#94a3b8"}),
+                                                html.I(className="bi bi-key-fill me-2", style={"color": "#9b9b9b"}),
                                                 "SENHA DE ADMINISTRADOR"
-                                            ], style={"fontWeight": "600", "fontSize": "0.7rem", "color": "#94a3b8",
+                                            ], style={"fontWeight": "600", "fontSize": "0.7rem", "color": "#9b9b9b",
                                                      "letterSpacing": "0.08em", "marginBottom": "8px",
                                                      "display": "flex", "alignItems": "center"}),
                                             dbc.Input(
                                                 id="input-reset-password",
                                                 type="password",
                                                 placeholder="Digite a senha para confirmar",
-                                                style={"borderRadius": "10px", "border": "1px solid #e2e8f0",
-                                                       "padding": "12px 16px", "fontSize": "0.9rem"}
+                                                style={"borderRadius": "8px", "border": "1px solid #e5e5e5",
+                                                       "padding": "10px 14px", "fontSize": "0.88rem"}
                                             ),
                                             html.Div(id="reset-feedback", className="text-center mt-3"),
                                         ],
-                                        class_name="macos-modal-body"
+                                        class_name="notion-modal-body",
+                                        style={"padding": "24px 32px"},
                                     ),
                                     dbc.ModalFooter([
                                         html.Button(
                                             "Cancelar",
                                             id="btn-reset-cancel",
-                                            className="modal-minimal-btn-cancel",
-                                            style={"padding": "10px 20px", "borderRadius": "10px", "border": "1px solid #e2e8f0",
-                                                   "backgroundColor": "#ffffff", "color": "#64748b", "fontWeight": "500",
-                                                   "fontSize": "0.85rem", "cursor": "pointer", "transition": "all 0.2s ease"}
+                                            style={"padding": "8px 18px", "borderRadius": "8px", "border": "1px solid #e5e5e5",
+                                                   "backgroundColor": "#ffffff", "color": "#6b6b6b", "fontWeight": "500",
+                                                   "fontSize": "0.85rem", "cursor": "pointer", "transition": "all 0.15s ease"}
                                         ),
                                         html.Button(
                                             [
@@ -261,101 +251,101 @@ def render_sidebar():
                                                 "Confirmar Reset"
                                             ],
                                             id="btn-reset-confirm",
-                                            className="modal-minimal-btn-confirm",
-                                            style={"padding": "10px 24px", "borderRadius": "10px", "border": "none",
+                                            style={"padding": "8px 20px", "borderRadius": "8px", "border": "none",
                                                    "backgroundColor": "#E20613", "color": "#ffffff", "fontWeight": "600",
                                                    "fontSize": "0.85rem", "cursor": "pointer",
-                                                   "boxShadow": "0 2px 8px -2px rgba(226,6,19,0.3)",
-                                                   "transition": "all 0.2s ease"}
+                                                   "transition": "all 0.15s ease"}
                                         ),
-                                    ], style={"borderTop": "1px solid #f1f5f9", "padding": "16px 32px",
-                                              "backgroundColor": "#fafbfc", "display": "flex", "alignItems": "center",
-                                              "justifyContent": "flex-end", "gap": "12px"}),
+                                    ], style={"borderTop": "1px solid #e8e8e8", "padding": "14px 32px",
+                                              "backgroundColor": "#ffffff", "display": "flex", "alignItems": "center",
+                                              "justifyContent": "flex-end", "gap": "10px"}),
                                 ],
                                 id="modal-reset-db",
                                 is_open=False,
                                 centered=True,
                                 backdrop="static",
-                                class_name="macos-modal-content",
+                                class_name="notion-modal",
                                 fade=True,
                                 style={"fontFamily": "Ubuntu, sans-serif"},
                             ),
 
-                            # ===== MODAL: Progresso do Sync — MacOS Style =====
+                            # ===== MODAL: Progresso do Sync — Notion Style =====
                             dbc.Modal(
                                 [
                                     dbc.ModalHeader([
                                         html.Div([
+                                            html.Div(
+                                                DashIconify(
+                                                    icon="simple-icons:databricks",
+                                                    width=18, height=18,
+                                                    style={"color": "#FF3621"},
+                                                ),
+                                                className="notion-header-icon",
+                                                style={"backgroundColor": "rgba(255, 54, 33, 0.08)"},
+                                            ),
                                             html.Div([
-                                                html.I(className="bi bi-database-gear", style={"color": "#0ea5e9", "fontSize": "1.2rem"}),
-                                            ], style={
-                                                "width": "42px", "height": "42px", "borderRadius": "12px",
-                                                "backgroundColor": "rgba(14, 165, 233, 0.08)",
-                                                "display": "flex", "alignItems": "center", "justifyContent": "center",
-                                                "marginRight": "16px"
-                                            }),
-                                            html.Div([
-                                                html.Span("Sincronização de Dados", style={
-                                                    "fontWeight": "700", "fontSize": "1.15rem", "color": "#1e293b",
-                                                    "fontFamily": "Ubuntu, sans-serif", "letterSpacing": "-0.02em",
-                                                    "display": "block", "marginBottom": "2px"
-                                                }),
-                                                html.Div("Acompanhe o progresso da sincronização em tempo real", style={
-                                                    "fontSize": "0.85rem", "color": "#64748b", "fontWeight": "400"
-                                                })
+                                                html.Div("Sincronização de Dados", className="notion-header-title"),
+                                                html.Div("Acompanhe o progresso em tempo real", className="notion-header-subtitle"),
                                             ])
-                                        ], className="d-flex align-items-center")
-                                    ], close_button=True, class_name="macos-modal-header"),
+                                        ], className="notion-header-row"),
+
+                                        # Botão de fechar customizado (mantém o ID para callback)
+                                        html.Button(
+                                            html.I(className="bi bi-x-lg"),
+                                            id="btn-close-sync-modal",
+                                            style={
+                                                "background": "transparent", "border": "none",
+                                                "color": "#9b9b9b", "cursor": "pointer",
+                                                "fontSize": "1rem", "padding": "4px 8px",
+                                                "borderRadius": "6px", "transition": "all 0.15s ease",
+                                            }
+                                        )
+                                    ], close_button=False, class_name="notion-modal-header d-flex justify-content-between align-items-center"),
+
                                     dbc.ModalBody(
                                         html.Div(
                                             html.P(
                                                 [
-                                                    html.I(className="bi bi-info-circle me-2", style={"color": "#0ea5e9"}),
+                                                    html.I(className="bi bi-info-circle me-2", style={"color": "#9b9b9b"}),
                                                     "Clique em 'Sincronizar' para iniciar o processo."
                                                 ],
-                                                className="sync-idle-msg",
-                                                style={"fontSize": "0.9rem", "color": "#64748b"}
+                                                style={"fontSize": "0.9rem", "color": "#6b6b6b", "margin": "0"}
                                             ),
                                             id="sync-progress-container",
                                         ),
-                                        class_name="macos-modal-body",
+                                        class_name="notion-modal-body",
+                                        style={"padding": "28px 32px"},
                                     ),
+
                                     dbc.ModalFooter([
                                         html.Div([
-                                            html.I(className="bi bi-info-circle-fill me-2", style={"color": "#94a3b8", "fontSize": "0.75rem"}),
-                                            html.Small("hive_metastore.gold • SQL Warehouse • CloudFetch",
-                                                       style={"color": "#94a3b8", "fontSize": "0.75rem"}),
+                                            DashIconify(
+                                                icon="simple-icons:databricks",
+                                                width=12, height=12,
+                                                style={"color": "#9b9b9b", "marginRight": "6px"},
+                                            ),
+                                            html.Small("hive_metastore.gold · SQL Warehouse · CloudFetch",
+                                                       style={"color": "#9b9b9b", "fontSize": "0.72rem"}),
                                         ], className="d-flex align-items-center")
-                                    ], style={"borderTop": "1px solid #f1f5f9", "padding": "12px 32px",
-                                              "backgroundColor": "#fafbfc"}),
+                                    ], style={"borderTop": "1px solid #e8e8e8", "padding": "12px 32px",
+                                              "backgroundColor": "#ffffff"}),
                                 ],
                                 id="modal-data-consumption",
                                 is_open=False,
                                 centered=True,
                                 size="lg",
-                                class_name="macos-modal-content",
+                                class_name="notion-modal",
                                 fade=True,
                                 style={"fontFamily": "Ubuntu, sans-serif"},
                             ),
 
                             html.Div(
-                                [
-                                    html.Div(
-                                        [
-                                            html.Span(className="status-dot status-online"),
-                                            html.Span(
-                                                "Sistemas Operacionais",
-                                                className="status-text",
-                                            ),
-                                        ],
-                                        className="status-indicator",
-                                    ),
-                                    html.Span(
-                                        "v2.0.0",
-                                        className="version-badge",
-                                    ),
-                                ],
+                                html.Span(
+                                    "v2.0.0",
+                                    className="version-badge",
+                                ),
                                 className="sidebar-footer-content",
+                                style={"justifyContent": "center"},
                             ),
                         ],
                         className="sidebar-footer",

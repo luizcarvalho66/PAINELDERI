@@ -3,27 +3,29 @@
  * 
  * Intercepta o clique no botão de toggle e manipula CSS diretamente,
  * sem qualquer envolvimento do Dash callback system.
- * Isso elimina o "UPDATING" que ocorria por event bubbling.
+ * Injeta `sidebar-is-collapsed` no <body> para que CSS possa
+ * controlar tooltips e outros elementos dependentes do estado.
  */
 document.addEventListener('DOMContentLoaded', function() {
-    // Aguarda o Dash renderizar os componentes
-    const observer = new MutationObserver(function(mutations, obs) {
-        const toggleBtn = document.getElementById('sidebar-toggle');
+    var observer = new MutationObserver(function(mutations, obs) {
+        var toggleBtn = document.getElementById('sidebar-toggle');
         if (toggleBtn) {
-            obs.disconnect(); // Para de observar após encontrar
+            obs.disconnect();
 
             toggleBtn.addEventListener('click', function(e) {
-                // CRÍTICO: impede que o clique propague para NavLinks ou qualquer pai
                 e.stopPropagation();
                 e.preventDefault();
 
-                const sidebar = document.getElementById('sidebar');
+                var sidebar = document.getElementById('sidebar');
                 if (!sidebar) return;
 
-                if (sidebar.classList.contains('collapsed')) {
-                    sidebar.classList.remove('collapsed');
+                var isCollapsed = sidebar.classList.toggle('collapsed');
+
+                // Sincroniza o estado com o body para CSS global
+                if (isCollapsed) {
+                    document.body.classList.add('sidebar-is-collapsed');
                 } else {
-                    sidebar.classList.add('collapsed');
+                    document.body.classList.remove('sidebar-is-collapsed');
                 }
             });
         }

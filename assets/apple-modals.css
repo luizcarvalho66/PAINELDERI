@@ -1,0 +1,368 @@
+/* ==========================================================================
+   NOTION-STYLE HELP MODAL — Clean, Minimal, Content-First
+   Edenred Branding applied to Notion's design philosophy.
+   ========================================================================== */
+
+/* ── Modal Container ── */
+.notion-modal .modal-content {
+    border-radius: 12px !important;
+    border: 1px solid #e5e5e5 !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12) !important;
+    background: #ffffff !important;
+    overflow: hidden;
+    animation: notionModalIn 0.2s ease-out;
+}
+
+@keyframes notionModalIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Header ── */
+.notion-modal-header {
+    background: #ffffff !important;
+    border-bottom: none !important;
+    padding: 28px 32px 0 !important;
+}
+
+.notion-header-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.notion-header-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(226, 6, 19, 0.08);
+    color: #E20613;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.notion-header-title {
+    font-family: 'Ubuntu', -apple-system, sans-serif;
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: #191919;
+    letter-spacing: -0.01em;
+}
+
+.notion-header-subtitle {
+    font-size: 0.8rem;
+    color: #9b9b9b;
+    margin-top: 2px;
+}
+
+/* ── Close Button ── */
+.notion-modal .btn-close {
+    opacity: 0.3;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+
+.notion-modal .btn-close:hover {
+    opacity: 0.6;
+    background-color: #f0f0f0;
+}
+
+/* ── Tab Navigation (Notion-style underline tabs) ── */
+.notion-tabs {
+    display: flex;
+    gap: 0;
+    padding: 0 32px;
+    margin-top: 20px;
+    border-bottom: 1px solid #e8e8e8;
+}
+
+.notion-tab-btn {
+    background: none;
+    border: none;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #9b9b9b;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.15s ease;
+    font-family: 'Ubuntu', -apple-system, sans-serif;
+    white-space: nowrap;
+}
+
+.notion-tab-btn:hover {
+    color: #191919;
+}
+
+.notion-tab-btn.active {
+    color: #E20613;
+    font-weight: 600;
+}
+
+.notion-tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #E20613;
+    border-radius: 2px 2px 0 0;
+}
+
+/* ── Content Body ── */
+.notion-modal-body {
+    padding: 0 !important;
+    background: #ffffff;
+}
+
+.notion-content-area {
+    padding: 28px 32px 32px;
+    min-height: 300px;
+}
+
+/* ── Content Panes ── */
+.notion-pane {
+    display: none;
+}
+
+.notion-pane.active {
+    display: block;
+    animation: notionFade 0.2s ease;
+}
+
+@keyframes notionFade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* ── Typography inside panes ── */
+.notion-pane p {
+    font-size: 0.9rem;
+    color: #37352f;
+    line-height: 1.7;
+    margin-bottom: 20px;
+}
+
+/* ── Metric Block (KPI grande) ── */
+.notion-metric {
+    text-align: center;
+    padding: 28px 20px;
+    margin-bottom: 24px;
+    background: #fafafa;
+    border-radius: 10px;
+    border: 1px solid #f0f0f0;
+}
+
+.notion-metric-value {
+    font-size: 2.4rem;
+    font-weight: 800;
+    color: #E20613;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    font-family: 'Ubuntu', -apple-system, sans-serif;
+}
+
+.notion-metric-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #9b9b9b;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 8px;
+}
+
+.notion-metric-desc {
+    font-size: 0.78rem;
+    color: #b0b0b0;
+    margin-top: 4px;
+}
+
+/* ── Info Card (Lista de itens) ── */
+.notion-card {
+    display: flex;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid #efefef;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    transition: background 0.15s ease;
+}
+
+.notion-card:hover {
+    background: #fafafa;
+}
+
+.notion-card-icon {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+}
+
+.notion-card-title {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #191919;
+    margin-bottom: 3px;
+}
+
+.notion-card-text {
+    font-size: 0.8rem;
+    color: #6b6b6b;
+    line-height: 1.5;
+}
+
+/* ── Pipeline Flow (horizontal dots, clean) ── */
+.notion-pipeline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    background: #fafafa;
+    border-radius: 10px;
+    border: 1px solid #f0f0f0;
+    margin-bottom: 24px;
+    position: relative;
+}
+
+.notion-pipeline::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 72px;
+    right: 72px;
+    height: 1px;
+    background: #e0e0e0;
+    transform: translateY(-50%);
+    z-index: 0;
+}
+
+.notion-pipeline-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    z-index: 1;
+    background: #fafafa;
+    padding: 0 6px;
+}
+
+.notion-pipeline-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+}
+
+.notion-pipeline-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #9b9b9b;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* ── Timeline Steps ── */
+.notion-timeline {
+    padding-left: 24px;
+    position: relative;
+    margin-bottom: 24px;
+}
+
+.notion-timeline::before {
+    content: '';
+    position: absolute;
+    left: 11px;
+    top: 16px;
+    bottom: 16px;
+    width: 1px;
+    background: #e0e0e0;
+}
+
+.notion-timeline-step {
+    position: relative;
+    padding: 10px 0 10px 20px;
+}
+
+.notion-timeline-dot {
+    position: absolute;
+    left: -20px;
+    top: 14px;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #fff;
+    z-index: 1;
+}
+
+.notion-timeline-title {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #191919;
+    margin-bottom: 4px;
+}
+
+.notion-timeline-desc {
+    font-size: 0.8rem;
+    color: #6b6b6b;
+    line-height: 1.5;
+}
+
+.notion-timeline-code {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 0.72rem;
+    font-family: 'SFMono-Regular', 'Cascadia Code', monospace;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: #f5f5f5;
+    border: 1px solid #eee;
+    color: #555;
+}
+
+/* ── Divider ── */
+.notion-divider {
+    height: 1px;
+    background: #efefef;
+    margin: 20px 0;
+    border: none;
+}
+
+/* ── Scrollbar ── */
+.notion-modal .modal-body {
+    max-height: 72vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #ddd transparent;
+}
+
+.notion-modal .modal-body::-webkit-scrollbar { width: 6px; }
+.notion-modal .modal-body::-webkit-scrollbar-thumb {
+    background: #ddd;
+    border-radius: 3px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .notion-tabs { overflow-x: auto; }
+    .notion-content-area { padding: 20px 20px 24px; }
+    .notion-modal-header { padding: 20px 20px 0 !important; }
+}
