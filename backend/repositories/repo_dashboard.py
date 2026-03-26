@@ -169,14 +169,13 @@ def get_ri_evolution_data(filters: dict = None):
         """
         
         # SILENT ORDER: OS com aprovação automática (sem intervenção humana)
-        # FIX 2026-03-23: Migrado de mensagem_log → aprovacao_automatica_os
-        # Campo booleano vindo de fs.IsAutomaticApproval (Databricks, nível OS)
-        # Alinhado com TGM bignumbers (fonte oficial de SO)
-        # Fallback: se campo não existir ainda (pré-resync), usa mensagem_log
+        # FIX 2026-03-25: Migrado de aprovacao_automatica_os → silent_order_pbi
+        # Lógica PBI: 1ª alçada = 'Autorizacao De Servico Programado' OU (aprovador final NULL + preventiva)
+        # Fallback: se campo não existir (pré-resync), usa aprovacao_automatica_os
         query_so_corr = f"""
         SELECT 
             date_trunc('{date_trunc_interval}', c.data_transacao) as mes_ref,
-            COUNT(DISTINCT CASE WHEN COALESCE(c.aprovacao_automatica_os, false) = true THEN c.numero_os END) as so_count_corr
+            COUNT(DISTINCT CASE WHEN COALESCE(c.silent_order_pbi, 'Não') = 'Sim' THEN c.numero_os END) as so_count_corr
         FROM ri_corretiva_detalhamento c
         WHERE {where_corr}
         GROUP BY 1
@@ -185,7 +184,7 @@ def get_ri_evolution_data(filters: dict = None):
         query_so_prev = f"""
         SELECT 
             date_trunc('{date_trunc_interval}', data_transacao) as mes_ref,
-            COUNT(DISTINCT CASE WHEN COALESCE(aprovacao_automatica_os, false) = true THEN numero_os END) as so_count_prev
+            COUNT(DISTINCT CASE WHEN COALESCE(silent_order_pbi, 'Não') = 'Sim' THEN numero_os END) as so_count_prev
         FROM ri_preventiva_detalhamento
         WHERE {where_prev}
         GROUP BY 1
@@ -789,7 +788,7 @@ def get_top_silent_order_30d(filters: dict = None, limite=3):
         SELECT
             c.nome_estabelecimento,
             COUNT(DISTINCT c.numero_os) as total_os,
-            COUNT(DISTINCT CASE WHEN COALESCE(c.aprovacao_automatica_os, false) = true THEN c.numero_os END) as so_count
+            COUNT(DISTINCT CASE WHEN COALESCE(c.silent_order_pbi, 'Não') = 'Sim' THEN c.numero_os END) as so_count
         FROM ri_corretiva_detalhamento c
         WHERE {where_clause}
           AND c.nome_estabelecimento IS NOT NULL
@@ -803,8 +802,8 @@ def get_top_silent_order_30d(filters: dict = None, limite=3):
         try:
             df = conn.execute(query).fetchdf()
         except Exception as e_field:
-            # Fallback: campo aprovacao_automatica_os não existe (pré-resync)
-            print(f"[REPOSITORY WARNING] Top SO (novo campo) falhou, usando fallback: {e_field}")
+            # Fallback: campo silent_order_pbi não existe (pré-resync)
+            print(f"[REPOSITORY WARNING] Top SO (silent_order_pbi) falhou, usando fallback: {e_field}")
             query_fallback = f"""
             WITH os_details AS (
                 SELECT c.nome_estabelecimento, c.numero_os, COUNT(*) as total_itens,
