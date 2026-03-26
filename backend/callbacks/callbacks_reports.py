@@ -175,27 +175,36 @@ def register_reports_callbacks(app):
                 return no_update, {"display": "none"}, False, None
 
             total_analisado = int((df['qtd_prev'] + df['qtd_corr']).sum())
-            ri_geral_avg = df['ri_geral'].mean() * 100
 
-            econ_corr = df['sum_economia_pricing'].sum() if 'sum_economia_pricing' in df.columns else 0
-            econ_prev = (df['sum_total_prev'] - df['sum_aprovado_prev']).clip(lower=0).sum()
-            economia_real = econ_corr + econ_prev
+            # SO metrics: usar taxa global (sum/sum), NÃO .mean() de médias mensais
+            so_corr_count = df['so_count_corr'].sum() if 'so_count_corr' in df.columns else 0
+            so_prev_count = df['so_count_prev'].sum() if 'so_count_prev' in df.columns else 0
+            so_geral_num = so_corr_count + so_prev_count
+            so_geral_den = df['total_os_distinct'].sum() if 'total_os_distinct' in df.columns else (df['qtd_corr'] + df['qtd_prev']).sum()
+            so_geral_pct = (so_geral_num / so_geral_den * 100) if so_geral_den > 0 else 0
+
+            # OS Automáticas = total de OS com aprovação automática (já calculado acima)
+            os_automaticas = int(so_geral_num)
 
             total_prev = int(df['qtd_prev'].sum())
             total_corr = int(df['qtd_corr'].sum())
             ratio_prev_corr = (total_prev / (total_corr + total_prev) * 100) if (total_corr + total_prev) > 0 else 0
 
-            avg_ri_prev = df['ri_preventiva'].mean() * 100
-            avg_ri_corr = df['ri_corretiva'].mean() * 100
+            # SO Preventiva e Corretiva: taxa global (sum/sum)
+            so_prev_den = df['qtd_prev'].sum() if 'qtd_prev' in df.columns else 0
+            so_corr_den = df['qtd_corr'].sum() if 'qtd_corr' in df.columns else 0
+            so_prev_pct = (so_prev_count / so_prev_den * 100) if so_prev_den > 0 else 0
+            so_corr_pct = (so_corr_count / so_corr_den * 100) if so_corr_den > 0 else 0
 
             kpi_data = {
                 "total_analisado": f"{total_analisado:,}",
-                "economia_real": f"R$ {economia_real/1000000:,.1f}M",
+                "os_automaticas": f"{os_automaticas:,}",
                 "share_preventiva": f"{ratio_prev_corr:.1f}%",
-                "ri_geral": f"{ri_geral_avg:.1f}%",
-                "ri_preventiva": f"{avg_ri_prev:.1f}%",
-                "ri_corretiva": f"{avg_ri_corr:.1f}%",
+                "ri_geral": f"{so_geral_pct:.1f}%",
+                "ri_preventiva": f"{so_prev_pct:.1f}%",
+                "ri_corretiva": f"{so_corr_pct:.1f}%",
             }
+
 
             # 2.1 Dados detalhados — depende do período
             if selected_period == "30d":

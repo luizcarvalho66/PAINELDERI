@@ -4,6 +4,21 @@
    Extracted from sidebar.css for modularity.
    ========================================================================== */
 
+/* ----- WAREHOUSE OFF — Toast Animations ----- */
+.warehouse-pulse-icon {
+  animation: warehouse-pulse 2s ease-in-out infinite;
+}
+
+@keyframes warehouse-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.92); }
+}
+
+@keyframes warehouse-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* ----- DATABRICKS SYNC STATUS CARD ----- */
 .databricks-status-card {
   background: rgba(248, 250, 252, 0.8);

@@ -33,12 +33,13 @@ def build_slide_kpis(prs, kpi_data: dict, period_label: str = "Últimos 30 Dias"
     # Atualiza matriz de KPIs para conter o nome do arquivo PNG de ícone exportado
     kpis = [
         ("Análise Total", kpi_data.get("total_analisado", "—"), "Ordens processadas", CARD_PURPLE, PURPLE_BG, "layers.png"),
-        ("Economia Real", kpi_data.get("economia_real", "—"), "Valor economizado", CARD_GREEN, SUCCESS_BG, "dollar.png"),
+        ("OS Automáticas", kpi_data.get("os_automaticas", "—"), "Aprovadas automaticamente", CARD_GREEN, SUCCESS_BG, "dollar.png"),
         ("Share Preventiva", kpi_data.get("share_preventiva", "—"), "Mix de manutenções", RGBColor(0x3B, 0x82, 0xF6), RGBColor(0xEF, 0xF6, 0xFF), "pie.png"),
-        ("RI Geral", kpi_data.get("ri_geral", "—"), "Média do período", EDENRED_RED, DANGER_BG, "trend.png"),
-        ("RI Preventiva", kpi_data.get("ri_preventiva", "—"), "Manutenção programada", CARD_GREEN, SUCCESS_BG, "shield.png"),
-        ("RI Corretiva", kpi_data.get("ri_corretiva", "—"), "Manutenção sob demanda", EDENRED_RED, DANGER_BG, "wrench.png"),
+        ("SO Geral", kpi_data.get("ri_geral", "—"), "Taxa aprovação automática", EDENRED_RED, DANGER_BG, "trend.png"),
+        ("SO Preventiva", kpi_data.get("ri_preventiva", "—"), "Aprovação auto. programada", CARD_GREEN, SUCCESS_BG, "shield.png"),
+        ("SO Corretiva", kpi_data.get("ri_corretiva", "—"), "Aprovação auto. sob demanda", EDENRED_RED, DANGER_BG, "wrench.png"),
     ]
+
 
     # Geometria Comprimida (Metade Esquerda)
     card_w = Inches(3.2)

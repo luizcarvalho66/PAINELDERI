@@ -38,7 +38,7 @@ def render_preventiva_section(initial_data=None):
                             id="prev-chart-evolution",
                             figure=initial_data.get('figure', {}) if initial_data else {},
                             config={"displayModeBar": False},
-                            style={"height": "400px"}
+                            style={"height": "450px"}
                         )
                     ])
                 ], className="shadow-sm border-0 rounded-4 h-100")
@@ -101,7 +101,7 @@ def render_preventiva_section(initial_data=None):
                         ]),
 
                         html.Div([
-                            html.Small("% sobre total de corretivas", className="text-muted", style={"fontSize": "0.75rem", "marginTop": "8px", "display": "block"})
+                            html.Small("% sobre OS com perfil preventivo", className="text-muted", style={"fontSize": "0.75rem", "marginTop": "8px", "display": "block"})
                         ], className="mt-2")
                     ])
                 ], className="farol-card-macos mb-3", style={"padding": "20px", "borderRadius": "16px", "backgroundColor": "#FFFFFF", "border": "1px solid #f1f5f9"}),

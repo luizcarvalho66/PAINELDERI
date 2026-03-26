@@ -51,36 +51,43 @@
     gap: 8px;
 }
 
-/* --- Apple/iOS Tabs (Segmented Control) --- */
+/* --- Premium Interactive Tabs --- */
 .apple-tabs {
-    background-color: rgba(241, 245, 249, 0.8) !important;
-    border-radius: 12px;
+    background-color: rgba(241, 245, 249, 0.6) !important;
+    backdrop-filter: blur(12px);
+    border-radius: 14px;
     padding: 6px;
     display: flex;
-    border: none !important;
+    border: 1px solid rgba(255,255,255,0.8) !important;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+    margin-top: 16px;
     margin-bottom: 24px;
 }
 
 .apple-tabs .nav-link {
     border: none !important;
-    border-radius: 8px !important;
+    border-radius: 10px !important;
     color: #64748b !important;
     font-weight: 600;
-    font-size: 0.85rem;
-    padding: 8px 16px !important;
-    transition: all 0.2s ease;
+    font-size: 0.82rem;
+    padding: 8px 20px !important;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     margin-right: 4px;
+    position: relative;
+    overflow: hidden;
 }
 
 .apple-tabs .nav-link:hover {
-    color: #334155 !important;
-    background-color: rgba(226, 232, 240, 0.5) !important;
+    color: #1e293b !important;
+    background-color: rgba(255, 255, 255, 0.6) !important;
+    transform: translateY(-1px);
 }
 
 .apple-tabs .nav-link.active {
     background-color: #ffffff !important;
-    color: #1e293b !important;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+    color: #E20613 !important;
+    box-shadow: 0 4px 12px rgba(226, 6, 19, 0.12), 0 1px 2px rgba(0,0,0,0.05) !important;
+    transform: translateY(-2px);
 }
 
 /* --- Apple Glass Cards --- */
@@ -212,25 +219,92 @@
 .col-header-os { background-color: rgba(14, 165, 233, 0.1); color: #0ea5e9; border-bottom-color: rgba(14, 165, 233, 0.2); }
 .col-header-score { background-color: rgba(30, 41, 59, 0.1); color: #1e293b; border-bottom-color: rgba(30, 41, 59, 0.2); }
 
-/* Enhanced MacOS Modal Content */
+/* Custom Backdrop Filter - Foco total no modal da frente */
+.modal-backdrop.show {
+    opacity: 1 !important;
+    background-color: rgba(15, 23, 42, 0.4) !important;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+/* Enhanced MacOS Modal Content - Efeito Premium Linear */
 .macos-modal-content {
     border-radius: 20px !important;
     border: 1px solid rgba(255, 255, 255, 0.6) !important;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.02) !important;
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.3) !important;
     overflow: hidden;
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
-    background: rgba(250, 250, 250, 0.9) !important;
+    backdrop-filter: blur(36px) saturate(200%);
+    -webkit-backdrop-filter: blur(36px) saturate(200%);
+    background: rgba(252, 253, 255, 0.88) !important;
+    animation: modalEleganceIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes modalEleganceIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.96) translateY(12px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
 }
 
 .macos-modal-header {
     background: transparent !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
     padding: 24px 32px 20px !important;
+    position: relative;
+}
+
+/* Close button modernizado */
+.macos-modal-content .btn-close,
+.macos-modal-header .btn-close {
+    background-color: rgba(0,0,0,0.04);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    opacity: 0.5;
+    z-index: 10;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.macos-modal-content .btn-close:hover,
+.macos-modal-header .btn-close:hover {
+    opacity: 1;
+    background-color: rgba(226, 6, 19, 0.1);
+    transform: rotate(90deg) scale(1.1);
 }
 
 .macos-modal-body {
     padding: 0 32px 32px !important;
+}
+
+/* Scrollable body — max-height para não cortar no rodapé */
+.macos-modal-content .modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
+}
+
+.macos-modal-content .modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.macos-modal-content .modal-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.macos-modal-content .modal-body::-webkit-scrollbar-thumb {
+    background-color: rgba(100, 116, 139, 0.3);
+    border-radius: 10px;
+    border: 2px solid transparent;            /* Para deixar as pontas mais finas */
+    background-clip: padding-box;
+}
+
+.macos-modal-content .modal-body::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(100, 116, 139, 0.5);
 }
 
 /* ==========================================================================
@@ -443,4 +517,531 @@
         opacity: 1;
         transform: scale(1) translateY(0);
     }
+}
+
+/* ==========================================================================
+   FORMULA BLOCKS — Blocos de fórmula estilizados para modais de help
+   ========================================================================== */
+
+.formula-block {
+    background-color: #f1f5f9;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    margin-top: 8px;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.75rem;
+    color: #334155;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ==========================================================================
+   DATA SOURCE BADGES — Pills de fonte de dados
+   ========================================================================== */
+
+.data-source-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #0ea5e9;
+    background-color: rgba(14, 165, 233, 0.06);
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid rgba(14, 165, 233, 0.12);
+    transition: all 0.2s ease;
+}
+
+.data-source-badge:hover {
+    background-color: rgba(14, 165, 233, 0.1);
+    border-color: rgba(14, 165, 233, 0.2);
+}
+
+/* ==========================================================================
+   PIPELINE VISUAL — Fluxo horizontal de dados com dots conectados
+   ========================================================================== */
+
+.pipeline-flow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    position: relative;
+    overflow: hidden;
+}
+
+.pipeline-flow::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 56px;
+    right: 56px;
+    height: 2px;
+    background: linear-gradient(90deg, #e2e8f0 0%, #0ea5e9 50%, #e2e8f0 100%);
+    transform: translateY(-50%);
+    z-index: 0;
+}
+
+.pipeline-flow::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 56px;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #0ea5e9, #10b981);
+    transform: translateY(-50%);
+    z-index: 1;
+    animation: pipelineFill 2s ease-out forwards;
+}
+
+@keyframes pipelineFill {
+    from { width: 0; }
+    to { width: calc(100% - 112px); }
+}
+
+.pipeline-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    z-index: 2;
+    background: #f8fafc;
+    padding: 0 4px;
+}
+
+.pipeline-dot {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: transform 0.2s ease;
+}
+
+.pipeline-dot:hover {
+    transform: scale(1.1);
+}
+
+.pipeline-label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: center;
+    max-width: 70px;
+}
+
+/* ==========================================================================
+   METRIC SPOTLIGHT — KPI grande com gradiente radial
+   ========================================================================== */
+
+.metric-spotlight {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 20px;
+    border-radius: 16px;
+    overflow: hidden;
+    text-align: center;
+}
+
+.metric-spotlight::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, var(--spotlight-color, rgba(226,6,19,0.06)) 0%, transparent 70%);
+    z-index: 0;
+}
+
+.metric-spotlight-value {
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    z-index: 1;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.metric-spotlight-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    z-index: 1;
+}
+
+.metric-spotlight-desc {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    z-index: 1;
+    margin-top: 4px;
+}
+
+/* ==========================================================================
+   STEP TIMELINE — Steps verticais com linha conectora
+   ========================================================================== */
+
+.step-timeline {
+    position: relative;
+    padding-left: 32px;
+}
+
+.step-timeline::before {
+    content: '';
+    position: absolute;
+    left: 13px;
+    top: 20px;
+    bottom: 20px;
+    width: 2px;
+    background: linear-gradient(180deg, #e2e8f0 0%, #0ea5e9 50%, #10b981 100%);
+    border-radius: 1px;
+}
+
+.step-timeline-item {
+    position: relative;
+    padding: 8px 0 8px 16px;
+}
+
+.step-timeline-dot {
+    position: absolute;
+    left: -28px;
+    top: 12px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    z-index: 2;
+}
+
+.step-timeline-content {
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: 12px;
+    padding: 12px 16px;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    backdrop-filter: blur(8px);
+}
+
+.step-timeline-content:hover {
+    background: rgba(255,255,255,1);
+    border-color: rgba(14, 165, 233, 0.3);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.02);
+    transform: translateX(6px) scale(1.01);
+}
+
+.step-timeline-title {
+    font-weight: 700;
+    font-size: 0.82rem;
+    color: #1e293b;
+    margin-bottom: 2px;
+}
+
+.step-timeline-desc {
+    font-size: 0.75rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+/* ==========================================================================
+   ANNOTATION CARD — Nota lateral com borda colorida
+   ========================================================================== */
+
+.annotation-card {
+    display: flex;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    border-left: 3px solid var(--annotation-color, #0ea5e9);
+    background: linear-gradient(90deg, var(--annotation-bg, rgba(14,165,233,0.02)) 0%, #ffffff 100%);
+    transition: all 0.2s ease;
+}
+
+.annotation-card:hover {
+    border-left-width: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.annotation-icon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+}
+
+.annotation-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.annotation-title {
+    font-weight: 700;
+    font-size: 0.78rem;
+    color: #1e293b;
+    margin-bottom: 2px;
+}
+
+.annotation-text {
+    font-size: 0.72rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+/* ==========================================================================
+   EDENRED HELP MODAL — Premium Design System
+   Header dark, accent strip, vertical sidebar nav, clean content.
+   ========================================================================== */
+
+/* ── Backdrop: fundo blur quando modal abre ── */
+.modal-backdrop.show {
+    opacity: 1 !important;
+    background: rgba(15, 23, 42, 0.45) !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+/* ── Container do Modal  ── */
+.edenred-help-modal {
+    border-radius: 16px !important;
+    border: none !important;
+    overflow: hidden;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255,255,255,0.1) !important;
+    background: #ffffff !important;
+    animation: edenredModalIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes edenredModalIn {
+    0% { opacity: 0; transform: scale(0.97) translateY(10px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── Header Branco + Accent Vermelho Edenred ── */
+.edenred-modal-header {
+    background: #ffffff !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    padding: 0 !important;
+    position: relative;
+}
+
+.edenred-modal-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #E20613 0%, #FF4D5A 50%, #E20613 100%);
+    z-index: 1;
+}
+
+.edenred-header-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 28px;
+    width: 100%;
+}
+
+.edenred-header-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(226, 6, 19, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #E20613;
+    font-size: 1.2rem;
+}
+
+.edenred-header-title {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #1e293b;
+    font-family: Ubuntu, sans-serif;
+}
+
+.edenred-header-subtitle {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    margin-top: 3px;
+}
+
+/* ── Close Button ── */
+.edenred-help-modal .btn-close,
+.edenred-modal-header .btn-close {
+    opacity: 0.4;
+    transition: all 0.25s ease;
+    margin-right: 4px;
+}
+
+.edenred-help-modal .btn-close:hover,
+.edenred-modal-header .btn-close:hover {
+    opacity: 1;
+    transform: rotate(90deg);
+}
+
+/* ── Modal Body ── */
+.edenred-modal-body {
+    padding: 0 !important;
+    background: #ffffff;
+}
+
+/* ── Premium Tabs ── */
+.edenred-tabs-nav {
+    border: none !important;
+}
+
+.edenred-tabs-nav > .nav {
+    background: #fafafa;
+    padding: 8px 28px;
+    margin: 0;
+    border: none !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    gap: 6px;
+}
+
+.edenred-tab-label {
+    border: none !important;
+    border-radius: 8px !important;
+    color: #94a3b8 !important;
+    font-weight: 600 !important;
+    font-size: 0.82rem !important;
+    padding: 9px 20px !important;
+    transition: all 0.25s ease !important;
+    font-family: Ubuntu, sans-serif !important;
+}
+
+.edenred-tab-label:hover {
+    color: #E20613 !important;
+    background: rgba(226, 6, 19, 0.04) !important;
+}
+
+.edenred-tab-active {
+    color: #ffffff !important;
+    background: #E20613 !important;
+    border: none !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 8px rgba(226, 6, 19, 0.25) !important;
+}
+
+/* ── Tab Content Panel ── */
+.edenred-tab-panel {
+    padding: 24px 28px 28px;
+    animation: edenredFadeIn 0.25s ease;
+    font-family: Ubuntu, sans-serif;
+}
+
+@keyframes edenredFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Scrollbar ── */
+.edenred-help-modal .modal-body {
+    max-height: 72vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(100, 116, 139, 0.15) transparent;
+}
+
+.edenred-help-modal .modal-body::-webkit-scrollbar {
+    width: 5px;
+}
+
+.edenred-help-modal .modal-body::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.15);
+    border-radius: 10px;
+}
+
+/* ── Info Block ── */
+.edenred-info-block {
+    padding: 14px 18px;
+    border-left: 3px solid var(--block-color, #E20613);
+    background: #fafafa;
+    border-radius: 0 10px 10px 0;
+    margin-bottom: 10px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.edenred-info-block:hover {
+    background: #f5f5f5;
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+}
+
+/* ── Stat Value (substitui spotlight) ── */
+.edenred-stat-value {
+    text-align: center;
+    padding: 20px 16px;
+    margin-bottom: 14px;
+    background: linear-gradient(135deg, #fef2f2 0%, #fff1f2 50%, #fef2f2 100%);
+    border-radius: 12px;
+    border: 1px solid rgba(226, 6, 19, 0.08);
+}
+
+/* ── Formula Code ── */
+.edenred-formula {
+    display: inline-block;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 0.73rem;
+    color: #475569;
+    background: #f1f5f9;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+}
+
+/* ==========================================================================
+   TAB PANEL SECTION SPACING — Hierarquia interna dos componentes
+   ========================================================================== */
+
+.edenred-tab-panel > p:first-child {
+    margin-bottom: 18px;
+}
+
+.edenred-tab-panel .step-timeline {
+    margin: 16px 0 20px;
+}
+
+.edenred-tab-panel .pipeline-flow {
+    margin-bottom: 20px;
+}
+
+.edenred-tab-panel .annotation-card {
+    margin-bottom: 10px;
+}
+
+.edenred-tab-panel .metric-spotlight {
+    margin-bottom: 18px;
+}
+
+.edenred-tab-panel .apple-glass-card {
+    margin-bottom: 14px;
 }
