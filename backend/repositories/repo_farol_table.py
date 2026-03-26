@@ -652,8 +652,10 @@ def get_drill_down_chave(peca: str, tipo_mo: str, clientes: tuple = None, data_i
                 THEN COALESCE(NULLIF(TRIM(nome_aprovador), ''), 'Sistema')
                 ELSE NULL
             END as negociador,
-            -- Aprovação automática (via mensagem_log)
+            -- Aprovação automática (via silent_order_pbi — lógica PBI)
+            -- FIX 2026-03-25: Migrado de mensagem_log → silent_order_pbi
             CASE 
+                WHEN COALESCE(silent_order_pbi, '') = 'Sim' THEN TRUE
                 WHEN LOWER(mensagem_log) LIKE '%aprova__o autom_tica%'
                   OR LOWER(mensagem_log) LIKE '%aprovacao automatica%'
                 THEN TRUE
