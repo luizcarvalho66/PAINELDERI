@@ -1,4 +1,4 @@
-# Agent & System Metadata
+#System Metadata
 .vscode/
 .databricks/
 .pytest_cache/
