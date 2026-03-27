@@ -2,7 +2,7 @@ import duckdb
 import os
 import tempfile
 import threading
-import shutil
+
 import time
 
 # CONFIGURAÇÃO DE PERSISTÊNCIA (Volume Databricks vs Local)
@@ -106,11 +106,19 @@ def get_readonly_connection():
     # Validation: PID change or closed connection
     if conn is not None:
         if _conn_pid != current_pid:
+            try:
+                conn.close()
+            except Exception:
+                pass
             conn = None
         else:
             try:
                 conn.execute("SELECT 1")
             except Exception:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
                 conn = None
     
     if conn is None:
@@ -136,7 +144,7 @@ def close_connection():
         for conn in _active_connections:
             try:
                 conn.close()
-            except:
+            except Exception:
                 pass
         _active_connections = []
         _conn_pid = None
@@ -456,7 +464,7 @@ def init_db():
         for peca in pecas_intercambiaveis:
             try:
                 conn.execute("INSERT INTO ref_pecas_intercambiaveis VALUES (?)", [peca])
-            except:
+            except Exception:
                 pass  # Ignore duplicates
         
         # --- REF: CLIENTES COM PACOTES ---
@@ -487,7 +495,7 @@ def init_db():
             for code in TGFM_ALL_CLIENTS:
                 try:
                     conn.execute("INSERT INTO ref_clientes_tgfm VALUES (?)", [str(code)])
-                except:
+                except Exception:
                     pass  # Ignore duplicates
             pass  # TGFM loaded
         except ImportError:
@@ -495,17 +503,21 @@ def init_db():
         except Exception as e:
             print(f"[INIT DB WARNING] Erro ao popular ref_clientes_tgfm: {e}")
 
-        # Optimization: Create indexes for performance (Consumo)
+        # Optimization: Create indexes for performance
+        # Colunas alinhadas com WHERE/JOIN das queries nos repositories
         try:
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_preventiva_cod ON logs_regulacao_preventiva (cod_chamado_manutencao)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_corretiva_chave ON logs_corretiva (chave_item)")
-            # CRITICAL INDEX for RI Corretiva Detalhamento
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_detalhamento_chave ON ri_corretiva_detalhamento (chave_item)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_preventiva_os ON logs_regulacao_preventiva (numero_os)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_corretiva_os ON logs_corretiva (numero_os)")
+            # Índice composto para queries do farol (tipo_mo + peca)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_detalhamento_tipo_peca ON ri_corretiva_detalhamento (tipo_mo, peca)")
             # Index for TGFM filter performance
             conn.execute("CREATE INDEX IF NOT EXISTS idx_corr_det_cliente ON ri_corretiva_detalhamento (codigo_cliente)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_prev_det_cliente ON ri_preventiva_detalhamento (codigo_cliente)")
-        except:
-            pass # Some versions of DuckDB handle indices differently or already exist
+            # Index for merge operations (numero_os)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_corr_det_os ON ri_corretiva_detalhamento (numero_os)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_prev_det_os ON ri_preventiva_detalhamento (numero_os)")
+        except Exception:
+            pass  # DuckDB handles index creation errors gracefully
 
     except Exception as e:
         print(f"[INIT DB ERROR] {e}")
