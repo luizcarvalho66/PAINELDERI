@@ -366,3 +366,264 @@
     .notion-content-area { padding: 20px 20px 24px; }
     .notion-modal-header { padding: 20px 20px 0 !important; }
 }
+
+/* ── Apple-Inspired Export Modal ── */
+
+/* Layout de dois painéis lado a lado */
+.export-panels-container {
+    display: flex;
+    min-height: 480px;
+}
+.export-panel-left {
+    flex: 0 0 340px;
+    min-width: 300px;
+}
+.export-panel-right {
+    flex: 1;
+    min-width: 0; /* permite shrink */
+}
+
+/* Scrollbar Apple-thin no painel esquerdo */
+.export-panel-left ::-webkit-scrollbar { width: 4px; }
+.export-panel-left ::-webkit-scrollbar-thumb {
+    background: #d1d1d6;
+    border-radius: 4px;
+}
+.export-panel-left ::-webkit-scrollbar-track { background: transparent; }
+
+/* Botão de fechar */
+.export-modal-close-btn {
+    background: transparent;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.export-modal-close-btn:hover {
+    background: #f5f5f7;
+}
+
+/* ── Categorias ── */
+.premium-export-group {
+    margin-bottom: 20px;
+}
+.premium-export-group-title {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #aeaeb2;
+    letter-spacing: 0.03em;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+}
+
+/* ── Chips / Pills ── */
+.premium-checklist {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.premium-checklist label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    padding: 7px 14px;
+    background: #ffffff;
+    border: 1px solid #e5e5ea;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.18s cubic-bezier(0.25, 0.1, 0.25, 1);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 0.78rem;
+    font-weight: 400;
+    color: #3a3a3c;
+    user-select: none;
+    line-height: 1.3;
+}
+.premium-checklist label:hover {
+    border-color: #c7c7cc;
+    background: #f9f9f9;
+}
+.premium-checklist input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+/* Ativa: vermelho Edenred */
+.premium-checklist label:has(input[type="checkbox"]:checked) {
+    background: #E20613;
+    border-color: #E20613;
+    color: #ffffff;
+    font-weight: 500;
+}
+.premium-checklist label:has(input[type="checkbox"]:checked):hover {
+    background: #c80511;
+    border-color: #c80511;
+}
+/* Remove pseudo-element legado */
+.premium-checklist label::before {
+    display: none;
+}
+
+/* ── Botões do Footer ── */
+.export-btn-cancel {
+    padding: 8px 18px;
+    border-radius: 8px;
+    border: 1px solid #d1d1d6;
+    background: #ffffff;
+    color: #3a3a3c;
+    font-weight: 500;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.export-btn-cancel:hover {
+    background: #f5f5f7;
+    border-color: #c7c7cc;
+}
+.export-btn-confirm {
+    padding: 8px 22px;
+    border-radius: 8px;
+    border: none;
+    background: #E20613;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    box-shadow: 0 2px 8px rgba(226, 6, 19, 0.2);
+}
+.export-btn-confirm:hover {
+    background: #c80511;
+    box-shadow: 0 4px 12px rgba(226, 6, 19, 0.3);
+}
+
+/* Responsivo: empilhar em telas menores */
+@media (max-width: 992px) {
+    .export-panels-container {
+        flex-direction: column;
+    }
+    .export-panel-left {
+        flex: none;
+        max-height: 250px;
+        overflow-y: auto;
+        margin-bottom: 16px;
+        border-bottom: 1px solid #f0f0f0;
+        padding-bottom: 16px;
+    }
+}
+
+/* ── Coach Mark (Onboarding Spotlight) ── */
+.coach-mark-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 10;
+    pointer-events: none;
+    animation: coachFadeInOut 6s ease forwards;
+    overflow: hidden;
+    border-radius: 12px;
+}
+@keyframes coachFadeInOut {
+    0%   { opacity: 0; }
+    8%   { opacity: 1; }
+    78%  { opacity: 1; }
+    100% { opacity: 0; visibility: hidden; }
+}
+
+/* Backdrop escurecido */
+.coach-backdrop {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 12px;
+}
+
+/* Spotlight: recorte iluminado no topo (onde ficam os headers do grid) */
+.coach-spotlight {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 42px;
+    background: rgba(255, 255, 255, 0.95);
+    border-bottom: 2px solid #E20613;
+    box-shadow: 0 4px 20px rgba(226, 6, 19, 0.15);
+    z-index: 1;
+}
+
+/* Mão animada que desliza horizontalmente sobre os headers */
+.coach-hand {
+    position: absolute;
+    top: 8px;
+    left: 30%;
+    z-index: 2;
+    animation: coachHandDrag 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+@keyframes coachHandDrag {
+    0%   { left: 25%; transform: scale(1); }
+    15%  { transform: scale(0.9); } /* apertou */
+    50%  { left: 55%; transform: scale(0.9); } /* arrastando */
+    65%  { transform: scale(1); } /* soltou */
+    80%  { left: 55%; }
+    100% { left: 25%; transform: scale(1); }
+}
+
+/* Callout flutuante com badge "Novo" */
+.coach-callout {
+    position: absolute;
+    top: 52px; /* logo abaixo do spotlight de 42px + gap */
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 14px 20px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+    z-index: 3;
+    white-space: nowrap;
+    animation: coachCalloutBounce 0.5s 0.3s ease both;
+}
+@keyframes coachCalloutBounce {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(10px); }
+    100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+/* Seta apontando para cima (em direção ao header) */
+.coach-callout::after {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 12px;
+    height: 12px;
+    background: #ffffff;
+    box-shadow: -2px -2px 4px rgba(0,0,0,0.04);
+}
+
+/* ── Export Loading Overlay ── */
+.export-loading-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(250, 250, 250, 0.96);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0;
+    animation: loadingFadeIn 0.3s ease;
+}
+@keyframes loadingFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}

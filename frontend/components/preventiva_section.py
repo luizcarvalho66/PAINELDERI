@@ -264,16 +264,22 @@ def render_preventiva_section(initial_data=None):
         render_preventiva_help_modal(),
         render_ranking_help_modal(),
         
-        # Mini Modal — Breakdown de Valor
+        # Modal Bespoke — Composição de Valor da OS
         dcc.Store(id="prev-valor-detail-store", data={}),
         dbc.Modal([
             dbc.ModalHeader([
                 html.Div([
-                    html.I(className="bi bi-receipt-cutoff me-2", style={"color": "#E20613", "fontSize": "1.2rem"}),
-                    html.Span("Composição do Valor", style={"fontWeight": "700", "fontSize": "1rem"}),
-                ], className="d-flex align-items-center"),
-            ], close_button=True, className="border-0 pb-0"),
-            dbc.ModalBody(id="prev-valor-modal-body", className="pt-2"),
+                    html.Div(
+                        html.I(className="bi bi-receipt-cutoff"),
+                        className="eden-detail-header-icon"
+                    ),
+                    html.Div([
+                        html.Div("Composição de Valor", className="eden-detail-header-title"),
+                        html.Div("Breakdown detalhado por peça e mão de obra", className="eden-detail-header-subtitle"),
+                    ]),
+                ], className="eden-detail-header"),
+            ], close_button=True),
+            dbc.ModalBody(id="prev-valor-modal-body"),
         ], id="prev-valor-modal", is_open=False, centered=True, size="xl",
-           className="prev-valor-modal")
+           class_name="eden-detail-modal")
     ])

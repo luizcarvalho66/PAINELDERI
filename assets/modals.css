@@ -1045,3 +1045,397 @@
 .edenred-tab-panel .apple-glass-card {
     margin-bottom: 14px;
 }
+
+/* ==========================================================================
+   EDEN DETAIL MODAL — Composição de Valor da OS (Fugas Preventiva)
+   Design bespoke: glassmorphism, header branded, grid 2 painéis.
+   ========================================================================== */
+
+/* ── Container: glassmorphism premium ── */
+.eden-detail-modal .modal-content {
+    border-radius: 20px !important;
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.18),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.3) !important;
+    overflow: hidden;
+    backdrop-filter: blur(36px) saturate(200%);
+    -webkit-backdrop-filter: blur(36px) saturate(200%);
+    background: rgba(252, 253, 255, 0.92) !important;
+    animation: edenDetailIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes edenDetailIn {
+    0%   { opacity: 0; transform: scale(0.96) translateY(12px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── Header ── */
+.eden-detail-modal .modal-header {
+    background: transparent !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    padding: 20px 28px 16px !important;
+}
+
+/* ── Close button ── */
+.eden-detail-modal .btn-close {
+    opacity: 0.4;
+    transition: all 0.25s ease;
+    border-radius: 50%;
+    width: 32px; height: 32px;
+    background-color: rgba(0,0,0,0.03);
+}
+.eden-detail-modal .btn-close:hover {
+    opacity: 1;
+    background-color: rgba(226, 6, 19, 0.08);
+    transform: rotate(90deg) scale(1.1);
+}
+
+/* ── Header Branded ── */
+.eden-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+}
+
+.eden-detail-header-icon {
+    width: 42px; height: 42px;
+    border-radius: 12px;
+    background: rgba(226, 6, 19, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #E20613;
+    font-size: 1.15rem;
+}
+
+.eden-detail-header-title {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: #1e293b;
+    font-family: Ubuntu, sans-serif;
+}
+
+.eden-detail-header-subtitle {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+/* ── Body ── */
+.eden-detail-modal .modal-body {
+    padding: 0 28px 28px !important;
+    max-height: 72vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(100, 116, 139, 0.15) transparent;
+}
+.eden-detail-modal .modal-body::-webkit-scrollbar { width: 5px; }
+.eden-detail-modal .modal-body::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.15); border-radius: 10px;
+}
+
+/* ── Grid de 2 painéis ── */
+.eden-detail-grid {
+    display: flex;
+    gap: 0;
+    padding-top: 20px;
+}
+
+.eden-detail-panel-left {
+    flex: 0 0 340px;
+    padding-right: 24px;
+    border-right: 1px solid #f1f5f9;
+}
+
+.eden-detail-panel-right {
+    flex: 1;
+    padding-left: 24px;
+    min-width: 0;
+}
+
+/* ── Info do veículo/OS ── */
+.eden-detail-osinfo {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f1f5f9;
+}
+.eden-detail-osinfo .os-badge {
+    font-family: monospace;
+    font-weight: 700;
+    font-size: 0.85rem;
+    background: #f1f5f9;
+    padding: 4px 10px;
+    border-radius: 6px;
+    color: #1e293b;
+}
+.eden-detail-osinfo .os-client {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-left: 8px;
+}
+.eden-detail-osinfo .os-meta {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+/* ── Valor grande ── */
+.eden-detail-valor {
+    margin-bottom: 16px;
+}
+.eden-detail-valor-label {
+    font-size: 0.68rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+.eden-detail-valor-amount {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #1e293b;
+    line-height: 1.2;
+}
+.eden-detail-valor-count {
+    font-size: 0.78rem;
+    color: #64748b;
+}
+
+/* ── Barra composição MO/Peça ── */
+.eden-detail-bar {
+    display: flex;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #f1f5f9;
+    height: 8px;
+}
+
+.eden-detail-legend {
+    margin-top: 8px;
+    margin-bottom: 16px;
+}
+.eden-detail-legend-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.8rem;
+    color: #334155;
+    margin-bottom: 2px;
+}
+.eden-detail-legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    display: inline-block;
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
+/* ── Flags de anomalia ── */
+.eden-detail-flag {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    margin-bottom: 8px;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+.eden-detail-flag:hover {
+    transform: translateX(4px);
+}
+.eden-detail-flag.flag-warning  { background: #FFFBEB; border-color: #FDE68A; color: #92400E; }
+.eden-detail-flag.flag-info     { background: #EFF6FF; border-color: #BFDBFE; color: #1e40af; }
+.eden-detail-flag.flag-purple   { background: #F5F3FF; border-color: #DDD6FE; color: #6D28D9; }
+.eden-detail-flag.flag-orange   { background: #FFF7ED; border-color: #FDBA74; color: #C2410C; }
+.eden-detail-flag.flag-prev     { background: #FFFBEB; border-color: #FDE68A; color: #92400E; }
+
+/* ── Seção itens preventivos ── */
+.eden-detail-prev-section {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+}
+
+/* ── Painel Direito: card container ── */
+.eden-detail-panel-right {
+    flex: 1;
+    padding-left: 24px;
+    min-width: 0;
+}
+
+/* ── Header dos itens — visual forte ── */
+.eden-detail-items-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #f1f5f9;
+    font-family: Ubuntu, sans-serif;
+}
+.eden-detail-items-header .items-icon {
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(99,102,241,0.08) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #3B82F6;
+    font-size: 0.95rem;
+}
+.eden-detail-items-header .items-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+.eden-detail-items-header .items-count {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    background: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+/* ── Scroll container estilizado ── */
+.eden-detail-scroll {
+    max-height: 380px;
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(100, 116, 139, 0.18) transparent;
+}
+.eden-detail-scroll::-webkit-scrollbar { width: 5px; }
+.eden-detail-scroll::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.18); border-radius: 10px;
+}
+
+/* ── Tabela de itens premium — spreadsheet style ── */
+.eden-detail-table {
+    margin-bottom: 0 !important;
+}
+.eden-detail-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+.eden-detail-table thead th {
+    font-size: 0.68rem !important;
+    color: #64748b !important;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700 !important;
+    background: #f8fafc !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+    border-top: none !important;
+    padding: 10px 10px !important;
+    white-space: nowrap;
+}
+.eden-detail-table thead th:first-child {
+    border-radius: 12px 0 0 0;
+}
+.eden-detail-table thead th:last-child {
+    border-radius: 0 12px 0 0;
+}
+.eden-detail-table tbody td {
+    padding: 10px 10px !important;
+    vertical-align: middle !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    font-size: 0.8rem;
+}
+.eden-detail-table tbody tr {
+    transition: all 0.18s ease;
+    border: none !important;
+}
+.eden-detail-table tbody tr:nth-child(even) {
+    background: rgba(248, 250, 252, 0.6);
+}
+.eden-detail-table tbody tr:hover {
+    background: rgba(226, 6, 19, 0.03) !important;
+    box-shadow: inset 3px 0 0 #E20613;
+}
+.eden-detail-table tbody tr:last-child td {
+    border-bottom: none !important;
+}
+
+/* ── Badges de classificação — mais presença ── */
+.eden-detail-table .badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 6px;
+    letter-spacing: 0.02em;
+}
+
+/* ── Valor total na tabela — destaque ── */
+.eden-detail-table .fw-semibold {
+    font-weight: 700 !important;
+}
+
+/* ── Row number sutil ── */
+.eden-detail-table .row-idx {
+    font-size: 0.68rem;
+    color: #cbd5e1;
+    font-weight: 600;
+    font-family: monospace;
+}
+
+/* ── Legenda didática — card inline ── */
+.eden-detail-legend-section {
+    margin-top: 14px;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+.eden-detail-legend-section .legend-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+}
+.eden-detail-legend-section .legend-entry {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-right: 16px;
+    margin-bottom: 2px;
+    font-size: 0.72rem;
+    color: #64748b;
+}
+.eden-detail-legend-section .legend-entry .badge {
+    font-size: 0.62rem;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 700;
+}
+
+/* ── Responsive: stack vertical em telas menores ── */
+@media (max-width: 992px) {
+    .eden-detail-grid {
+        flex-direction: column;
+    }
+    .eden-detail-panel-left {
+        flex: unset;
+        padding-right: 0;
+        border-right: none;
+        border-bottom: 1px solid #f1f5f9;
+        padding-bottom: 16px;
+        margin-bottom: 16px;
+    }
+    .eden-detail-panel-right {
+        padding-left: 0;
+    }
+}

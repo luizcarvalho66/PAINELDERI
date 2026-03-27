@@ -393,7 +393,7 @@ def register_preventiva_callbacks(app):
             return not is_open
         return is_open
 
-    # 6. Modal de Breakdown de Valor — Versão com Itens Individuais
+    # 6. Modal de Breakdown de Valor — Versão Bespoke com Classes CSS
     @app.callback(
         [Output("prev-valor-modal", "is_open"),
          Output("prev-valor-modal-body", "children")],
@@ -412,14 +412,11 @@ def register_preventiva_callbacks(app):
         except Exception:
             return False, no_update
 
-        # Buscar TODOS os itens individuais da OS
+        # ── Buscar dados da OS ──
         try:
             from backend.repositories.repo_base import get_connection
             conn = get_connection()
             
-            # Query agregada (resumo) — usa valor_aprovado (valor REAL aprovado)
-            # valor_total = solicitado pelo EC (ANTES da negociação RI)
-            # valor_aprovado = aprovado após negociação (valor REAL pago)
             row = conn.execute(f"""
                 SELECT 
                     numero_os, MAX(nome_cliente) as cliente,
@@ -440,7 +437,6 @@ def register_preventiva_callbacks(app):
             if not row:
                 return False, no_update
             
-            # Query de itens individuais — valor_aprovado = valor real pago
             items_df = conn.execute(f"""
                 SELECT 
                     descricao_peca,
@@ -455,7 +451,7 @@ def register_preventiva_callbacks(app):
                 ORDER BY COALESCE(valor_aprovado, 0) DESC
             """).fetchdf()
             
-            # Buscar itens PREVENTIVOS da mesma OS (excluídos da análise corretiva)
+            # Itens preventivos da mesma OS
             try:
                 prev_items_df = conn.execute(f"""
                     SELECT 
@@ -489,7 +485,6 @@ def register_preventiva_callbacks(app):
             qtd_itens = row[9] or 1
             valor_solicitado = float(row[10] or 0)
         except Exception as e:
-            print(f"Erro ao buscar dados OS {os_num}: {e}")
             return False, no_update
         
         pct_mo = round(valor_mo / valor * 100) if valor > 0 else 0
@@ -501,33 +496,27 @@ def register_preventiva_callbacks(app):
         # PAINEL ESQUERDO: Resumo + Composição + Flags
         # ═══════════════════════════════════════════════
         
-        # Header: OS + cliente + veículo
         header_info = html.Div([
             html.Div([
-                html.Span(f"OS {os_num}", style={
-                    "fontFamily": "monospace", "fontWeight": "700",
-                    "backgroundColor": "#F1F5F9", "padding": "4px 10px",
-                    "borderRadius": "6px", "fontSize": "0.85rem"
-                }),
-                html.Span(f" — {cliente}", style={"color": "#64748B", "fontSize": "0.85rem", "marginLeft": "8px"}),
+                html.Span(f"OS {os_num}", className="os-badge"),
+                html.Span(f" — {cliente}", className="os-client"),
             ], className="mb-1"),
             html.Div([
-                html.I(className="bi bi-shop me-1", style={"color": "#94A3B8", "fontSize": "0.75rem"}),
-                html.Span(ec, style={"fontSize": "0.78rem", "color": "#64748B"}),
-            ], className="mb-1"),
+                html.I(className="bi bi-shop me-1"),
+                html.Span(ec),
+            ], className="os-meta"),
             html.Div([
-                html.I(className="bi bi-truck me-1", style={"color": "#94A3B8", "fontSize": "0.75rem"}),
-                html.Span(f"{familia} • {modelo}", style={"fontSize": "0.78rem", "color": "#64748B"}),
-                html.Span(f" • Placa: {placa}", style={"fontSize": "0.72rem", "color": "#94A3B8", "marginLeft": "6px"}) if placa != 'N/A' else None,
-            ]),
-        ], className="mb-3 pb-2", style={"borderBottom": "1px solid #F1F5F9"})
+                html.I(className="bi bi-truck me-1"),
+                html.Span(f"{familia} • {modelo}"),
+                html.Span(f" • Placa: {placa}") if placa != 'N/A' else None,
+            ], className="os-meta"),
+        ], className="eden-detail-osinfo")
         
-        # Valor total
         valor_display = html.Div([
-            html.Div("VALOR TOTAL DA OS", style={"fontSize": "0.68rem", "color": "#94A3B8", "textTransform": "uppercase", "letterSpacing": "0.05em", "fontWeight": "600"}),
-            html.Div(_format_brl(valor), style={"fontSize": "1.5rem", "fontWeight": "800", "color": "#1E293B", "lineHeight": "1.2"}),
-            html.Div(f"{qtd_itens} {'item' if qtd_itens == 1 else 'itens'}", style={"fontSize": "0.78rem", "color": "#64748B"}),
-        ], className="mb-3")
+            html.Div("VALOR TOTAL DA OS", className="eden-detail-valor-label"),
+            html.Div(_format_brl(valor), className="eden-detail-valor-amount"),
+            html.Div(f"{qtd_itens} {'item' if qtd_itens == 1 else 'itens'}", className="eden-detail-valor-count"),
+        ], className="eden-detail-valor")
         
         # Barra de composição
         composition_bar = html.Div([
@@ -541,95 +530,89 @@ def register_preventiva_callbacks(app):
                 "backgroundColor": bar_peca_color, 
                 "borderRadius": "0 4px 4px 0" if pct_mo > 0 else "4px",
             }) if pct_peca > 0 else None,
-        ], className="d-flex", style={"borderRadius": "4px", "overflow": "hidden", "backgroundColor": "#F1F5F9"})
+        ], className="eden-detail-bar")
         
         composition_legend = html.Div([
             html.Div([
-                html.Span(style={"width": "10px", "height": "10px", "borderRadius": "2px",
-                                 "backgroundColor": bar_mo_color, "display": "inline-block", "marginRight": "6px"}),
-                html.Span(f"Mão de Obra: {_format_brl(valor_mo)} ({pct_mo}%)", style={"fontSize": "0.8rem", "color": "#334155"}),
-            ], className="d-flex align-items-center"),
+                html.Span(className="eden-detail-legend-dot", style={"backgroundColor": bar_mo_color}),
+                html.Span(f"Mão de Obra: {_format_brl(valor_mo)} ({pct_mo}%)"),
+            ], className="eden-detail-legend-item"),
             html.Div([
-                html.Span(style={"width": "10px", "height": "10px", "borderRadius": "2px",
-                                 "backgroundColor": bar_peca_color, "display": "inline-block", "marginRight": "6px"}),
-                html.Span(f"Peças: {_format_brl(valor_peca)} ({pct_peca}%)", style={"fontSize": "0.8rem", "color": "#334155"}),
-            ], className="d-flex align-items-center mt-1"),
-        ], className="mt-2 mb-3")
+                html.Span(className="eden-detail-legend-dot", style={"backgroundColor": bar_peca_color}),
+                html.Span(f"Peças: {_format_brl(valor_peca)} ({pct_peca}%)"),
+            ], className="eden-detail-legend-item"),
+        ], className="eden-detail-legend")
         
         # Flags de anomalia
         flags = []
         if valor > 30000:
             flags.append(html.Div([
-                html.I(className="bi bi-exclamation-triangle-fill me-2", style={"color": "#F59E0B"}),
-                html.Span("Valor acima de R$ 30 mil", style={"fontSize": "0.78rem"}),
-            ], className="d-flex align-items-center",
-               style={"backgroundColor": "#FFFBEB", "padding": "6px 10px", "borderRadius": "6px", "border": "1px solid #FDE68A"}))
+                html.I(className="bi bi-exclamation-triangle-fill"),
+                html.Span("Valor acima de R$ 30 mil"),
+            ], className="eden-detail-flag flag-warning"))
         
         if pct_mo >= 95 and valor > 15000:
             flags.append(html.Div([
-                html.I(className="bi bi-info-circle-fill me-2", style={"color": "#3B82F6"}),
-                html.Span("100% MO, sem peças — possível serviço integrado", style={"fontSize": "0.78rem"}),
-            ], className="d-flex align-items-center mt-2",
-               style={"backgroundColor": "#EFF6FF", "padding": "6px 10px", "borderRadius": "6px", "border": "1px solid #BFDBFE"}))
+                html.I(className="bi bi-info-circle-fill"),
+                html.Span("100% MO, sem peças — possível serviço integrado"),
+            ], className="eden-detail-flag flag-info"))
         
         if valor_peca == 0 and valor_mo > 0 and abs(valor - valor_mo) < 1:
             flags.append(html.Div([
-                html.I(className="bi bi-wrench-adjustable me-2", style={"color": "#8B5CF6"}),
-                html.Span("EC lançou tudo como MO — peças não separadas", style={"fontSize": "0.78rem"}),
-            ], className="d-flex align-items-center mt-2",
-               style={"backgroundColor": "#F5F3FF", "padding": "6px 10px", "borderRadius": "6px", "border": "1px solid #DDD6FE"}))
+                html.I(className="bi bi-wrench-adjustable"),
+                html.Span("EC lançou tudo como MO — peças não separadas"),
+            ], className="eden-detail-flag flag-purple"))
         
         if familia in ('Equipamento', 'Implemento', 'Maquina', 'Empilhadeira', 'Equipamentos Pesados', 'Maquinas'):
             flags.append(html.Div([
-                html.I(className="bi bi-gear-wide-connected me-2", style={"color": "#F97316"}),
-                html.Span(f"Ativo classificado como {familia} (não veículo)", style={"fontSize": "0.78rem"}),
-            ], className="d-flex align-items-center mt-2",
-               style={"backgroundColor": "#FFF7ED", "padding": "6px 10px", "borderRadius": "6px", "border": "1px solid #FDBA74"}))
+                html.I(className="bi bi-gear-wide-connected"),
+                html.Span(f"Ativo classificado como {familia} (não veículo)"),
+            ], className="eden-detail-flag flag-orange"))
 
-        # Seção de itens preventivos (excluídos da análise corretiva)
+        # Seção itens preventivos
         prev_section = []
         if prev_count > 0:
+            prev_table_rows = []
+            if not prev_items_df.empty:
+                for _, p_item in prev_items_df.head(5).iterrows():
+                    prev_table_rows.append(html.Tr([
+                        html.Td(
+                            str(p_item.get('descricao_peca', 'N/A'))[:35],
+                            style={"fontSize": "0.72rem", "padding": "2px 6px",
+                                   "maxWidth": "150px", "overflow": "hidden", 
+                                   "textOverflow": "ellipsis", "whiteSpace": "nowrap"}
+                        ),
+                        html.Td(
+                            _format_brl(float(p_item.get('valor_total', 0))),
+                            style={"fontSize": "0.72rem", "fontWeight": "600", 
+                                   "padding": "2px 6px", "textAlign": "right"}
+                        ),
+                    ]))
+            
             prev_section = [
                 html.Div([
                     html.Div([
-                        html.I(className="bi bi-shield-exclamation me-2", style={"color": "#F59E0B", "fontSize": "0.85rem"}),
-                        html.Span(f"{prev_count} {'item' if prev_count == 1 else 'itens'} preventivo{'s' if prev_count > 1 else ''} nesta OS", 
-                                  style={"fontSize": "0.82rem", "fontWeight": "600", "color": "#92400E"}),
+                        html.I(className="bi bi-shield-exclamation me-2", style={"fontSize": "0.85rem"}),
+                        html.Span(
+                            f"{prev_count} {'item' if prev_count == 1 else 'itens'} preventivo{'s' if prev_count > 1 else ''} nesta OS", 
+                            style={"fontSize": "0.82rem", "fontWeight": "600"}
+                        ),
                     ], className="d-flex align-items-center mb-2"),
                     html.Div([
-                        html.Span("Valor:", style={"fontSize": "0.75rem", "color": "#92400E", "fontWeight": "500"}),
-                        html.Span(f" {_format_brl(prev_valor)}", style={"fontSize": "0.82rem", "fontWeight": "700", "color": "#92400E"}),
+                        html.Span("Valor:", style={"fontSize": "0.75rem", "fontWeight": "500"}),
+                        html.Span(f" {_format_brl(prev_valor)}", style={"fontSize": "0.82rem", "fontWeight": "700"}),
                     ], className="mb-2"),
                     html.Div(
                         "Estes itens foram classificados como manutenção preventiva e não entraram na análise corretiva.",
-                        style={"fontSize": "0.72rem", "color": "#A16207", "lineHeight": "1.4"}
+                        style={"fontSize": "0.72rem", "lineHeight": "1.4"}
                     ),
-                    # Mini-tabela dos itens preventivos
                     html.Div([
-                        html.Table([
-                            html.Tbody([
-                                html.Tr([
-                                    html.Td(
-                                        str(p_item.get('descricao_peca', 'N/A'))[:35],
-                                        style={"fontSize": "0.72rem", "color": "#92400E", "padding": "2px 6px",
-                                               "maxWidth": "150px", "overflow": "hidden", "textOverflow": "ellipsis", "whiteSpace": "nowrap"}
-                                    ),
-                                    html.Td(
-                                        _format_brl(float(p_item.get('valor_total', 0))),
-                                        style={"fontSize": "0.72rem", "color": "#92400E", "fontWeight":"600", 
-                                               "padding": "2px 6px", "textAlign": "right"}
-                                    ),
-                                ]) for _, p_item in (prev_items_df.head(5).iterrows() if not prev_items_df.empty else [])
-                            ])
-                        ], style={"width": "100%"}),
+                        html.Table([html.Tbody(prev_table_rows)], style={"width": "100%"}),
                         html.Div(f"+ {prev_count - 5} mais...", style={
-                            "fontSize": "0.68rem", "color": "#A16207", "marginTop": "2px"
+                            "fontSize": "0.68rem", "marginTop": "2px"
                         }) if prev_count > 5 else None,
-                    ], className="mt-2") if not prev_items_df.empty else None,
-                ], className="mt-3", style={
-                    "backgroundColor": "#FFFBEB", "padding": "10px 14px", 
-                    "borderRadius": "8px", "border": "1px solid #FDE68A"
-                }),
+                    ], className="mt-2") if prev_table_rows else None,
+                ], className="eden-detail-prev-section"),
             ]
 
         left_panel = html.Div([
@@ -639,7 +622,7 @@ def register_preventiva_callbacks(app):
             composition_legend,
             *flags,
             *prev_section,
-        ], style={"flex": "0 0 340px", "paddingRight": "20px", "borderRight": "1px solid #F1F5F9"})
+        ], className="eden-detail-panel-left")
         
         # ═══════════════════════════════════════════════
         # PAINEL DIREITO: Tabela de Itens Individuais
@@ -647,14 +630,14 @@ def register_preventiva_callbacks(app):
         
         if not items_df.empty:
             items_header = html.Thead(html.Tr([
-                html.Th("#", style={"width": "30px"}),
+                html.Th("#", style={"width": "34px"}),
                 html.Th("Peça / Serviço"),
-                html.Th("Tipo", style={"width": "100px"}),
-                html.Th("Valor Total", className="text-end", style={"width": "110px"}),
+                html.Th("Tipo", style={"width": "110px"}),
+                html.Th("Valor", className="text-end", style={"width": "110px"}),
                 html.Th("MO", className="text-end", style={"width": "95px"}),
                 html.Th("Peça", className="text-end", style={"width": "95px"}),
-                html.Th("Class.", className="text-center", style={"width": "60px"}),
-            ], style={"fontSize": "0.72rem", "color": "#94A3B8", "textTransform": "uppercase", "letterSpacing": "0.03em"}))
+                html.Th("Class.", className="text-center", style={"width": "65px"}),
+            ]))
             
             items_rows = []
             for idx, item in items_df.iterrows():
@@ -664,95 +647,87 @@ def register_preventiva_callbacks(app):
                 desc = str(item['descricao_peca'] or 'N/A')
                 tipo = str(item['tipo_mo'] or '')
                 
-                # Classificação visual: se MO > 0 e Peça = 0, badge vermelho "MO"
-                # Se Peça > 0 e MO = 0, badge azul "Peça"
-                # Se ambos > 0, badge roxo "Misto"
-                # Se ambos = 0, badge cinza "?"
                 if v_mo > 0 and v_peca == 0:
                     class_badge = html.Span("MO", className="badge", style={
-                        "backgroundColor": "rgba(226,6,19,0.1)", "color": "#C10510",
-                        "fontSize": "0.68rem", "fontWeight": "600"})
+                        "backgroundColor": "rgba(226,6,19,0.1)", "color": "#C10510"})
                 elif v_peca > 0 and v_mo == 0:
                     class_badge = html.Span("Peça", className="badge", style={
-                        "backgroundColor": "rgba(59,130,246,0.1)", "color": "#2563EB",
-                        "fontSize": "0.68rem", "fontWeight": "600"})
+                        "backgroundColor": "rgba(59,130,246,0.1)", "color": "#2563EB"})
                 elif v_mo > 0 and v_peca > 0:
                     class_badge = html.Span("Misto", className="badge", style={
-                        "backgroundColor": "rgba(139,92,246,0.1)", "color": "#7C3AED",
-                        "fontSize": "0.68rem", "fontWeight": "600"})
+                        "backgroundColor": "rgba(139,92,246,0.1)", "color": "#7C3AED"})
                 else:
                     class_badge = html.Span("—", className="badge", style={
-                        "backgroundColor": "rgba(148,163,184,0.1)", "color": "#94A3B8",
-                        "fontSize": "0.68rem"})
+                        "backgroundColor": "rgba(148,163,184,0.1)", "color": "#94A3B8"})
                 
                 items_rows.append(html.Tr([
-                    html.Td(str(idx + 1), style={"fontSize": "0.72rem", "color": "#94A3B8"}),
-                    html.Td(
-                        html.Div([
-                            html.Div(desc, style={"fontWeight": "500", "fontSize": "0.8rem", "color": "#1E293B"}),
-                        ]),
-                    ),
-                    html.Td(tipo, style={"fontSize": "0.75rem", "color": "#64748B"}),
-                    html.Td(_format_brl(v_total), className="text-end fw-semibold", style={"fontSize": "0.8rem", "color": "#1E293B"}),
+                    html.Td(str(idx + 1), className="row-idx"),
+                    html.Td(desc, style={"fontWeight": "500", "color": "#1E293B"}),
+                    html.Td(tipo, style={"color": "#64748B"}),
+                    html.Td(_format_brl(v_total), className="text-end fw-semibold", 
+                             style={"color": "#1E293B"}),
                     html.Td(
                         _format_brl(v_mo) if v_mo > 0 else "—",
-                        className="text-end", style={"fontSize": "0.78rem", "color": bar_mo_color if v_mo > 0 else "#CBD5E1"}
+                        className="text-end", 
+                        style={"color": bar_mo_color if v_mo > 0 else "#CBD5E1"}
                     ),
                     html.Td(
                         _format_brl(v_peca) if v_peca > 0 else "—",
-                        className="text-end", style={"fontSize": "0.78rem", "color": "#2563EB" if v_peca > 0 else "#CBD5E1"}
+                        className="text-end", 
+                        style={"color": "#2563EB" if v_peca > 0 else "#CBD5E1"}
                     ),
                     html.Td(class_badge, className="text-center"),
-                ], style={"borderBottom": "1px solid #F8FAFC"}))
+                ]))
             
             items_table = html.Div(
                 dbc.Table(
                     [items_header, html.Tbody(items_rows)],
-                    hover=True, bordered=False, size="sm", className="mb-0"
+                    hover=True, bordered=False, size="sm", 
+                    className="mb-0 eden-detail-table"
                 ),
-                style={"maxHeight": "400px", "overflowY": "auto"}
+                className="eden-detail-scroll"
             )
             
-            # Legenda didática
             legend = html.Div([
-                html.Div("Como ler esta tabela:", style={
-                    "fontSize": "0.7rem", "fontWeight": "700", "color": "#94A3B8",
-                    "textTransform": "uppercase", "letterSpacing": "0.04em", "marginBottom": "4px"
-                }),
+                html.Div("Classificação dos itens:", className="legend-title"),
                 html.Div([
-                    html.Span("MO", className="badge me-1", style={
-                        "backgroundColor": "rgba(226,6,19,0.1)", "color": "#C10510", "fontSize": "0.65rem"}),
-                    html.Span("= Valor lançado como Mão de Obra", style={"fontSize": "0.72rem", "color": "#64748B"}),
-                ], className="d-flex align-items-center"),
+                    html.Span("MO", className="badge", style={
+                        "backgroundColor": "rgba(226,6,19,0.1)", "color": "#C10510"}),
+                    html.Span("Mão de Obra"),
+                ], className="legend-entry"),
                 html.Div([
-                    html.Span("Peça", className="badge me-1", style={
-                        "backgroundColor": "rgba(59,130,246,0.1)", "color": "#2563EB", "fontSize": "0.65rem"}),
-                    html.Span("= Valor de peça/componente", style={"fontSize": "0.72rem", "color": "#64748B"}),
-                ], className="d-flex align-items-center mt-1"),
+                    html.Span("Peça", className="badge", style={
+                        "backgroundColor": "rgba(59,130,246,0.1)", "color": "#2563EB"}),
+                    html.Span("Componente"),
+                ], className="legend-entry"),
                 html.Div([
-                    html.Span("Misto", className="badge me-1", style={
-                        "backgroundColor": "rgba(139,92,246,0.1)", "color": "#7C3AED", "fontSize": "0.65rem"}),
-                    html.Span("= Item com MO + Peça separados", style={"fontSize": "0.72rem", "color": "#64748B"}),
-                ], className="d-flex align-items-center mt-1"),
-            ], className="mt-3 pt-2", style={"borderTop": "1px solid #F1F5F9"})
+                    html.Span("Misto", className="badge", style={
+                        "backgroundColor": "rgba(139,92,246,0.1)", "color": "#7C3AED"}),
+                    html.Span("MO + Peça"),
+                ], className="legend-entry"),
+            ], className="eden-detail-legend-section")
         else:
-            items_table = html.Div("Sem itens detalhados.", className="text-muted text-center py-5")
+            items_table = html.Div(
+                [html.I(className="bi bi-inbox", style={"fontSize": "1.5rem", "color": "#CBD5E1"}),
+                 html.Div("Sem itens detalhados", style={"fontSize": "0.82rem", "color": "#94A3B8", "marginTop": "8px"})],
+                className="text-center py-5", style={"display": "flex", "flexDirection": "column", "alignItems": "center"}
+            )
             legend = html.Div()
         
         right_panel = html.Div([
             html.Div([
-                html.I(className="bi bi-list-ul me-2", style={"color": "#94A3B8"}),
-                html.Span("Itens da Ordem de Serviço", style={
-                    "fontSize": "0.82rem", "fontWeight": "700", "color": "#1E293B"
-                }),
-                html.Span(f"  ({qtd_itens})", style={"fontSize": "0.78rem", "color": "#94A3B8", "marginLeft": "4px"}),
-            ], className="mb-2"),
+                html.Div(
+                    html.I(className="bi bi-list-columns-reverse"),
+                    className="items-icon"
+                ),
+                html.Span("Itens da Ordem de Serviço", className="items-title"),
+                html.Span(f"{qtd_itens}", className="items-count"),
+            ], className="eden-detail-items-header"),
             items_table,
             legend,
-        ], style={"flex": "1", "paddingLeft": "20px", "minWidth": "0"})
+        ], className="eden-detail-panel-right")
         
-        # Layout horizontal: resumo à esquerda, itens à direita
-        body = html.Div([left_panel, right_panel], 
-                        className="d-flex", style={"gap": "0"})
+        # Layout: grid 2 painéis
+        body = html.Div([left_panel, right_panel], className="eden-detail-grid")
         
         return True, body
