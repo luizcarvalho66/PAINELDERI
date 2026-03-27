@@ -41,9 +41,9 @@ except ImportError:
         print("[SYNC WARNING] Pricing engine not found.", flush=True)
         return False
 
-HOST = "adb-7941093640821140.0.azuredatabricks.net"
-HTTP_PATH = "/sql/1.0/warehouses/ce56ec5f5d0a3e07"
-PROFILE = "adb-7941093640821140"
+HOST = os.environ.get("DATABRICKS_HOST", "adb-7941093640821140.0.azuredatabricks.net")
+HTTP_PATH = os.environ.get("DATABRICKS_HTTP_PATH", "/sql/1.0/warehouses/ce56ec5f5d0a3e07")
+PROFILE = os.environ.get("DATABRICKS_PROFILE", "adb-7941093640821140")
 
 # Detecta se estamos dentro de um Databricks App
 IS_DATABRICKS_APP = os.path.exists("/app/python")

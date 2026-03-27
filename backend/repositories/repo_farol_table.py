@@ -59,16 +59,19 @@ def get_farol_table_data(filters: dict = None, page: int = 1, page_size: int = 1
         cursor = conn.cursor()
 
         where_clauses = []
+        params = []
         
         if filters:
             if filters.get("clientes"):
-                clients_escaped = "', '".join([c.replace("'", "''") for c in filters["clientes"]])
-                where_clauses.append(f"nome_cliente IN ('{clients_escaped}')")
+                placeholders = ", ".join(["?" for _ in filters["clientes"]])
+                where_clauses.append(f"nome_cliente IN ({placeholders})")
+                params.extend(filters["clientes"])
             
             # Filtro por Chave (Peça + MO) - Aplicado no SQL para performance
             if filters.get("chaves"):
-                chaves_escaped = "', '".join([c.replace("'", "''") for c in filters["chaves"]])
-                where_clauses.append(f"CONCAT(COALESCE(peca, 'SEM PEÇA'), ' + ', COALESCE(tipo_mo, 'SEM MO')) IN ('{chaves_escaped}')")
+                placeholders = ", ".join(["?" for _ in filters["chaves"]])
+                where_clauses.append(f"CONCAT(COALESCE(peca, 'SEM PEÇA'), ' + ', COALESCE(tipo_mo, 'SEM MO')) IN ({placeholders})")
+                params.extend(filters["chaves"])
         
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         
@@ -169,7 +172,7 @@ def get_farol_table_data(filters: dict = None, page: int = 1, page_size: int = 1
         """
         
         # Executar com cursor isolado
-        df = cursor.execute(query).fetchdf()
+        df = cursor.execute(query, params).fetchdf()
         cursor.close()
         
         if df.empty:
@@ -240,15 +243,18 @@ def get_farol_total_count(filters: dict = None, only_opportunities: bool = False
         cursor = conn.cursor()
         
         where_clauses = ["COALESCE(data_transacao, data_aprovacao_os) IS NOT NULL", "status_os != 'CANCELADA'"]
+        params = []
         
         if filters:
             if filters.get("clientes"):
-                clients_escaped = "', '".join([c.replace("'", "''") for c in filters["clientes"]])
-                where_clauses.append(f"nome_cliente IN ('{clients_escaped}')")
+                placeholders = ", ".join(["?" for _ in filters["clientes"]])
+                where_clauses.append(f"nome_cliente IN ({placeholders})")
+                params.extend(filters["clientes"])
             
             if filters.get("chaves"):
-                chaves_escaped = "', '".join([c.replace("'", "''") for c in filters["chaves"]])
-                where_clauses.append(f"CONCAT(COALESCE(peca, 'SEM PEÇA'), ' + ', COALESCE(tipo_mo, 'SEM MO')) IN ('{chaves_escaped}')")
+                placeholders = ", ".join(["?" for _ in filters["chaves"]])
+                where_clauses.append(f"CONCAT(COALESCE(peca, 'SEM PEÇA'), ' + ', COALESCE(tipo_mo, 'SEM MO')) IN ({placeholders})")
+                params.extend(filters["chaves"])
         
         where_sql = " AND ".join(where_clauses)
         
@@ -280,7 +286,7 @@ def get_farol_total_count(filters: dict = None, only_opportunities: bool = False
         ) subq
         """
         
-        result = cursor.execute(query).fetchone()
+        result = cursor.execute(query, params).fetchone()
         cursor.close()
         
         total = result[0] if result else 0
@@ -310,9 +316,11 @@ def get_farol_stats_full(filters: dict = None) -> dict:
         
         # Reutiliza lógica de filtros
         where_clauses = []
+        params = []
         if filters and filters.get("clientes"):
-            clients_escaped = "', '".join([c.replace("'", "''") for c in filters["clientes"]])
-            where_clauses.append(f"nome_cliente IN ('{clients_escaped}')")
+            placeholders = ", ".join(["?" for _ in filters["clientes"]])
+            where_clauses.append(f"nome_cliente IN ({placeholders})")
+            params.extend(filters["clientes"])
         
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         
@@ -357,7 +365,7 @@ def get_farol_stats_full(filters: dict = None) -> dict:
         LEFT JOIN benchmark_total bt ON a.tipo_mo = bt.tipo_mo
         """
         
-        df = cursor.execute(query).fetchdf()
+        df = cursor.execute(query, params).fetchdf()
         cursor.close()
         
         if df.empty:
@@ -631,7 +639,8 @@ def get_drill_down_chave(peca: str, tipo_mo: str, clientes: tuple = None, data_i
         return pd.DataFrame()
     
     try:
-        query = f"""
+        params = [peca, tipo_mo]
+        query = """
         SELECT 
             numero_os,
             nome_cliente,
@@ -663,27 +672,30 @@ def get_drill_down_chave(peca: str, tipo_mo: str, clientes: tuple = None, data_i
             END as aprovacao_automatica,
             mensagem_log
         FROM ri_corretiva_detalhamento
-        WHERE peca = '{peca}' AND tipo_mo = '{tipo_mo}'
+        WHERE peca = ? AND tipo_mo = ?
           AND status_os != 'CANCELADA'
           AND COALESCE(valor_aprovado, 0) > 0
         """
         # Filtrar por clientes se fornecido
         if clientes:
-            placeholders = ", ".join([f"'{c}'" for c in clientes])
+            placeholders = ", ".join(["?" for _ in clientes])
             query += f" AND nome_cliente IN ({placeholders})"
+            params.extend(clientes)
         
         # Filtrar por período
         if data_inicio:
-            query += f" AND data_transacao >= '{data_inicio}'"
+            query += " AND data_transacao >= ?"
+            params.append(data_inicio)
         if data_fim:
-            query += f" AND data_transacao <= '{data_fim}'"
+            query += " AND data_transacao <= ?"
+            params.append(data_fim)
         
         query += f"""
         ORDER BY data_transacao DESC
-        LIMIT {limit}
+        LIMIT {int(limit)}
         """
         
-        df = conn.execute(query).fetchdf()
+        df = conn.execute(query, params).fetchdf()
         return df
         
     except Exception as e:

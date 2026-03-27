@@ -13,6 +13,7 @@ Author: Luiz Eduardo Carvalho
 import pandas as pd
 from database import get_connection
 from backend.cache_config import safe_memoize
+from backend.repositories.repo_base import MONTH_MAP
 from engine.farol_engine import processar_dados_farol, get_resumo_farois
 
 
@@ -112,6 +113,7 @@ def get_ri_corretivas_chart(filters: dict = None) -> pd.DataFrame:
         
         df = conn.execute(query).fetchdf()
         
+        if df.empty:
             print("[REPO_CORRETIVAS] Chart: Sem dados retornados")
             return pd.DataFrame()
         
@@ -119,12 +121,6 @@ def get_ri_corretivas_chart(filters: dict = None) -> pd.DataFrame:
         df['pct_fora'] = (df['valor_fora_auto'].astype(float) / df['valor_total'].replace(0, 1)) * 100
         
         # Adicionar nome do mês
-        MONTH_MAP = {
-            1: 'janeiro', 2: 'fevereiro', 3: 'março',
-            4: 'abril', 5: 'maio', 6: 'junho',
-            7: 'julho', 8: 'agosto', 9: 'setembro',
-            10: 'outubro', 11: 'novembro', 12: 'dezembro'
-        }
         df['mes_nome'] = df['mes_num'].map(MONTH_MAP)
         
         print(f"[REPO_CORRETIVAS] Chart: {len(df)} meses | Valor fora auto: R$ {df['valor_fora_auto'].sum():,.2f}")
@@ -166,15 +162,19 @@ def get_logs_nao_aprovacao(filters: dict = None, limit: int = 100) -> pd.DataFra
             "mensagem_log != ''",
             "TRIM(mensagem_log) != ''"
         ]
+        params = []
         
         if filters:
             if filters.get("peca"):
-                where_clauses.append(f"peca = '{filters['peca']}'")
+                where_clauses.append("peca = ?")
+                params.append(filters['peca'])
             if filters.get("tipo_mo"):
-                where_clauses.append(f"tipo_mo = '{filters['tipo_mo']}'")
+                where_clauses.append("tipo_mo = ?")
+                params.append(filters['tipo_mo'])
             if filters.get("clientes"):
-                clients_escaped = "', '".join([c.replace("'", "''") for c in filters["clientes"]])
-                where_clauses.append(f"nome_cliente IN ('{clients_escaped}')")
+                placeholders = ", ".join(["?" for _ in filters["clientes"]])
+                where_clauses.append(f"nome_cliente IN ({placeholders})")
+                params.extend(filters["clientes"])
         
         where_sql = " AND ".join(where_clauses)
         
@@ -190,10 +190,10 @@ def get_logs_nao_aprovacao(filters: dict = None, limit: int = 100) -> pd.DataFra
         FROM ri_corretiva_detalhamento
         WHERE {where_sql}
         ORDER BY data_transacao DESC
-        LIMIT {limit}
+        LIMIT {int(limit)}
         """
         
-        df = conn.execute(query).fetchdf()
+        df = conn.execute(query, params).fetchdf()
         print(f"[REPO_CORRETIVAS] Logs: {len(df)} registros retornados")
         return df
         
@@ -231,12 +231,12 @@ def get_drill_down_chave(peca: str, tipo_mo: str, limit: int = 50) -> pd.DataFra
                 ELSE 'Manual'
             END as tipo_aprovacao
         FROM ri_corretiva_detalhamento
-        WHERE peca = '{peca}' AND tipo_mo = '{tipo_mo}'
+        WHERE peca = ? AND tipo_mo = ?
         ORDER BY data_transacao DESC
-        LIMIT {limit}
+        LIMIT {int(limit)}
         """
         
-        df = conn.execute(query).fetchdf()
+        df = conn.execute(query, [peca, tipo_mo]).fetchdf()
         return df
         
     except Exception as e:

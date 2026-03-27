@@ -1,16 +1,9 @@
 from database import get_connection
 import pandas as pd
-from backend.cache_config import cache
+from backend.cache_config import safe_memoize
+from backend.repositories.repo_base import MONTH_MAP
 
-# Mapa de meses em português
-MONTH_MAP = {
-    1: 'janeiro', 2: 'fevereiro', 3: 'março',
-    4: 'abril', 5: 'maio', 6: 'junho',
-    7: 'julho', 8: 'agosto', 9: 'setembro',
-    10: 'outubro', 11: 'novembro', 12: 'dezembro'
-}
-
-@cache.memoize(timeout=300)  # Cache for 5 minutes
+@safe_memoize(timeout=300)  # Cache for 5 minutes
 def get_ri_evolution_data(filters: dict = None):
     """
     Fetches the evolution of Regulation Intelligence (RI) % over time.

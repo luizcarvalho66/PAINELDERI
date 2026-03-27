@@ -141,12 +141,12 @@ def calcular_economia_os():
     """
     print("[PRICING] Calculando economia por OS...")
     
-    conn = get_connection(read_only=False)
-    if conn is None:
-        print("[PRICING] ERRO: Não foi possível conectar ao banco")
-        return False
-    
+    conn = None
     try:
+        conn = get_connection(read_only=False)
+        if conn is None:
+            print("[PRICING] ERRO: Não foi possível conectar ao banco")
+            return False
         conn.execute("""
             CREATE OR REPLACE TABLE economia_calculada AS
             SELECT
