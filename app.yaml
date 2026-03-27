@@ -1,9 +1,31 @@
-# Databricks App Configuration: paineilri
+# Databricks Apps — Painel RI Edenred
+# Credenciais NÃO ficam aqui. Em prod, o Databricks injeta via Service Principal.
+# Local: usar .env (gitignored). Prod: env vars na UI do Databricks Apps.
+
 command:
-  - python
-  - app.py
+  - "gunicorn"
+  - "app:server"
+  - "--bind"
+  - "0.0.0.0:8080"
+  - "--workers"
+  - "1"
+  - "--timeout"
+  - "120"
+  - "--max-requests"
+  - "500"
+
 env:
-  - name: DASH_SERVER_PORT
-    value: "8080"
+  - name: DASH_DEBUG
+    value: "False"
   - name: DASH_SERVER_ADDRESS
     value: "0.0.0.0"
+  - name: DASH_SERVER_PORT
+    value: "8080"
+
+# Vars sensíveis — cadastrar em: Apps > painelri > Settings > Environment Variables
+# Ficam criptografadas no Databricks, nunca no repo.
+#
+# ADMIN_RESET_PASSWORD       Senha do reset de banco (sidebar)
+# DATABRICKS_HOST            Injetado pelo Service Principal
+# DATABRICKS_CLIENT_ID       Injetado pelo Service Principal
+# DATABRICKS_CLIENT_SECRET   Injetado pelo Service Principal
