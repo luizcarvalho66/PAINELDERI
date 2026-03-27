@@ -1,13 +1,6 @@
-# ============================================================
-# Databricks Apps Configuration — Painel RI Edenred
-# ============================================================
-# SEGURANÇA: Este arquivo NÃO contém credenciais.
-# Em produção, o Databricks Apps injeta automaticamente:
-#   - DATABRICKS_HOST
-#   - DATABRICKS_CLIENT_ID / CLIENT_SECRET (via Service Principal)
-#   - DATABRICKS_TOKEN
-# Essas vars ficam no .env (local, gitignored) ou no Databricks UI.
-# ============================================================
+# Databricks Apps — Painel RI Edenred
+# Credenciais NÃO ficam aqui. Em prod, o Databricks injeta via Service Principal.
+# Local: usar .env (gitignored). Prod: env vars na UI do Databricks Apps.
 
 command:
   - "gunicorn"
@@ -18,6 +11,8 @@ command:
   - "1"
   - "--timeout"
   - "120"
+  - "--max-requests"
+  - "500"
 
 env:
   - name: DASH_DEBUG
@@ -27,13 +22,10 @@ env:
   - name: DASH_SERVER_PORT
     value: "8080"
 
-# ============================================================
-# ⚠️ VARIÁVEIS SENSÍVEIS — configurar na UI do Databricks Apps
-# (Apps > paineilri > Settings > Environment Variables)
-# Elas ficam CRIPTOGRAFADAS no Databricks, não expostas no GitHub.
-# ============================================================
-# - ADMIN_RESET_PASSWORD  → Senha do reset de banco (sidebar)
-# - DATABRICKS_HOST       → Injetado automaticamente pelo Service Principal
-# - DATABRICKS_CLIENT_ID  → Injetado automaticamente pelo Service Principal
-# - DATABRICKS_CLIENT_SECRET → Injetado automaticamente pelo Service Principal
-# ============================================================
+# Vars sensíveis — cadastrar em: Apps > painelri > Settings > Environment Variables
+# Ficam criptografadas no Databricks, nunca no repo.
+#
+# ADMIN_RESET_PASSWORD       Senha do reset de banco (sidebar)
+# DATABRICKS_HOST            Injetado pelo Service Principal
+# DATABRICKS_CLIENT_ID       Injetado pelo Service Principal
+# DATABRICKS_CLIENT_SECRET   Injetado pelo Service Principal
