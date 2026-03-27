@@ -11,6 +11,7 @@ CONTENT_STYLE = {
 from frontend.pages.dashboard import render_dashboard
 from frontend.components.farol_section import render_farol_section
 from frontend.components.reports_section import render_reports_section
+from frontend.components.export_modal import render_export_modal
 
 # Navegação show/hide: todas as seções existem permanentemente no DOM.
 # A navegação apenas alterna display: block/none, preservando o estado dos charts/KPIs.
@@ -129,6 +130,7 @@ def get_layout():
         html.Div(id="btn-sync-empty-state", style={"display": "none"}),
         html.Div(id="btn-retry-databricks-check", style={"display": "none"}),
 
+        render_export_modal(),
         render_sidebar(),
         content,
 

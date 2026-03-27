@@ -258,8 +258,44 @@ def _build_client_selection_modal():
                             ),
                         ]
                     ),
+                    # ── Overlay de Loading PPT (dentro do modal) ──
+                    html.Div(
+                        [
+                            html.Div(
+                                [
+                                    html.Iframe(
+                                        srcDoc='''<svg width="140" height="110" viewBox="0 0 140 110" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:auto">
+                                            <rect x="5" y="5" width="130" height="100" rx="6" fill="#fff" stroke="#e5e5ea" stroke-width="1.5"/>
+                                            <rect x="5" y="5" width="130" height="18" rx="6" fill="#E20613"/>
+                                            <rect x="5" y="17" width="130" height="6" fill="#E20613"/>
+                                            <rect x="14" y="10" width="50" height="6" rx="2" fill="rgba(255,255,255,0.7)"/>
+                                            <rect x="14" y="32" width="35" height="28" rx="4" fill="#f5f5f7" stroke="#e5e5ea" stroke-width="0.5"><animate attributeName="fill" values="#f5f5f7;#fce4e6;#fce4e6" dur="0.5s" begin="0.3s" fill="freeze"/></rect>
+                                            <rect x="54" y="32" width="35" height="28" rx="4" fill="#f5f5f7" stroke="#e5e5ea" stroke-width="0.5"><animate attributeName="fill" values="#f5f5f7;#fce4e6;#fce4e6" dur="0.5s" begin="0.6s" fill="freeze"/></rect>
+                                            <rect x="94" y="32" width="35" height="28" rx="4" fill="#f5f5f7" stroke="#e5e5ea" stroke-width="0.5"><animate attributeName="fill" values="#f5f5f7;#fce4e6;#fce4e6" dur="0.5s" begin="0.9s" fill="freeze"/></rect>
+                                            <rect x="14" y="68" width="76" height="30" rx="4" fill="#f5f5f7"><animate attributeName="fill" values="#f5f5f7;#E20613;#fce4e6" dur="1s" begin="1.2s" fill="freeze"/><animate attributeName="width" values="0;76" dur="0.6s" begin="1.2s" fill="freeze"/></rect>
+                                            <circle cx="114" cy="88" r="10" fill="#f5f5f7" stroke="#e5e5ea" stroke-width="0.5"><animate attributeName="fill" values="#f5f5f7;#fce4e6;#fce4e6" dur="0.4s" begin="1.8s" fill="freeze"/></circle>
+                                            <circle cx="120" cy="16" r="10" fill="#107c41" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="2.2s" fill="freeze"/></circle>
+                                            <path d="M115 16 L118 19 L125 12" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="2.3s" fill="freeze"/></path>
+                                        </svg>''',
+                                        style={"width": "160px", "height": "130px", "border": "none",
+                                               "marginBottom": "16px", "background": "transparent"}
+                                    ),
+                                    html.Div("Montando sua apresentação...", id="ppt-loading-title",
+                                             style={"fontSize": "1rem", "fontWeight": "600", "color": "#1d1d1f",
+                                                    "marginBottom": "6px"}),
+                                    html.Div("Coletando KPIs e gráficos do painel", id="ppt-loading-status",
+                                             style={"fontSize": "0.82rem", "color": "#86868b"}),
+                                ],
+                                style={"display": "flex", "flexDirection": "column",
+                                       "alignItems": "center", "justifyContent": "center"}
+                            )
+                        ],
+                        id="ppt-loading-overlay",
+                        className="export-loading-overlay",
+                        style={"display": "none"}
+                    ),
                 ],
-                style={"padding": "28px 32px 20px 32px", "backgroundColor": "#ffffff"},
+                style={"padding": "28px 32px 20px 32px", "backgroundColor": "#ffffff", "position": "relative"},
             ),
 
             # ─── FOOTER ─────────────────────────────────────────
@@ -345,56 +381,6 @@ def render_reports_section():
             ),
         html.Div(
             [
-                # Modal Overlay de Loading (Fábrica de Slides 3D)
-                html.Div(
-                    [
-                        html.Div(
-                            [
-                                # Cena Data Flow Transformação (Dashboard -> PPT)
-                                html.Div(
-                                    [
-                                        # Origem: Ícone Dashboard (Extração)
-                                        html.Div(
-                                            DashIconify(icon="mynaui:grid", width=56, height=56, className="df-source-icon"),
-                                            className="df-source-container"
-                                        ),
-
-                                        # Fluxo de Dados (Partículas)
-                                        html.Div(
-                                            [
-                                                html.Div(className="df-particle pt-1"),
-                                                html.Div(className="df-particle pt-2"),
-                                                html.Div(className="df-particle pt-3")
-                                            ],
-                                            className="df-stream"
-                                        ),
-
-                                        # Destino: Ícone PowerPoint (Recepção)
-                                        html.Div(
-                                            DashIconify(icon="vscode-icons:file-type-powerpoint", width=64, height=64, className="df-target-icon"),
-                                            className="df-target-container"
-                                        )
-                                    ],
-                                    className="data-flow-scene mb-4"
-                                ),
-
-                                # Texto Dinâmico que "Digita/Pisca"
-                                html.Div(
-                                    [
-                                        html.Span("Coletando gráficos do painel...", className="ppt-dynamic-text msg-1"),
-                                        html.Span("Sintetizando cálculos...", className="ppt-dynamic-text msg-2"),
-                                        html.Span("Construindo slides .PPTX...", className="ppt-dynamic-text msg-3"),
-                                    ],
-                                    className="ppt-message-container mt-2"
-                                )
-                            ],
-                            className="ppt-builder-box"
-                        )
-                    ],
-                    id="ppt-loading-overlay",
-                    className="ppt-loading-overlay",
-                    style={"display": "none"}  # Controlado via callback
-                ),
 
                     # PPT — ATIVO (com Badge BETA)
                     html.Div([
@@ -415,14 +401,16 @@ def render_reports_section():
                             accent_color="#E20613",
                         ),
                     ], style={"position": "relative"}),
-                    # Excel — EM BREVE
+                    # Excel — ATIVO
                     _build_report_card(
                         variant="excel",
                         icon_name="vscode-icons:file-type-excel",
                         title="Dados Detalhados",
-                        description="Planilha completa com filtros, tabelas dinâmicas e drill-down.",
-                        button_label="Exportar .XLSX",
+                        description="Escolha e arraste colunas na mini-planilha antes de extrair os dados completos.",
+                        button_label="Montar Exportação .XLSX",
                         button_icon="ph:file-xls-light",
+                        enabled=True,
+                        btn_id="btn-open-export-modal-reports",
                         accent_color="#16a34a",
                     ),
                 ],

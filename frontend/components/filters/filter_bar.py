@@ -83,6 +83,10 @@ def render_filter_bar():
                     html.I(className="bi bi-x-lg")
                 ], id="btn-clear-global-filters", title="Limpar todos os filtros", className="btn-filter-clear ms-2"),
                 
+                # Botão de Exportar Novo
+                dbc.Button([
+                    html.I(className="bi bi-file-earmark-excel-fill", style={"fontSize": "1.1rem"}),
+                ], id="btn-open-export-modal", title="Exportar dados da visão atual", className="btn-filter-clear ms-3", style={"color": "#107c41", "borderColor": "#107c41", "backgroundColor": "rgba(16,124,65,0.05)"}),
             ], className="filter-bar-actions"),
             
         ], className="filter-bar-inner"),

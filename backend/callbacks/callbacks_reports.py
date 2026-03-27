@@ -8,6 +8,7 @@ Author: AI Agent
 """
 
 from dash import Input, Output, State, no_update, dcc, clientside_callback, html, callback_context
+from dash_iconify import DashIconify
 from datetime import datetime
 import traceback
 
@@ -46,13 +47,16 @@ def register_reports_callbacks(app):
     @app.callback(
         Output("modal-select-client", "is_open", allow_duplicate=True),
         Output("dropdown-client-tgm", "options"),
+        Output("ppt-loading-overlay", "style", allow_duplicate=True),
+        Output("ppt-loading-title", "children", allow_duplicate=True),
+        Output("ppt-loading-status", "children", allow_duplicate=True),
         Input("btn-export-ppt", "n_clicks"),
         prevent_initial_call=True,
     )
     def open_client_modal(n_clicks):
-        """Abre modal e popula dropdown com clientes distintos."""
+        """Abre modal e popula dropdown com clientes distintos. Reseta overlay."""
         if not n_clicks:
-            return no_update, no_update
+            return no_update, no_update, no_update, no_update, no_update
 
         try:
             clients = get_distinct_clients()
@@ -60,11 +64,17 @@ def register_reports_callbacks(app):
         except Exception:
             options = []
 
-        return True, options
+        # Reset overlay para estado inicial toda vez que o modal abre
+        return (
+            True, options,
+            {"display": "none"},
+            "Montando sua apresentação...",
+            "Coletando KPIs e gráficos do painel",
+        )
 
     # ── 2. Habilitar/desabilitar botão de confirmar baseado na seleção ──
     @app.callback(
-        Output("btn-generate-ppt-confirm", "disabled"),
+        Output("btn-generate-ppt-confirm", "disabled", allow_duplicate=True),
         Input("dropdown-client-tgm", "value"),
         prevent_initial_call=True,
     )
@@ -104,27 +114,25 @@ def register_reports_callbacks(app):
         else:  # default: 30d
             return PILL_ACTIVE, PILL_INACTIVE, PILL_INACTIVE, "30d"
 
-    # ── 4. Callback clientside para abrir loading overlay IMEDIATAMENTE ──
-    clientside_callback(
-        """
-        function(n_clicks) {
-            if (n_clicks) {
-                return {"display": "flex"};
-            }
-            return window.dash_clientside.no_update;
-        }
-        """,
-        Output("ppt-loading-overlay", "style"),
-        Input("btn-generate-ppt-confirm", "n_clicks"),
-        prevent_initial_call=True,
-    )
+    # ── 4. Feedback imediato via JS puro (assets/ppt-button.js) ──
+    # Removido clientside_callback que causava "Duplicate callback outputs"
+    # A lógica de mostrar overlay + desabilitar botão ao clicar é feita em assets/ppt-button.js
+
+    # ── Children originais do botão (para restaurar após erro) ──
+    PPT_BTN_ORIGINAL = [
+        DashIconify(icon="ph:file-ppt-light", width=18, className="me-2"),
+        "Gerar Apresentação",
+    ]
 
     # ── 5. Gerar PPT filtrado pelo cliente e período selecionados ──
     @app.callback(
         Output("download-ppt", "data"),
         Output("ppt-loading-overlay", "style", allow_duplicate=True),
-        Output("modal-select-client", "is_open", allow_duplicate=True),
+        Output("ppt-loading-title", "children", allow_duplicate=True),
+        Output("ppt-loading-status", "children", allow_duplicate=True),
         Output("dropdown-client-tgm", "value"),
+        Output("btn-generate-ppt-confirm", "disabled", allow_duplicate=True),
+        Output("btn-generate-ppt-confirm", "children", allow_duplicate=True),
         Input("btn-generate-ppt-confirm", "n_clicks"),
         State("dropdown-client-tgm", "value"),
         State("ppt-period-store", "data"),
@@ -134,7 +142,7 @@ def register_reports_callbacks(app):
     def download_ppt(n_clicks, selected_client, selected_period, filters_state):
         """Gera e retorna o PPTX filtrado pelo cliente e período selecionados."""
         if not n_clicks or not selected_client:
-            return no_update, no_update, no_update, no_update
+            return no_update, no_update, no_update, no_update, no_update, no_update, no_update
 
         try:
             # Construir filtros com o cliente selecionado
@@ -172,7 +180,15 @@ def register_reports_callbacks(app):
             df = get_ri_evolution_data(filters)
 
             if df.empty or ('error_state' in df.columns and df['error_state'].iloc[0]):
-                return no_update, {"display": "none"}, False, None
+                return (
+                    no_update,
+                    no_update,  # Overlay continua visível
+                    "Sem dados disponíveis",
+                    "Não encontramos dados para este cliente no período selecionado.",
+                    no_update,
+                    False,           # Reabilitar botão
+                    PPT_BTN_ORIGINAL, # Restaurar texto original
+                )
 
             total_analisado = int((df['qtd_prev'] + df['qtd_corr']).sum())
 
@@ -328,12 +344,61 @@ def register_reports_callbacks(app):
 
             return (
                 dcc.send_bytes(ppt_bytes.getvalue(), filename=filename),
-                {"display": "none"},
-                False,   # Fechar modal
-                None,    # Resetar dropdown
+                no_update,   # Overlay: mantém visível (clientside vai gerenciar)
+                no_update,   # Title: clientside vai trocar via DOM
+                no_update,   # Status: clientside vai trocar via DOM
+                None,        # Resetar dropdown
+                no_update,   # Botão: clientside vai restaurar
+                no_update,   # Botão children: clientside vai restaurar
             )
 
         except Exception as e:
             traceback.print_exc()
             print(f"[REPORTS] Erro ao gerar PPT: {e}", flush=True)
-            return no_update, {"display": "none"}, False, None
+            return (
+                no_update,
+                no_update,  # Overlay continua visível — mostra o erro
+                "Erro ao gerar apresentação",
+                "Ocorreu um problema. Feche esta janela e tente novamente.",
+                no_update,
+                False,           # Reabilitar botão
+                PPT_BTN_ORIGINAL, # Restaurar texto original
+            )
+
+    # ── 6. Clientside: Quando download-ppt dispara, mostrar sucesso e auto-fechar ──
+    clientside_callback(
+        """
+        function(download_data) {
+            if (download_data) {
+                var overlay = document.getElementById('ppt-loading-overlay');
+                var titleEl = document.getElementById('ppt-loading-title');
+                var statusEl = document.getElementById('ppt-loading-status');
+                var btn = document.getElementById('btn-generate-ppt-confirm');
+
+                // Trocar texto para sucesso
+                if (titleEl) titleEl.textContent = 'Apresentação pronta!';
+                if (statusEl) statusEl.textContent = 'Seu arquivo será baixado em instantes.';
+
+                // Fechar tudo após 3 segundos
+                setTimeout(function() {
+                    if (overlay) overlay.style.display = 'none';
+                    // Reset textos
+                    if (titleEl) titleEl.textContent = 'Montando sua apresentação...';
+                    if (statusEl) statusEl.textContent = 'Coletando KPIs e gráficos do painel';
+                    // Restaurar botão
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = 'Gerar Apresentação';
+                    }
+                    // Fechar o modal
+                    var cancelBtn = document.getElementById('btn-cancel-ppt-modal');
+                    if (cancelBtn) cancelBtn.click();
+                }, 3000);
+            }
+            return window.dash_clientside.no_update;
+        }
+        """,
+        Output("ppt-loading-status", "children", allow_duplicate=True),
+        Input("download-ppt", "data"),
+        prevent_initial_call=True,
+    )
