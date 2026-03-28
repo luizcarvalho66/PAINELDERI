@@ -45,6 +45,11 @@ def register_sidebar_callbacks(app):
             return False
         return not is_open
     
+    # Rate limiting para brute-force protection
+    _failed_attempts = {"count": 0, "lockout_until": 0}
+    _MAX_ATTEMPTS = 5
+    _LOCKOUT_SECONDS = 300  # 5 minutos
+    
     # 2. Executar reset e dar feedback + sinalizar reload
     @app.callback(
         [
@@ -56,6 +61,21 @@ def register_sidebar_callbacks(app):
         prevent_initial_call=True,
     )
     def execute_reset(n_clicks, password):
+        # [A3] Rate limiting — bloqueia após 5 tentativas falhas
+        now = time.time()
+        if _failed_attempts["lockout_until"] > now:
+            remaining = int(_failed_attempts["lockout_until"] - now)
+            logger.warning(f"[RESET] Bloqueado por rate limiting. {remaining}s restantes.")
+            return (
+                html.Div(
+                    [
+                        html.I(className="bi bi-clock-fill text-warning me-2"),
+                        html.Span(f"Muitas tentativas. Tente novamente em {remaining}s.", className="text-warning fw-bold"),
+                    ],
+                ),
+                no_update,
+            )
+        
         # [SEC-002] Bloqueia se env var não configurada + comparação timing-safe
         if not _RESET_PASSWORD:
             logger.warning("[RESET] ADMIN_RESET_PASSWORD não configurada — reset bloqueado")
@@ -69,6 +89,12 @@ def register_sidebar_callbacks(app):
                 no_update,
             )
         if not password or not hmac.compare_digest(password.strip(), _RESET_PASSWORD):
+            # [A3] Incrementar contador de falhas
+            _failed_attempts["count"] += 1
+            if _failed_attempts["count"] >= _MAX_ATTEMPTS:
+                _failed_attempts["lockout_until"] = now + _LOCKOUT_SECONDS
+                _failed_attempts["count"] = 0
+                logger.warning(f"[RESET] Lockout ativado por {_LOCKOUT_SECONDS}s após {_MAX_ATTEMPTS} tentativas")
             return (
                 html.Div(
                     [
@@ -79,6 +105,10 @@ def register_sidebar_callbacks(app):
                 ),
                 no_update,  # Não recarregar
             )
+        
+        # Senha correta — resetar contador
+        _failed_attempts["count"] = 0
+        _failed_attempts["lockout_until"] = 0
         
         # === EXECUTA RESET REAL ===
         try:
