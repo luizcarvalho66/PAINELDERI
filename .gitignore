@@ -43,3 +43,10 @@ assets/_icon_backups/
 
 # Arquivos temporários
 tmp_*
+tmp/
+
+# Deploy protection — dupla camada com .databricksignore
+# O databricks sync pode usar .gitignore como fallback
+scripts/
+tests/
+README.md

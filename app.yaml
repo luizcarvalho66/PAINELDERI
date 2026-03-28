@@ -6,13 +6,17 @@ command:
   - "gunicorn"
   - "app:server"
   - "--bind"
-  - "0.0.0.0:8080"
+  - "0.0.0.0:8000"
   - "--workers"
   - "1"
   - "--timeout"
   - "120"
   - "--max-requests"
   - "500"
+  - "--access-logfile"
+  - "-"
+  - "--error-logfile"
+  - "-"
 
 env:
   - name: DASH_DEBUG
@@ -20,7 +24,7 @@ env:
   - name: DASH_SERVER_ADDRESS
     value: "0.0.0.0"
   - name: DASH_SERVER_PORT
-    value: "8080"
+    value: "8000"
 
 # Vars sensíveis — cadastrar em: Apps > painelri > Settings > Environment Variables
 # Ficam criptografadas no Databricks, nunca no repo.

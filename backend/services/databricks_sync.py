@@ -41,8 +41,11 @@ except ImportError:
         print("[SYNC WARNING] Pricing engine not found.", flush=True)
         return False
 
+# [DEV-ONLY] Fallback local — em producao, env var DATABRICKS_HOST e injetada pelo Service Principal
 HOST = os.environ.get("DATABRICKS_HOST", "adb-7941093640821140.0.azuredatabricks.net")
+# [DEV-ONLY] Fallback local — em producao, env var DATABRICKS_HTTP_PATH e injetada
 HTTP_PATH = os.environ.get("DATABRICKS_HTTP_PATH", "/sql/1.0/warehouses/ce56ec5f5d0a3e07")
+# [DEV-ONLY] Profile CLI local — nao usado em producao (Service Principal)
 PROFILE = os.environ.get("DATABRICKS_PROFILE", "adb-7941093640821140")
 
 # Detecta se estamos dentro de um Databricks App
