@@ -31,7 +31,7 @@ def _make_cache_key(func, args, kwargs):
         }
         # sort_keys=True garante que dicts com mesma data e ordem diferente gerem mesmo hash
         key_str = json.dumps(key_data, sort_keys=True, default=_default)
-        return hashlib.md5(key_str.encode('utf-8')).hexdigest()
+        return hashlib.sha256(key_str.encode('utf-8')).hexdigest()
     except Exception as e:
         print(f"[CACHE KEY ERROR] Falha ao gerar chave para {func.__name__}: {e}")
         return None

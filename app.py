@@ -69,12 +69,17 @@ def _cleanup_wal_files():
                 pass
 
 def _write_pid():
-    """Salva PID atual no lock file."""
+    """Salva PID atual no lock file com file locking atomico."""
     try:
-        with open(PID_FILE, "w") as f:
-            f.write(str(os.getpid()))
-        pass
-    except Exception as e:
+        fd = os.open(PID_FILE, os.O_CREAT | os.O_WRONLY | os.O_TRUNC)
+        try:
+            import msvcrt
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        except (ImportError, OSError):
+            pass  # Em Linux/prod, gunicorn gerencia processos
+        os.write(fd, str(os.getpid()).encode())
+        os.close(fd)
+    except Exception:
         pass
 
 def _cleanup_pid():
@@ -92,13 +97,16 @@ def _cleanup_pid():
     except Exception:
         pass
 
-# Executar lock + limpeza
-_kill_previous_instance()
-_cleanup_wal_files()
-_write_pid()
-atexit.register(_cleanup_pid)
-signal.signal(signal.SIGINT, lambda s, f: (print("\n[APP] Ctrl+C — encerrando..."), _cleanup_pid(), sys.exit(0)))
-signal.signal(signal.SIGTERM, lambda s, f: (_cleanup_pid(), sys.exit(0)))
+# Executar lock + limpeza — APENAS em modo dev local
+# Em gunicorn (produção), o master gerencia signals. Sobrescrever SIGTERM mata o worker.
+_is_gunicorn = "gunicorn" in os.environ.get("SERVER_SOFTWARE", "")
+if not _is_gunicorn:
+    _kill_previous_instance()
+    _cleanup_wal_files()
+    _write_pid()
+    atexit.register(_cleanup_pid)
+    signal.signal(signal.SIGINT, lambda s, f: (print("\n[APP] Ctrl+C — encerrando..."), _cleanup_pid(), sys.exit(0)))
+    signal.signal(signal.SIGTERM, lambda s, f: (_cleanup_pid(), sys.exit(0)))
 
 # Initialize DB if not exists (Critical for cloud deployment where data.duckdb is gitignored)
 try:
@@ -138,6 +146,91 @@ cache_config = {
 cache.init_app(app.server, config=cache_config)
 from backend.cache_config import mark_cache_initialized
 mark_cache_initialized(cache_dir=None)  # SimpleCache não tem diretório
+
+# ============================================================
+# DIAGNÓSTICO DE PRODUÇÃO — /health e /diag endpoints
+# Rodam no Flask puro (bypassam Dash), ultra-leves.
+# Se /health responder → proxy está roteando OK.
+# Se não responder → problema é proxy/rede, não código.
+# ============================================================
+import json
+from datetime import datetime
+
+@server.route('/health')
+def health_check():
+    """Endpoint mínimo. Se responder, o proxy está OK."""
+    return json.dumps({
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat(),
+        "pid": os.getpid(),
+    }), 200, {'Content-Type': 'application/json'}
+
+@server.route('/diag')
+def diagnostics():
+    """Diagnóstico completo de produção."""
+    diag = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "pid": os.getpid(),
+        "python_version": sys.version,
+        "is_databricks_app": os.path.exists("/app/python"),
+    }
+    
+    # 1. Environment Variables (sensíveis mascaradas)
+    diag["env"] = {
+        "DATABRICKS_HOST": os.getenv("DATABRICKS_HOST", "NOT SET"),
+        "DATABRICKS_CLIENT_ID": "SET ✅" if os.getenv("DATABRICKS_CLIENT_ID") else "NOT SET ❌",
+        "DATABRICKS_CLIENT_SECRET": "SET ✅" if os.getenv("DATABRICKS_CLIENT_SECRET") else "NOT SET ❌",
+        "DATABRICKS_TOKEN": "SET ✅" if os.getenv("DATABRICKS_TOKEN") else "NOT SET ❌",
+        "DASH_DEBUG": os.getenv("DASH_DEBUG", "NOT SET"),
+        "SERVER_SOFTWARE": os.getenv("SERVER_SOFTWARE", "NOT SET"),
+    }
+    
+    # 2. DuckDB local status
+    try:
+        from database import get_connection, DB_PATH
+        diag["duckdb"] = {"path": DB_PATH, "exists": os.path.exists(DB_PATH)}
+        try:
+            conn = get_connection()
+            count = conn.execute("SELECT COUNT(*) FROM ri_corretiva_detalhamento").fetchone()[0]
+            diag["duckdb"]["status"] = "OK ✅"
+            diag["duckdb"]["records"] = count
+        except Exception as e:
+            diag["duckdb"]["status"] = f"ERROR ❌: {str(e)[:200]}"
+    except Exception as e:
+        diag["duckdb"] = {"status": f"IMPORT ERROR: {str(e)[:200]}"}
+
+    # 3. Databricks SDK Config test (auth do Service Principal)
+    try:
+        from databricks.sdk.core import Config
+        cfg = Config()
+        diag["databricks_auth"] = {
+            "host": cfg.host or "NOT SET",
+            "auth_type": str(cfg.auth_type) if hasattr(cfg, 'auth_type') else "unknown",
+            "config_ok": True,
+        }
+        # Tenta autenticar de verdade
+        try:
+            headers = cfg.authenticate()
+            diag["databricks_auth"]["headers_returned"] = bool(headers)
+            diag["databricks_auth"]["status"] = "AUTH OK ✅"
+        except Exception as auth_e:
+            diag["databricks_auth"]["status"] = f"AUTH FAILED ❌: {str(auth_e)[:300]}"
+    except Exception as e:
+        diag["databricks_auth"] = {"status": f"SDK ERROR ❌: {str(e)[:300]}"}
+    
+    # 4. Request headers (para ver se X-Forwarded-Access-Token chega)
+    from flask import request
+    diag["request_headers"] = {
+        k: v for k, v in request.headers
+        if k.lower() in [
+            'host', 'x-forwarded-for', 'x-forwarded-proto',
+            'x-forwarded-access-token', 'x-real-ip', 'user-agent',
+            'x-databricks-user', 'x-databricks-org-id',
+        ]
+    }
+    
+    print(f"[DIAG] Diagnostics requested at {diag['timestamp']}", flush=True)
+    return json.dumps(diag, indent=2, default=str), 200, {'Content-Type': 'application/json'}
 
 if __name__ == "__main__":
     # Use environment variables for configuration
