@@ -95,16 +95,18 @@ def get_logs_total_count(filters: dict = None) -> int:
             "UPPER(TRIM(nome_aprovador)) NOT IN ('NAO INFORMADO', 'SISTEMA', '')"
         ]
         
+        params = []
         if filters:
             if filters.get("peca"):
-                peca_escaped = filters['peca'].replace("'", "''")
-                where_clauses.append(f"peca = '{peca_escaped}'")
+                where_clauses.append("peca = ?")
+                params.append(filters['peca'])
             if filters.get("tipo_mo"):
-                tipo_escaped = filters['tipo_mo'].replace("'", "''")
-                where_clauses.append(f"tipo_mo = '{tipo_escaped}'")
+                where_clauses.append("tipo_mo = ?")
+                params.append(filters['tipo_mo'])
             if filters.get("clientes"):
-                clients_escaped = "', '".join([c.replace("'", "''") for c in filters["clientes"]])
-                where_clauses.append(f"nome_cliente IN ('{clients_escaped}')")
+                placeholders = ", ".join(["?"] * len(filters["clientes"]))
+                where_clauses.append(f"nome_cliente IN ({placeholders})")
+                params.extend(filters["clientes"])
         
         where_sql = " AND ".join(where_clauses)
         
@@ -112,7 +114,7 @@ def get_logs_total_count(filters: dict = None) -> int:
         
         # Usar cursor isolado
         cursor = conn.cursor()
-        result = cursor.execute(query).fetchone()
+        result = cursor.execute(query, params).fetchone()
         cursor.close()
         
         total = result[0] if result else 0
@@ -157,16 +159,18 @@ def get_logs_nao_aprovacao(filters: dict = None, page: int = 1, page_size: int =
             "UPPER(TRIM(nome_aprovador)) NOT IN ('NAO INFORMADO', 'SISTEMA', '')"
         ]
         
+        params = []
         if filters:
             if filters.get("peca"):
-                peca_escaped = filters['peca'].replace("'", "''")
-                where_clauses.append(f"peca = '{peca_escaped}'")
+                where_clauses.append("peca = ?")
+                params.append(filters['peca'])
             if filters.get("tipo_mo"):
-                tipo_escaped = filters['tipo_mo'].replace("'", "''")
-                where_clauses.append(f"tipo_mo = '{tipo_escaped}'")
+                where_clauses.append("tipo_mo = ?")
+                params.append(filters['tipo_mo'])
             if filters.get("clientes"):
-                clients_escaped = "', '".join([c.replace("'", "''") for c in filters["clientes"]])
-                where_clauses.append(f"nome_cliente IN ('{clients_escaped}')")
+                placeholders = ", ".join(["?"] * len(filters["clientes"]))
+                where_clauses.append(f"nome_cliente IN ({placeholders})")
+                params.extend(filters["clientes"])
         
         where_sql = " AND ".join(where_clauses)
         
@@ -188,7 +192,7 @@ def get_logs_nao_aprovacao(filters: dict = None, page: int = 1, page_size: int =
         
         # Usar cursor isolado para thread-safety (evita race condition)
         cursor = conn.cursor()
-        df = cursor.execute(query).fetchdf()
+        df = cursor.execute(query, params).fetchdf()
         cursor.close()
         
         

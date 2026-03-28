@@ -52,13 +52,14 @@ def get_ri_evolution_data(filters: dict = None):
                 if period_clauses_prev:
                     where_conditions_prev.append(f"({' OR '.join(period_clauses_prev)})")
             
-            # Filter by client
+            # Filter by client (parameterized)
             if filters.get("clientes"):
-                clients_escaped = "', '".join([c.replace("'", "''") for c in filters["clientes"]])
-                where_conditions_corr.append(f"c.nome_cliente IN ('{clients_escaped}')")
+                placeholders = ", ".join(["?"] * len(filters["clientes"]))
+                where_conditions_corr.append(f"c.nome_cliente IN ({placeholders})")
         
         where_corr = " AND ".join(where_conditions_corr)
         where_prev = " AND ".join(where_conditions_prev)
+        _params = list(filters["clientes"]) if filters and filters.get("clientes") else []
         
         # Check tipo_manutencao filter
         tipo = filters.get("tipo_manutencao", "TODAS") if filters else "TODAS"
@@ -142,7 +143,7 @@ def get_ri_evolution_data(filters: dict = None):
         ORDER BY 1, 3
         """
         
-        df = conn.execute(query).fetchdf()
+        df = conn.execute(query, _params).fetchdf()
         
         if df.empty:
             return df
@@ -193,7 +194,7 @@ def refresh_pricing_data():
         start_time = time.time()
         print("[REPOSITORY] Atualizando tabelas de referência (Pricing Engine)...")
         
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_detalhamento_chave ON ri_corretiva_detalhamento (cod_item)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_detalhamento_chave ON ri_corretiva_detalhamento (codigo_item)")
         
         # DEBUG: Check source table state
         try:

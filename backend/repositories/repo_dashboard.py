@@ -12,7 +12,7 @@ Author: Luiz Eduardo Carvalho
 import pandas as pd
 import numpy as np
 from backend.repositories.repo_base import (
-    get_connection, get_readonly_connection, safe_memoize, MONTH_MAP
+    get_connection, get_readonly_connection, safe_memoize, MONTH_MAP, safe_sql_in_list
 )
 
 
@@ -87,10 +87,10 @@ def get_ri_evolution_data(filters: dict = None):
                 valid_clients = [str(c) for c in raw_clients if c and str(c).strip() != ""]
                 
                 if valid_clients:
-                    clients_escaped = "', '".join([c.replace("'", "''") for c in valid_clients])
-                    where_conditions_corr.append(f"c.nome_cliente IN ('{clients_escaped}')")
+                    _safe_clients = safe_sql_in_list(valid_clients)
+                    where_conditions_corr.append(f"c.nome_cliente IN ({_safe_clients})")
                     # FIX: Propagar filtro de cliente para preventiva também
-                    where_conditions_prev.append(f"nome_cliente IN ('{clients_escaped}')")
+                    where_conditions_prev.append(f"nome_cliente IN ({_safe_clients})")
 
         
         where_corr = " AND ".join(where_conditions_corr)
@@ -538,10 +538,10 @@ def get_ri_evolution_30d(filters: dict = None):
             raw_clients = filters["clientes"]
             valid_clients = [str(c) for c in raw_clients if c and str(c).strip() != ""]
             if valid_clients:
-                clients_escaped = "', '".join([c.replace("'", "''") for c in valid_clients])
-                where_conditions_corr.append(f"c.nome_cliente IN ('{clients_escaped}')")
+                _safe_clients = safe_sql_in_list(valid_clients)
+                where_conditions_corr.append(f"c.nome_cliente IN ({_safe_clients})")
                 # FIX: Propagar filtro de cliente para preventiva também
-                where_conditions_prev.append(f"nome_cliente IN ('{clients_escaped}')")
+                where_conditions_prev.append(f"nome_cliente IN ({_safe_clients})")
 
         where_corr = " AND ".join(where_conditions_corr)
         where_prev = " AND ".join(where_conditions_prev)
@@ -667,8 +667,8 @@ def get_top_ofensores_30d(filters: dict = None, limite=3):
         if filters and filters.get("clientes"):
             valid_clients = [str(cl) for cl in filters["clientes"] if cl and str(cl).strip() != ""]
             if valid_clients:
-                clients_escaped = "', '".join([cl.replace("'", "''") for cl in valid_clients])
-                where_conditions.append(f"c.nome_cliente IN ('{clients_escaped}')")
+                _safe_clients = safe_sql_in_list(valid_clients)
+                where_conditions.append(f"c.nome_cliente IN ({_safe_clients})")
 
         where_clause = " AND ".join(where_conditions)
         
@@ -779,8 +779,8 @@ def get_top_silent_order_30d(filters: dict = None, limite=3):
         if filters and filters.get("clientes"):
             valid_clients = [str(cl) for cl in filters["clientes"] if cl and str(cl).strip() != ""]
             if valid_clients:
-                clients_escaped = "', '".join([cl.replace("'", "''") for cl in valid_clients])
-                where_conditions.append(f"c.nome_cliente IN ('{clients_escaped}')")
+                _safe_clients = safe_sql_in_list(valid_clients)
+                where_conditions.append(f"c.nome_cliente IN ({_safe_clients})")
 
         where_clause = " AND ".join(where_conditions)
 
