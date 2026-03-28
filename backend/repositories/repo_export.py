@@ -17,7 +17,7 @@ def get_export_data(filters: dict = None, limit: int = None):
         for p in filters["periodos"]:
             try:
                 year, month = p.split("-")
-                period_clauses.append(f"(year(data_transacao) = {year} AND month(data_transacao) = {month})")
+                period_clauses.append(f"(year(data_transacao) = {int(year)} AND month(data_transacao) = {int(month)})")
             except Exception:
                 pass
         if period_clauses:

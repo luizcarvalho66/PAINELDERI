@@ -228,7 +228,7 @@ def get_tooltip_data_corretiva(mes: str = None):
         where_clause = ""
         if mes:
             year, month = mes.split('-')
-            where_clause = f"WHERE year(data_transacao) = {year} AND month(data_transacao) = {month}"
+            where_clause = f"WHERE year(data_transacao) = {int(year)} AND month(data_transacao) = {int(month)}"
         
         # Top 5 Clientes
         q_clientes = f"""

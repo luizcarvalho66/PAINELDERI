@@ -77,7 +77,7 @@ def build_where_clause(filters: dict, table_alias: str = "") -> str:
                 try:
                     year, month = p.split("-")
                     period_clauses.append(
-                        f"(YEAR({prefix}data_transacao) = {year} AND MONTH({prefix}data_transacao) = {month})"
+                        f"(YEAR({prefix}data_transacao) = {int(year)} AND MONTH({prefix}data_transacao) = {int(month)})"
                     )
                 except Exception:
                     pass

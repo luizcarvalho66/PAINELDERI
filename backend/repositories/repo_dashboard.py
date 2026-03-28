@@ -63,7 +63,7 @@ def get_ri_evolution_data(filters: dict = None):
                 for p in filters["periodos"]:
                     try:
                         year, month = p.split("-")
-                        period_clauses.append(f"(year(c.data_transacao) = {year} AND month(c.data_transacao) = {month})")
+                        period_clauses.append(f"(year(c.data_transacao) = {int(year)} AND month(c.data_transacao) = {int(month)})")
                     except Exception:
                         pass
                 if period_clauses:
@@ -74,7 +74,7 @@ def get_ri_evolution_data(filters: dict = None):
                 for p in filters["periodos"]:
                     try:
                         year, month = p.split("-")
-                        period_clauses_prev.append(f"(year(data_transacao) = {year} AND month(data_transacao) = {month})")
+                        period_clauses_prev.append(f"(year(data_transacao) = {int(year)} AND month(data_transacao) = {int(month)})")
                     except Exception:
                         pass
                 if period_clauses_prev:
