@@ -53,6 +53,7 @@ def _build_report_card(variant, icon_name, title, description, button_label,
             ),
         ],
         className=card_class,
+        style={"height": "100%"}
     )
 
 
@@ -400,7 +401,7 @@ def render_reports_section():
                             btn_id="btn-export-ppt",
                             accent_color="#E20613",
                         ),
-                    ], style={"position": "relative"}),
+                    ], style={"position": "relative", "height": "100%"}),
                     # Excel — ATIVO
                     _build_report_card(
                         variant="excel",
