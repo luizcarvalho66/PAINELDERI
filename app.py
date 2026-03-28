@@ -162,17 +162,23 @@ def health_check():
     return json.dumps({
         "status": "ok",
         "timestamp": datetime.utcnow().isoformat(),
-        "pid": os.getpid(),
     }), 200, {'Content-Type': 'application/json'}
 
 @server.route('/diag')
 def diagnostics():
-    """Diagnóstico completo de produção."""
+    """Diagnóstico completo de produção — protegido por SSO Databricks."""
+    from flask import request
+    # SECURITY: Só responde se autenticado via SSO Databricks ou acesso local
+    is_databricks = os.path.exists("/app/python")
+    has_sso_header = request.headers.get('X-Databricks-User') or request.headers.get('X-Forwarded-Access-Token')
+    is_localhost = request.remote_addr in ('127.0.0.1', '::1')
+    
+    if not (is_databricks or has_sso_header or is_localhost):
+        return json.dumps({"error": "Unauthorized"}), 403, {'Content-Type': 'application/json'}
+    
     diag = {
         "timestamp": datetime.utcnow().isoformat(),
-        "pid": os.getpid(),
-        "python_version": sys.version,
-        "is_databricks_app": os.path.exists("/app/python"),
+        "is_databricks_app": is_databricks,
     }
     
     # 1. Environment Variables (sensíveis mascaradas)
