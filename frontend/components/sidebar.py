@@ -2,6 +2,7 @@
 Sidebar Component - Modern UX/UI Design
 Edenred Executive Branding
 """
+import os
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 from dash_iconify import DashIconify
@@ -103,11 +104,30 @@ def render_sidebar():
                                         "/relatorios",
                                         "nav-tooltip-relatorios",
                                     ),
-                                    create_nav_item(
-                                        "bi bi-gear-fill",
-                                        "Configurações",
-                                        "/config",
-                                        "nav-tooltip-config",
+                                    (
+                                        html.Div(
+                                            dbc.NavLink(
+                                                [
+                                                    html.I(className="bi bi-gear-fill nav-icon"),
+                                                    html.Span("Configurações", className="nav-label"),
+                                                    html.Span("Em breve", className="report-card-badge", style={"position": "absolute", "right": "12px", "top": "50%", "transform": "translateY(-50%)", "padding": "0.15rem 0.5rem", "fontSize": "0.55rem"})
+                                                ],
+                                                href="#",
+                                                active=False,
+                                                className="sidebar-nav-link",
+                                                style={"pointerEvents": "none", "opacity": "0.5"}
+                                            ),
+                                            id="nav-tooltip-config",
+                                            className="nav-item-wrapper",
+                                            **{"data-tooltip": "Em breve"}
+                                        )
+                                        if os.environ.get("DASH_DEBUG", "True").lower() in ("false", "0")
+                                        else create_nav_item(
+                                            "bi bi-gear-fill",
+                                            "Configurações",
+                                            "/config",
+                                            "nav-tooltip-config",
+                                        )
                                     ),
                                 ],
                                 vertical=True,

@@ -1,7 +1,7 @@
 import dash_bootstrap_components as dbc
 from dash import html, dcc
 from frontend.components.preventiva_modal import render_preventiva_help_modal, render_ranking_help_modal
-from datetime import date, timedelta
+from datetime import date
 
 def render_preventiva_section(initial_data=None):
     """
@@ -13,7 +13,6 @@ def render_preventiva_section(initial_data=None):
             - accordion: componente Accordion já montado
     """
     today = date.today()
-    three_months_ago = today - timedelta(days=90)  # Padrão: últimos 3 meses
     
     return html.Div([
         # ROW 1: Main Chart (Left 8) + KPIs Stacked (Right 4)
@@ -133,41 +132,8 @@ def render_preventiva_section(initial_data=None):
             ], width=4, className="d-flex flex-column justify-content-between"),
         ], className="mb-4"),
 
-        # Header extra removido. O DatePicker e o Toggle foram movidos para os cards específicos.
         # Store para tipo de ativo selecionado (veiculos/equipamentos)
         dcc.Store(id="prev-tipo-ativo-store", data="VEICULOS"),
-
-        # Menu de Contexto (DatePicker + Exportação) - Aplica-se ao Ranking e Tabela
-        dbc.Row([
-            dbc.Col([
-                html.Div([
-                    # Label / Título do filtro de contexto
-                    html.Div([
-                        html.I(className="bi bi-funnel-fill me-2 text-danger"),
-                        html.Span("Filtros de Período para Detalhamento e Top Ofensores", className="fw-bold text-dark font-ubuntu mb-0", style={"fontSize": "0.95rem"}),
-                    ], className="d-flex align-items-center"),
-                    
-                    # DatePicker e Botão Exportar
-                    html.Div([
-                        html.Div([
-                            html.I(className="bi bi-calendar3 text-muted me-2", style={"fontSize": "0.9rem"}),
-                            dcc.DatePickerRange(
-                                id="prev-detail-date-range",
-                                start_date=(date.today() - timedelta(days=30)).isoformat(),
-                                end_date=date.today().isoformat(),
-                                display_format="DD/MM/YYYY",
-                                start_date_placeholder_text="Início",
-                                end_date_placeholder_text="Fim",
-                                className="prev-date-range-premium",
-                                style={"transform": "scale(0.9)", "transformOrigin": "right center"},
-                                persistence=True,
-                                persistence_type="session",
-                            ),
-                        ], className="d-flex align-items-center bg-white border rounded-pill px-3 py-1 shadow-sm"),
-                    ], className="d-flex align-items-center")
-                ], className="d-flex justify-content-between align-items-center w-100 mb-3 bg-white p-3 border shadow-sm", style={"borderRadius": "16px", "position": "relative", "zIndex": 1050})
-            ], width=12)
-        ], style={"position": "relative", "zIndex": 1050}),
 
         dbc.Row([
              # RANKINGS COLUMN

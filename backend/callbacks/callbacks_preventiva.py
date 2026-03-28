@@ -227,34 +227,26 @@ def register_preventiva_callbacks(app):
         [
             Input("processing-complete-store", "data"),
             Input("global-filters-applied-store", "data"),
-            Input("prev-detail-date-range", "start_date"),
-            Input("prev-detail-date-range", "end_date"),
             Input("prev-tipo-ativo-store", "data"),
         ],
         prevent_initial_call=True
     )
-    def update_preventiva_dashboard(is_processed, filters_state, detail_start, detail_end, tipo_ativo):
+    def update_preventiva_dashboard(is_processed, filters_state, tipo_ativo):
         if not is_processed:
             return (no_update,) * 6
         
         filters = filters_state if filters_state and filters_state.get("applied") else {}
         
-        # Datas do chart: derivadas do filtro global (periodos YYYY-MM)
+        # Datas derivadas do filtro global (periodos YYYY-MM)
         ds = None
         de = None
         periodos = filters.get("periodos", [])
         if periodos:
-            # Extrair date_start do primeiro mês e date_end do último mês
             ds = f"{periodos[0]}-01"
-            # Último dia do último mês
             from dateutil.relativedelta import relativedelta
             from datetime import datetime as _dt
             last_month = _dt.strptime(f"{periodos[-1]}-01", "%Y-%m-%d")
             de = (last_month + relativedelta(months=1, days=-1)).strftime("%Y-%m-%d")
-        
-        # Datas do detalhamento (prev-detail-date-range)
-        dds = str(detail_start)[:10] if detail_start else None
-        dde = str(detail_end)[:10] if detail_end else None
         
         tipo = tipo_ativo or "VEICULOS"
         
@@ -272,8 +264,8 @@ def register_preventiva_callbacks(app):
         from frontend.components.chart_fugas_preventiva import create_fugas_evolution_chart
         fig = create_fugas_evolution_chart(chart_data)
 
-        # Buscar dados agrupados COM detalhes — usando datas do detail picker
-        table_data = get_fugas_grouped_with_detail(filters, limit=50, date_start=dds, date_end=dde, tipo_ativo=tipo)
+        # Buscar dados agrupados COM detalhes — usando mesmas datas do filtro global
+        table_data = get_fugas_grouped_with_detail(filters, limit=50, date_start=ds, date_end=de, tipo_ativo=tipo)
         
         # Gerar tabela accordion HTML
         accordion = _build_accordion_table(table_data)
@@ -294,18 +286,23 @@ def register_preventiva_callbacks(app):
             Input("prev-tabs-ranking", "active_tab"),
             Input("global-filters-applied-store", "data"),
             Input("processing-complete-store", "data"),
-            Input("prev-detail-date-range", "start_date"),
-            Input("prev-detail-date-range", "end_date"),
             Input("prev-tipo-ativo-store", "data"),
         ],
         prevent_initial_call=True
     )
-    def update_preventiva_ranking(active_tab, filters_state, is_processed, detail_start, detail_end, tipo_ativo):
+    def update_preventiva_ranking(active_tab, filters_state, is_processed, tipo_ativo):
         filters = filters_state if filters_state and filters_state.get("applied") else {}
         
-        # Datas do detail picker
-        dds = str(detail_start)[:10] if detail_start else None
-        dde = str(detail_end)[:10] if detail_end else None
+        # Datas derivadas do filtro global (periodos YYYY-MM)
+        ds = None
+        de = None
+        periodos = filters.get("periodos", [])
+        if periodos:
+            ds = f"{periodos[0]}-01"
+            from dateutil.relativedelta import relativedelta
+            from datetime import datetime as _dt
+            last_month = _dt.strptime(f"{periodos[-1]}-01", "%Y-%m-%d")
+            de = (last_month + relativedelta(months=1, days=-1)).strftime("%Y-%m-%d")
         
         entity_map = {
             "tab-estab": "estabelecimento",
@@ -313,7 +310,7 @@ def register_preventiva_callbacks(app):
         }
         entity = entity_map.get(active_tab, "estabelecimento")
         tipo = tipo_ativo or "VEICULOS"
-        ranking_data = get_top_offenders(filters, entity=entity, limit=5, date_start=dds, date_end=dde, tipo_ativo=tipo)
+        ranking_data = get_top_offenders(filters, entity=entity, limit=5, date_start=ds, date_end=de, tipo_ativo=tipo)
         
         if not ranking_data:
             return html.Div("Sem dados para exibir.", className="text-muted p-3")
@@ -417,7 +414,7 @@ def register_preventiva_callbacks(app):
             from backend.repositories.repo_base import get_connection
             conn = get_connection()
             
-            row = conn.execute(f"""
+            row = conn.execute("""
                 SELECT 
                     numero_os, MAX(nome_cliente) as cliente,
                     MAX(nome_estabelecimento) as ec,
@@ -430,14 +427,14 @@ def register_preventiva_callbacks(app):
                     COUNT(CASE WHEN COALESCE(valor_aprovado, 0) > 0 THEN 1 END) as qtd_itens,
                     SUM(COALESCE(valor_total, 0)) as valor_solicitado
                 FROM ri_corretiva_detalhamento
-                WHERE numero_os = '{os_num}'
+                WHERE numero_os = ?
                   AND COALESCE(valor_aprovado, 0) > 0
                 GROUP BY numero_os
-            """).fetchone()
+            """, [os_num]).fetchone()
             if not row:
                 return False, no_update
             
-            items_df = conn.execute(f"""
+            items_df = conn.execute("""
                 SELECT 
                     descricao_peca,
                     tipo_mo,
@@ -447,22 +444,22 @@ def register_preventiva_callbacks(app):
                     COALESCE(complemento_peca, '') as complemento,
                     COALESCE(valor_total, 0) as valor_solicitado
                 FROM ri_corretiva_detalhamento
-                WHERE numero_os = '{os_num}' AND COALESCE(valor_aprovado, 0) > 0
+                WHERE numero_os = ? AND COALESCE(valor_aprovado, 0) > 0
                 ORDER BY COALESCE(valor_aprovado, 0) DESC
-            """).fetchdf()
+            """, [os_num]).fetchdf()
             
             # Itens preventivos da mesma OS
             try:
-                prev_items_df = conn.execute(f"""
+                prev_items_df = conn.execute("""
                     SELECT 
                         descricao_peca,
                         tipo_mo,
                         COALESCE(valor_aprovado, 0) as valor_total,
                         tipo_manutencao
                     FROM ri_preventiva_detalhamento
-                    WHERE numero_os = '{os_num}'
+                    WHERE numero_os = ?
                     ORDER BY COALESCE(valor_aprovado, 0) DESC
-                """).fetchdf()
+                """, [os_num]).fetchdf()
                 prev_count = len(prev_items_df)
                 prev_valor = float(prev_items_df['valor_total'].sum()) if not prev_items_df.empty else 0
             except Exception:
