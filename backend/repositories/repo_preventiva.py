@@ -5,7 +5,7 @@ Repository Preventiva - Lógica de Fugas de Preventivas
 
 import warnings
 import pandas as pd
-from backend.repositories.repo_base import get_connection, safe_memoize
+from backend.repositories.repo_base import get_connection, safe_memoize, safe_sql_in_list
 
 # Suprimir warning repetitivo do pandas sobre SQLAlchemy (DuckDB funciona perfeitamente com pd.read_sql)
 warnings.filterwarnings("ignore", message=".*pandas only supports SQLAlchemy.*", category=UserWarning)
@@ -216,8 +216,8 @@ def get_fugas_data(filters=None, limit=100):
     if filters:
         if filters.get('clientes'):
             # CORRIGIDO: usar nome_cliente ao invés de codigo_cliente (alinhado com outros repos)
-            clients_escaped = "', '".join([str(c).replace("'", "''") for c in filters['clientes'] if c])
-            filter_sql += f" AND nome_cliente IN ('{clients_escaped}')"
+            _client_vals = [str(c) for c in filters['clientes'] if c]
+            filter_sql += f" AND nome_cliente IN ({safe_sql_in_list(_client_vals)})"
             
         if filters.get('periodos'):
             # Converte lista ['2024-01', '2024-02'] em cláusula SQL
@@ -298,8 +298,8 @@ def get_fugas_grouped(filters=None, limit=200):
     params = []
     if filters:
         if filters.get('clientes'):
-            clients_escaped = "', '".join([str(c).replace("'", "''") for c in filters['clientes'] if c])
-            query += f" AND nome_cliente IN ('{clients_escaped}')"
+            _client_vals = [str(c) for c in filters['clientes'] if c]
+            query += f" AND nome_cliente IN ({safe_sql_in_list(_client_vals)})"
         if filters.get('periodos'):
             period_clauses = []
             for p in filters['periodos']:
@@ -344,8 +344,8 @@ def get_fugas_grouped_with_detail(filters=None, limit=20, date_start=None, date_
     filter_sql = ""
     if filters:
         if filters.get('clientes'):
-            clients_escaped = "', '".join([str(c).replace("'", "''") for c in filters['clientes'] if c])
-            filter_sql += f" AND nome_cliente IN ('{clients_escaped}')"
+            _client_vals = [str(c) for c in filters['clientes'] if c]
+            filter_sql += f" AND nome_cliente IN ({safe_sql_in_list(_client_vals)})"
         if filters.get('periodos'):
             period_clauses = []
             for p in filters['periodos']:
@@ -393,7 +393,7 @@ def get_fugas_grouped_with_detail(filters=None, limit=20, date_start=None, date_
             return []
         
         # STEP 2: Detail query — APENAS para TGMs do master, max 10 per TGM
-        tgm_escaped = ",".join([f"'{str(c).replace(chr(39), chr(39)+chr(39))}'" for c in tgm_codes])
+        tgm_escaped = ", ".join(["?" for _ in tgm_codes])
         
         query_detail = f"""
         SELECT * FROM (
@@ -423,7 +423,7 @@ def get_fugas_grouped_with_detail(filters=None, limit=20, date_start=None, date_
         """
         
         _t1 = _time.time()
-        df_detail = pd.read_sql(query_detail, conn, params=params)
+        df_detail = pd.read_sql(query_detail, conn, params=params + [str(t) for t in tgm_codes])
         pass  # detail query done
         
         # Formatar datas
@@ -487,8 +487,8 @@ def get_fugas_detail_by_tgm(codigo_tgm, filters=None, limit=500):
     params = [str(codigo_tgm)]
     if filters:
         if filters.get('clientes'):
-            clients_escaped = "', '".join([str(c).replace("'", "''") for c in filters['clientes'] if c])
-            query += f" AND nome_cliente IN ('{clients_escaped}')"
+            _client_vals = [str(c) for c in filters['clientes'] if c]
+            query += f" AND nome_cliente IN ({safe_sql_in_list(_client_vals)})"
         if filters.get('periodos'):
             period_clauses = []
             for p in filters['periodos']:
@@ -535,8 +535,8 @@ def get_fugas_stats(filters=None, date_start=None, date_end=None, tipo_ativo="VE
     params = []
     if filters:
         if filters.get('clientes'):
-            clients_escaped = "', '".join([str(c).replace("'", "''") for c in filters['clientes'] if c])
-            filter_sql += f" AND nome_cliente IN ('{clients_escaped}')"
+            _client_vals = [str(c) for c in filters['clientes'] if c]
+            filter_sql += f" AND nome_cliente IN ({safe_sql_in_list(_client_vals)})"
         if filters.get('periodos'):
             period_clauses = []
             for p in filters['periodos']:
@@ -617,8 +617,8 @@ def get_fugas_chart_data(filters=None, date_start=None, date_end=None, tipo_ativ
     params = []
     if filters:
         if filters.get('clientes'):
-            clients_escaped = "', '".join([str(c).replace("'", "''") for c in filters['clientes'] if c])
-            filter_sql += f" AND nome_cliente IN ('{clients_escaped}')"
+            _client_vals = [str(c) for c in filters['clientes'] if c]
+            filter_sql += f" AND nome_cliente IN ({safe_sql_in_list(_client_vals)})"
         if filters.get('periodos'):
             period_clauses = []
             for p in filters['periodos']:
@@ -711,8 +711,8 @@ def get_top_offenders(filters=None, entity='estabelecimento', limit=5, date_star
     params = []
     if filters:
         if filters.get('clientes'):
-            clients_escaped = "', '".join([str(c).replace("'", "''") for c in filters['clientes'] if c])
-            filter_sql += f" AND nome_cliente IN ('{clients_escaped}')"
+            _client_vals = [str(c) for c in filters['clientes'] if c]
+            filter_sql += f" AND nome_cliente IN ({safe_sql_in_list(_client_vals)})"
         if filters.get('periodos'):
             period_clauses = []
             for p in filters['periodos']:

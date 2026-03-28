@@ -24,6 +24,38 @@ MONTH_NAMES = {
 }
 
 
+
+def safe_sql_in_list(values):
+    """Gera IN clause segura com validacao anti-injection.
+    Usado quando ? placeholders sao impraticaveis (subqueries replicadas).
+    Valores vem de dropdowns internos - defense-in-depth."""
+    safe = []
+    for v in values:
+        s = str(v).strip()
+        if not s:
+            continue
+        # Bloqueia tentativas obvias de injection
+        if any(ch in s for ch in [';', '--', '/*', '*/']):
+            continue
+        safe.append(s.replace("'", "''"))
+    if not safe:
+        return "'__NEVER_MATCH__'"
+    return "'" + "', '".join(safe) + "'"
+
+
+def build_in_clause(values: list) -> tuple:
+    """
+    Gera placeholders parametrizados para clausula IN do DuckDB.
+    Retorna (sql_fragment, params_list).
+    Exemplo: build_in_clause(["A", "B"]) -> ("?, ?", ["A", "B"])
+    Se lista vazia, retorna fragmento que nunca da match (1=0 guard).
+    """
+    if not values:
+        return "NULL", []  # IN (NULL) = nunca match (safe empty guard)
+    placeholders = ", ".join(["?"] * len(values))
+    return placeholders, list(values)
+
+
 def build_where_clause(filters: dict, table_alias: str = "") -> str:
     """
     Constrói cláusula WHERE baseada nos filtros.
@@ -53,8 +85,9 @@ def build_where_clause(filters: dict, table_alias: str = "") -> str:
                 where_clauses.append(f"({' OR '.join(period_clauses)})")
         
         if filters.get("clientes"):
-            clients_escaped = "', '".join([c.replace("'", "''") for c in filters["clientes"]])
-            where_clauses.append(f"{prefix}nome_cliente IN ('{clients_escaped}')")
+            placeholders, params = build_in_clause(filters["clientes"])
+            where_clauses.append(f"{prefix}nome_cliente IN ({placeholders})")
+            # NOTA: params devem ser passados ao execute() pelo chamador
     
     return " AND ".join(where_clauses) if where_clauses else "1=1"
 
@@ -67,5 +100,7 @@ __all__ = [
     'safe_memoize',
     'MONTH_MAP',
     'MONTH_NAMES',
+    'safe_sql_in_list',
+    'build_in_clause',
     'build_where_clause',
 ]

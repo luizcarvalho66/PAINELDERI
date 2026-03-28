@@ -58,10 +58,11 @@ def get_ri_corretivas_chart(filters: dict = None) -> pd.DataFrame:
                     where_clauses.append(f"({' OR '.join(period_clauses)})")
             
             if filters.get("clientes"):
-                clients_escaped = "', '".join([c.replace("'", "''") for c in filters["clientes"]])
-                where_clauses.append(f"nome_cliente IN ('{clients_escaped}')")
+                placeholders = ", ".join(["?"] * len(filters["clientes"]))
+                where_clauses.append(f"nome_cliente IN ({placeholders})")
         
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        _params = list(filters["clientes"]) if filters and filters.get("clientes") else []
         
         # Query SIMPLIFICADA: Usa COALESCE para escolher entre data_transacao e data_aprovacao_os
         query = f"""
@@ -111,7 +112,7 @@ def get_ri_corretivas_chart(filters: dict = None) -> pd.DataFrame:
         ORDER BY d.ano, d.mes_num
         """
         
-        df = conn.execute(query).fetchdf()
+        df = conn.execute(query, _params).fetchdf()
         
         if df.empty:
             print("[REPO_CORRETIVAS] Chart: Sem dados retornados")

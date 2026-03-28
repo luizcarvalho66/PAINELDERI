@@ -9,8 +9,8 @@ def get_export_data(filters: dict = None, limit: int = None):
     if filters and filters.get("clientes"):
         valid_clients = [str(c) for c in filters["clientes"] if c and str(c).strip() != ""]
         if valid_clients:
-            clients_escaped = "', '".join([c.replace("'", "''") for c in valid_clients])
-            where_conditions.append(f"nome_cliente IN ('{clients_escaped}')")
+            placeholders = ", ".join(["?"] * len(valid_clients))
+            where_conditions.append(f"nome_cliente IN ({placeholders})")
             
     if filters and filters.get("periodos"):
         period_clauses = []
@@ -24,6 +24,9 @@ def get_export_data(filters: dict = None, limit: int = None):
             where_conditions.append(f"({' OR '.join(period_clauses)})")
             
     where_clause = " AND ".join(where_conditions)
+    _export_params = list(valid_clients) if filters and filters.get("clientes") else []
+    # Duplicamos params para UNION ALL (corretiva + preventiva usam o mesmo WHERE)
+    _all_params = _export_params + _export_params
     
     columns = """
         numero_os, data_transacao, nome_cliente, nome_estabelecimento, 
@@ -44,7 +47,7 @@ def get_export_data(filters: dict = None, limit: int = None):
         query += f" LIMIT {limit}"
         
     try:
-        df = conn.execute(query).fetchdf()
+        df = conn.execute(query, _all_params).fetchdf()
         
         rename_map = {
             'numero_os': 'Número OS',

@@ -272,7 +272,7 @@ def get_economia_agregada(periodo='mensal'):
             LIMIT 12
         """).fetchall()
         
-        conn.close()
+        # NÃO fechar conn read-only — é thread-local e compartilhada
         
         return [
             {
@@ -287,8 +287,6 @@ def get_economia_agregada(periodo='mensal'):
         
     except Exception as e:
         print(f"[PRICING] ERRO ao buscar economia agregada: {e}")
-        if conn:
-            conn.close()
         return []
 
 
@@ -312,13 +310,11 @@ def get_reference_value_mdo(tipo_mo, uf, familia_veiculo=None):
                 WHERE tipo_mo = ? AND uf = ?
             """, [tipo_mo, uf]).fetchone()
         
-        conn.close()
+        # NÃO fechar conn read-only — é thread-local e compartilhada
         return float(result[0]) if result and result[0] else None
         
     except Exception as e:
         print(f"[PRICING] ERRO: {e}")
-        if conn:
-            conn.close()
         return None
 
 
@@ -338,13 +334,11 @@ def get_reference_value_peca(descricao_peca, complemento_peca, uf):
               AND uf = ?
         """, [descricao_peca, complemento_peca, uf]).fetchone()
         
-        conn.close()
+        # NÃO fechar conn read-only — é thread-local e compartilhada
         return float(result[0]) if result and result[0] else None
         
     except Exception as e:
         print(f"[PRICING] ERRO: {e}")
-        if conn:
-            conn.close()
         return None
 
 
