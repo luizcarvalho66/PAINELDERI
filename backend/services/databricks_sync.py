@@ -41,12 +41,11 @@ except ImportError:
         print("[SYNC WARNING] Pricing engine not found.", flush=True)
         return False
 
-# [DEV-ONLY] Fallback local — em producao, env var DATABRICKS_HOST e injetada pelo Service Principal
-HOST = os.environ.get("DATABRICKS_HOST", "adb-7941093640821140.0.azuredatabricks.net")
-# [DEV-ONLY] Fallback local — em producao, env var DATABRICKS_HTTP_PATH e injetada
-HTTP_PATH = os.environ.get("DATABRICKS_HTTP_PATH", "/sql/1.0/warehouses/ce56ec5f5d0a3e07")
-# [DEV-ONLY] Profile CLI local — nao usado em producao (Service Principal)
-PROFILE = os.environ.get("DATABRICKS_PROFILE", "adb-7941093640821140")
+# SECURITY: Sem defaults hardcoded — em producao, env vars sao injetadas pelo Service Principal
+# Em dev local, devem ser configuradas no .env
+HOST = os.environ.get("DATABRICKS_HOST", "")
+HTTP_PATH = os.environ.get("DATABRICKS_HTTP_PATH", "")
+PROFILE = os.environ.get("DATABRICKS_PROFILE", "")
 
 # Detecta se estamos dentro de um Databricks App
 IS_DATABRICKS_APP = os.path.exists("/app/python")
@@ -145,7 +144,7 @@ def check_new_data():
         cursor = conn_db.cursor()
         
         # Query 1: MAX date remota (FIX 2026-03-05: JOINs corretos fi+fs+fc)
-        client_ids = ", ".join([str(x) for x in TGM_CLIENT_IDS])
+        client_ids = ", ".join([str(int(x)) for x in TGM_CLIENT_IDS])  # int() valida numerico
         query_max = f"""
         SELECT MAX(CAST(fi.TransactionTimestamp AS DATE)) as max_date
         FROM hive_metastore.gold.fact_maintenanceitems fi
@@ -378,15 +377,23 @@ def _build_query(days=150, date_from=None, date_to=None, watermark=None):
     - GAP FILL: date_from + date_to → busca intervalo específico
     - INCREMENTAL: watermark → busca dados mais recentes que watermark
     """
+    # SECURITY: Validar formato de datas para prevenir injection
+    import re
+    _date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+    
+    def _safe_date(d):
+        """Valida e retorna date string no formato YYYY-MM-DD."""
+        d_str = str(d)[:10]
+        if not _date_pattern.match(d_str):
+            raise ValueError(f"Formato de data invalido: {d_str}")
+        return d_str
+    
     if watermark:
-        # Incremental: apenas dados novos (FIX 2026-03-06: CAST AS DATE para match exato)
-        date_filter = f"CAST(fi.TransactionTimestamp AS DATE) > '{watermark}'"
+        date_filter = f"CAST(fi.TransactionTimestamp AS DATE) > '{_safe_date(watermark)}'"
     elif date_from and date_to:
-        # Gap fill: intervalo específico de datas faltantes
-        date_filter = f"CAST(fi.TransactionTimestamp AS DATE) >= '{date_from}' AND CAST(fi.TransactionTimestamp AS DATE) < '{date_to}'"
+        date_filter = f"CAST(fi.TransactionTimestamp AS DATE) >= '{_safe_date(date_from)}' AND CAST(fi.TransactionTimestamp AS DATE) < '{_safe_date(date_to)}'"
     else:
-        # Full load: últimos {days} dias
-        date_filter = f"CAST(fi.TransactionTimestamp AS DATE) >= date_add(current_date(), -{days})"
+        date_filter = f"CAST(fi.TransactionTimestamp AS DATE) >= date_add(current_date(), -{int(days)})"
     
     client_ids = ", ".join([str(x) for x in TGM_CLIENT_IDS])
     
