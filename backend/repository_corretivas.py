@@ -51,7 +51,7 @@ def get_ri_corretivas_chart(filters: dict = None) -> pd.DataFrame:
                 for p in filters["periodos"]:
                     try:
                         year, month = p.split("-")
-                        period_clauses.append(f"(ano = {year} AND mes_num = {month})")
+                        period_clauses.append(f"(ano = {int(year)} AND mes_num = {int(month)})")
                     except Exception:
                         pass
                 if period_clauses:
