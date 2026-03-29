@@ -121,7 +121,7 @@ def render_sidebar():
                                             className="nav-item-wrapper",
                                             **{"data-tooltip": "Em breve"}
                                         )
-                                        if os.environ.get("DASH_DEBUG", "True").lower() in ("false", "0")
+                                        if os.environ.get("DASH_DEBUG", "False").lower() in ("false", "0")
                                         else create_nav_item(
                                             "bi bi-gear-fill",
                                             "Configurações",
