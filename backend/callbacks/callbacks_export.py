@@ -174,6 +174,16 @@ def register_export_callbacks(app):
 
         # Cap de segurança: máximo 300k linhas
         limit = min(int(row_limit or 10000), 300000)
+        
+        # M5: Audit Log - Identificar usuário e export massivo
+        import logging
+        from flask import request
+        try:
+            user = request.headers.get('X-Databricks-User', 'UsuarioLocal')
+        except Exception:
+            user = 'Desconhecido'
+            
+        logging.warning(f"[AUDITORIA] Export Massivo: {user} baixou relatório (limite {limit}) com os filtros: {filters}")
             
         df_full = get_export_data(filters, limit=limit)
         

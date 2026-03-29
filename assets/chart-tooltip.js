@@ -52,6 +52,16 @@
     // =========================================================================
     // FORMAT HELPERS
     // =========================================================================
+    function escapeHTML(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function formatCurrency(value) {
         if (value == null || isNaN(value)) return 'R$ 0';
         const num = Number(value);
@@ -79,17 +89,17 @@
         //   [2] os_total, [3] os_corr, [4] os_prev,
         //   [5] ri/so_corr%, [6] ri/so_prev%, [7] parcial,
         //   [8] vol_text, [9] ri/so_geral%, [10] mode ("RI"|"SO")
-        const periodo   = customdata[0] || '';
-        const slot1     = customdata[1];         // economia (string) ou so_count (int)
-        const osTotal   = customdata[2] || 0;
-        const osCorr    = customdata[3] || 0;
-        const osPrev    = customdata[4] || 0;
-        const pctCorr   = customdata[5];
-        const pctPrev   = customdata[6];
-        const parcial   = customdata[7] || '';
-        const volText   = customdata[8] || 'R$ 0';
-        const pctGeral  = customdata[9];
-        const mode      = customdata[10] || 'RI';
+        const periodo   = escapeHTML(customdata[0] || '');
+        const slot1     = escapeHTML(customdata[1]);         // economia (string) ou so_count (int)
+        const osTotal   = escapeHTML(customdata[2] || 0);
+        const osCorr    = escapeHTML(customdata[3] || 0);
+        const osPrev    = escapeHTML(customdata[4] || 0);
+        const pctCorr   = escapeHTML(customdata[5]);
+        const pctPrev   = escapeHTML(customdata[6]);
+        const parcial   = escapeHTML(customdata[7] || '');
+        const volText   = escapeHTML(customdata[8] || 'R$ 0');
+        const pctGeral  = escapeHTML(customdata[9]);
+        const mode      = escapeHTML(customdata[10] || 'RI');
 
         // ── Header (compartilhado) ──
         const headerHTML = `
@@ -175,9 +185,9 @@
     function buildComparativoHTML(point) {
         // customdata: [periodo, os_count]
         const customdata = point.customdata || [];
-        const periodo = customdata[0] || '';
-        const osCount = customdata[1] || 0;
-        const traceName = point.data ? (point.data.name || '') : '';
+        const periodo = escapeHTML(customdata[0] || '');
+        const osCount = escapeHTML(customdata[1] || 0);
+        const traceName = escapeHTML(point.data ? (point.data.name || '') : '');
         const yValue = point.y;
         const isCorretiva = traceName.toLowerCase().includes('corretiva');
         const dotColor = isCorretiva ? '#E20613' : '#94a3b8';
@@ -207,8 +217,8 @@
     function buildFugasHTML(point) {
         // customdata: [mes_ano, pct_fuga]
         const customdata = point.customdata || [];
-        const periodo = customdata[0] || '';
-        const pctFuga = customdata[1] || 0;
+        const periodo = escapeHTML(customdata[0] || '');
+        const pctFuga = escapeHTML(customdata[1] || 0);
         
         return `
             <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(0,0,0,0.06)">
