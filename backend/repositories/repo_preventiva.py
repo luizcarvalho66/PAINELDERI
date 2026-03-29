@@ -223,8 +223,12 @@ def get_fugas_data(filters=None, limit=100):
             # Converte lista ['2024-01', '2024-02'] em cláusula SQL
             period_clauses = []
             for p in filters['periodos']:
-                y, m = p.split('-')
-                period_clauses.append(f"(YEAR(data_transacao) = {y} AND MONTH(data_transacao) = {m})")
+                try:
+                    y, m = p.split('-')
+                    y, m = int(y), int(m)
+                    period_clauses.append(f"(YEAR(data_transacao) = {y} AND MONTH(data_transacao) = {m})")
+                except ValueError:
+                    pass
             
             if period_clauses:
                 filter_sql += f" AND ({' OR '.join(period_clauses)})"
@@ -258,6 +262,11 @@ def get_fugas_data(filters=None, limit=100):
 
 def _has_column(conn, table, column):
     """Verifica se uma coluna existe numa tabela do DuckDB."""
+    if not isinstance(table, str) or not table.replace('_', '').isalnum():
+        return False
+    if not isinstance(column, str) or not column.replace('_', '').isalnum():
+        return False
+        
     try:
         result = conn.execute(
             f"SELECT column_name FROM information_schema.columns WHERE table_name='{table}' AND column_name='{column}'"
@@ -303,8 +312,12 @@ def get_fugas_grouped(filters=None, limit=200):
         if filters.get('periodos'):
             period_clauses = []
             for p in filters['periodos']:
-                y, m = p.split('-')
-                period_clauses.append(f"(YEAR(data_transacao) = {y} AND MONTH(data_transacao) = {m})")
+                try:
+                    y, m = p.split('-')
+                    y, m = int(y), int(m)
+                    period_clauses.append(f"(YEAR(data_transacao) = {y} AND MONTH(data_transacao) = {m})")
+                except ValueError:
+                    pass
             if period_clauses:
                 query += f" AND ({' OR '.join(period_clauses)})"
         if filters.get('uf'):
@@ -349,8 +362,12 @@ def get_fugas_grouped_with_detail(filters=None, limit=20, date_start=None, date_
         if filters.get('periodos'):
             period_clauses = []
             for p in filters['periodos']:
-                y, m = p.split('-')
-                period_clauses.append(f"(YEAR(data_transacao) = {y} AND MONTH(data_transacao) = {m})")
+                try:
+                    y, m = p.split('-')
+                    y, m = int(y), int(m)
+                    period_clauses.append(f"(YEAR(data_transacao) = {y} AND MONTH(data_transacao) = {m})")
+                except ValueError:
+                    pass
             if period_clauses:
                 filter_sql += f" AND ({' OR '.join(period_clauses)})"
         if filters.get('uf'):
@@ -362,6 +379,10 @@ def get_fugas_grouped_with_detail(filters=None, limit=20, date_start=None, date_
         from datetime import date as _date, timedelta as _td
         date_end = _date.today().isoformat()
         date_start = (_date.today() - _td(days=30)).isoformat()
+        
+    import re
+    if not re.match(r'^\d{4}-\d{2}-\d{2}$', str(date_start)[:10]) or not re.match(r'^\d{4}-\d{2}-\d{2}$', str(date_end)[:10]):
+        return []
     
     query_master = f"""
     SELECT 
@@ -492,8 +513,12 @@ def get_fugas_detail_by_tgm(codigo_tgm, filters=None, limit=500):
         if filters.get('periodos'):
             period_clauses = []
             for p in filters['periodos']:
-                y, m = p.split('-')
-                period_clauses.append(f"(YEAR(data_transacao) = {y} AND MONTH(data_transacao) = {m})")
+                try:
+                    y, m = p.split('-')
+                    y, m = int(y), int(m)
+                    period_clauses.append(f"(YEAR(data_transacao) = {y} AND MONTH(data_transacao) = {m})")
+                except ValueError:
+                    pass
             if period_clauses:
                 query += f" AND ({' OR '.join(period_clauses)})"
     
@@ -542,8 +567,9 @@ def get_fugas_stats(filters=None, date_start=None, date_end=None, tipo_ativo="VE
             for p in filters['periodos']:
                 try:
                     y, m = p.split('-')
+                    y, m = int(y), int(m)
                     period_clauses.append(f"(YEAR(data_transacao) = {y} AND MONTH(data_transacao) = {m})")
-                except Exception:
+                except ValueError:
                     pass
             if period_clauses:
                 filter_sql += f" AND ({' OR '.join(period_clauses)})"
@@ -622,8 +648,12 @@ def get_fugas_chart_data(filters=None, date_start=None, date_end=None, tipo_ativ
         if filters.get('periodos'):
             period_clauses = []
             for p in filters['periodos']:
-                y, m = p.split('-')
-                period_clauses.append(f"(YEAR(data_transacao) = {y} AND MONTH(data_transacao) = {m})")
+                try:
+                    y, m = p.split('-')
+                    y, m = int(y), int(m)
+                    period_clauses.append(f"(YEAR(data_transacao) = {y} AND MONTH(data_transacao) = {m})")
+                except ValueError:
+                    pass
             if period_clauses:
                 filter_sql += f" AND ({' OR '.join(period_clauses)})"
         if filters.get('uf'):
@@ -716,8 +746,12 @@ def get_top_offenders(filters=None, entity='estabelecimento', limit=5, date_star
         if filters.get('periodos'):
             period_clauses = []
             for p in filters['periodos']:
-                y, m = p.split('-')
-                period_clauses.append(f"(YEAR(data_transacao) = {y} AND MONTH(data_transacao) = {m})")
+                try:
+                    y, m = p.split('-')
+                    y, m = int(y), int(m)
+                    period_clauses.append(f"(YEAR(data_transacao) = {y} AND MONTH(data_transacao) = {m})")
+                except ValueError:
+                    pass
             if period_clauses:
                 filter_sql += f" AND ({' OR '.join(period_clauses)})"
     

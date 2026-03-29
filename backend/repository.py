@@ -64,7 +64,6 @@ def get_ri_evolution_data(filters: dict = None):
         # Check tipo_manutencao filter
         tipo = filters.get("tipo_manutencao", "TODAS") if filters else "TODAS"
         
-        print(f"[REPOSITORY] Fetching data with filters: {filters}")
 
         # QUERY CORRETA: RI = % de OSs que podem ser aprovadas automaticamente
         # Baseado no match entre tipo_mo e ref_aprovacao_automatica
