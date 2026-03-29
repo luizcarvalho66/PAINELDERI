@@ -56,34 +56,28 @@ TGM_CLIENT_IDS = [
 # Referência: "clientes (2) 1.xlsx", coluna Canal=PUBLIC
 # Total: 21 IDs (todos confirmados PUBLIC no referencial)
 EXCLUDED_PUBLIC_IDS = [
-    # === Órgãos Federais ===
-    187966,  # PRF - Polícia Rodoviária Federal
-    240752,  # DNIT RO
-    # === IBAMA (4 contratos) ===
-    234456,  # IBAMA 1
-    234455,  # IBAMA 2
-    231048,  # IBAMA - ACADEBIO
-    231040,  # IBAMA - Sede
-    # === ICMBio (6 contratos) ===
-    234913,  # ICMBio - Fundo Compensação Ambiental
-    231037,  # ICMBio - Centros
-    231051,  # ICMBio - GR 1 Norte
-    231038,  # ICMBio - GR 2 Nordeste
-    231052,  # ICMBio - GR 3 Centro Oeste
-    231039,  # ICMBio - GR 4 Sudeste
-    231055,  # ICMBio - GR 5 Sul
-    # === Ministério da Justiça / SENAPPEN (7 contratos) ===
-    232129,  # MJ DF
-    233980,  # SENAPPEN - PFBRA
-    233985,  # SENAPPEN - PFCAT
-    235548,  # SENAPPEN - PFCG
-    235550,  # SENAPPEN - PFMOS
-    235552,  # SENAPPEN - PFPV
-    230011,  # SENAPPEN - Sede
-    # === Governos Estaduais ===
-    233898,  # GOV MG - Secretaria de Planejamento
-    # === Auto Gestão (fora do escopo TGM) ===
-    241857,  # LOCADORA VW/LM - AG (Auto Gestão — não é TGM, distorce métricas)
+    187966,  
+    240752,  
+    234456,  
+    234455,  
+    231048,  
+    231040,  
+    234913,  
+    231037,  
+    231051,  
+    231038,  
+    231052,  
+    231039,  
+    231055,  
+    232129,  
+    233980,  
+    233985,  
+    235548,  
+    235550,  
+    235552,  
+    230011,  
+    233898,  
+    241857,  
 ]
 
 # Lista final filtrada (22 excluídos → 327 clientes privados)

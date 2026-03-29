@@ -1,11 +1,11 @@
-# Deploy Script for Databricks Apps
+﻿# Deploy Script for Databricks Apps
 # Syncs local code to workspace and triggers deployment
 
 # CLI: tenta env var, depois PATH do sistema
 $CLI_PATH = if ($env:DATABRICKS_CLI_PATH) { $env:DATABRICKS_CLI_PATH } else { "databricks" }
-$DB_PROFILE = "adb-7941093640821140"
-$REMOTE_PATH = "/Workspace/Users/luiz.carvalho@edenred.com/painelri"
-$APP_NAME = "painelri"
+$DB_PROFILE = "adb-1775636082223619"
+$REMOTE_PATH = "/Workspace/Users/luiz.carvalho@edenred.com/painelderi"
+$APP_NAME = "painelderi"
 
 Write-Host "--- Syncing Source Code ---" -ForegroundColor Cyan
 & $CLI_PATH sync . $REMOTE_PATH --watch=false --profile $DB_PROFILE
@@ -16,7 +16,7 @@ if ($LASTEXITCODE -eq 0) {
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Deployment Process Started Successfully!" -ForegroundColor Green
-        Write-Host "Monitor at: https://painelri-7941093640821140.0.azure.databricksapps.com" -ForegroundColor Yellow
+        Write-Host "Monitor at: https://painelderi-7941093640821140.0.azure.databricksapps.com" -ForegroundColor Yellow
     }
     else {
         Write-Host "Deployment Trigger Failed!" -ForegroundColor Red

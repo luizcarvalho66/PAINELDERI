@@ -172,11 +172,11 @@ def check_new_data():
                     ON fi.Sk_MaintenanceServices = fs.Sk_MaintenanceServices
                 INNER JOIN hive_metastore.gold.dim_fuelcustomers fc
                     ON fs.Sk_FuelCustomer = fc.Sk_FuelCustomer
-                WHERE CAST(fi.TransactionTimestamp AS DATE) > '{local_max_date}'
+                WHERE CAST(fi.TransactionTimestamp AS DATE) > ?
                   AND CAST(fi.TransactionTimestamp AS DATE) >= date_add(current_date(), -150)
                   AND fc.CustomerSourceCode IN ({client_ids})
                 """
-                cursor2.execute(query_count)
+                cursor2.execute(query_count, [local_max_date])
                 row2 = cursor2.fetchone()
                 new_records_count = row2[0] if row2 and row2[0] else 0
                 cursor2.close()
