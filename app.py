@@ -121,12 +121,19 @@ app = dash.Dash(
     __name__,
     external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP], # Use clean Bootstrap
     meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-    suppress_callback_exceptions=True,
+    suppress_callback_exceptions=os.getenv("DASH_DEBUG", "False").lower() == "true",
     title="Painel RI Edenred",
     update_title=None  # Impede "Updating..." na aba do browser
 )
 
 server = app.server
+
+@server.after_request
+def add_security_headers(response):
+    response.headers['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;"
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    return response
 
 # Set Layout
 app.layout = get_layout()
@@ -173,7 +180,8 @@ def diagnostics():
     has_sso_header = request.headers.get('X-Databricks-User') or request.headers.get('X-Forwarded-Access-Token')
     is_localhost = request.remote_addr in ('127.0.0.1', '::1')
     
-    if not (is_databricks or has_sso_header or is_localhost):
+    # Se for Databricks App, exige o header de SSO para nao expor rota via URL direta
+    if not (is_localhost or (is_databricks and has_sso_header)):
         return json.dumps({"error": "Unauthorized"}), 403, {'Content-Type': 'application/json'}
     
     diag = {
